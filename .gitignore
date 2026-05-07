@@ -1,0 +1,17 @@
+# IDE
+.vs
+.vscode
+CLAUDE.md
+
+# external
+external/
+
+# build & test
+build/
+data/
+
+# tmp
+*.tmp
+*.dat
+*.raw
+*.log
