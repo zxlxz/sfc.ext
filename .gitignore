@@ -3,9 +3,6 @@
 .vscode
 CLAUDE.md
 
-# external
-external/
-
 # build & test
 build/
 data/
