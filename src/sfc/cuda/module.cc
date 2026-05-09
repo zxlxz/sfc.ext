@@ -1,41 +1,40 @@
 #include <cuda.h>
 
+#include "sfc/core.h"
 #include "sfc/cuda/module.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/error.h"
-
-#define CU_TRY(expr)       \
-  if (auto err = (expr)) { \
-    throw Error{err};      \
-  }
 
 namespace sfc::cuda {
 
 auto mod_load(const char* path) -> mod_t {
   auto mod = mod_t{nullptr};
-  CU_TRY(::cuModuleLoad(&mod, path));
+  if (auto e = ::cuModuleLoad(&mod, path)) {
+    panic::panic_fmt("cuModuleLoad failed, err={}", Error{e});
+  }
   return mod;
 }
 
 void mod_unload(mod_t mod) {
   if (mod == nullptr) return;
-  CU_TRY(::cuModuleUnload(mod));
+  if (auto e = ::cuModuleUnload(mod)) {
+    panic::panic_fmt("cuModuleUnload failed, err={}", Error{e});
+  }
 }
 
 auto mod_func(mod_t mod, const char* name) -> func_t {
   if (name == nullptr) return nullptr;
-  if (mod == nullptr) {
-    throw Error{CUDA_ERROR_INVALID_VALUE};
-  }
+  sfc::expect(mod != nullptr, "mod_func: mod is null");
+
   auto func = func_t{nullptr};
-  CU_TRY(::cuModuleGetFunction(&func, mod, name));
+  if (auto e = ::cuModuleGetFunction(&func, mod, name)) {
+    panic::panic_fmt("cuModuleGetFunction failed, err={}", Error{e});
+  }
   return func;
 }
 
 void func_launch(func_t f, void* args[]) {
-  if (f == nullptr) {
-    throw Error{CUDA_ERROR_INVALID_VALUE};
-  }
+  sfc::expect(f != nullptr, "func_launch: func is null");
 
   const auto stream = cuda::stream_get();
   const auto blks = cuda::get_blks();
@@ -51,7 +50,9 @@ void func_launch(func_t f, void* args[]) {
       .hStream = stream,
   };
 
-  CU_TRY(::cuLaunchKernelEx(&conf, f, args, nullptr));
+  if (auto e = ::cuLaunchKernelEx(&conf, f, args, nullptr)) {
+    panic::panic_fmt("cuLaunchKernelEx failed, err={}", Error{e});
+  }
 }
 
 Module::Module() noexcept {}

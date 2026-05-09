@@ -6,11 +6,6 @@
 
 namespace sfc::cuda {
 
-#define CU_TRY(expr)          \
-  if (auto err = (expr)) { \
-    throw Error{err};      \
-  }
-
 struct ExecConfig {
   dim3_t work_size = {1, 1, 1};
   dim3_t block_dim = {1, 1, 1};

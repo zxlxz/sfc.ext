@@ -1,6 +1,7 @@
 #include <cuda.h>
 #include <string.h>
 
+#include "sfc/core.h"
 #include "sfc/cuda/memory.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/device.h"
@@ -14,27 +15,22 @@
 namespace sfc::cuda {
 
 auto heap_alloc(usize size) -> void* {
-  if (size == 0) {
-    return nullptr;
-  }
-
+  if (size == 0) return nullptr;
   return ::malloc(size);
 }
 
 void heap_free(void* ptr) {
-  if (ptr == nullptr) {
-    return;
-  }
+  if (ptr == nullptr) return;
   ::free(ptr);
 }
 
 auto host_alloc(usize size) -> void* {
-  if (size == 0) {
-    return nullptr;
-  }
+  if (size == 0) return nullptr;
 
   void* ptr = nullptr;
-  CU_TRY(::cuMemAllocHost_v2(&ptr, size));
+  if (auto e = ::cuMemAllocHost_v2(&ptr, size)) {
+    panic::panic_fmt("cuMemAllocHost_v2 failed, err={}", Error{e});
+  }
   return ptr;
 }
 
@@ -43,7 +39,9 @@ void host_free(void* ptr) {
     return;
   }
 
-  CU_TRY(::cuMemFreeHost(ptr));
+  if (auto e = ::cuMemFreeHost(ptr)) {
+    panic::panic_fmt("cuMemFreeHost failed, err={}", Error{e});
+  }
 }
 
 auto device_alloc(usize size) -> void* {
@@ -52,7 +50,9 @@ auto device_alloc(usize size) -> void* {
   }
 
   CUdeviceptr dptr = 0;
-  CU_TRY(::cuMemAlloc_v2(&dptr, size));
+  if (auto e = ::cuMemAlloc_v2(&dptr, size)) {
+    panic::panic_fmt("cuMemAlloc_v2 failed, err={}", Error{e});
+  }
   return reinterpret_cast<void*>(dptr);
 }
 
@@ -62,7 +62,9 @@ void device_free(void* ptr) {
   }
 
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
-  CU_TRY(::cuMemFree_v2(dptr));
+  if (auto e = ::cuMemFree_v2(dptr)) {
+    panic::panic_fmt("cuMemFree_v2 failed, err={}", Error{e});
+  }
 }
 
 auto managed_alloc(usize size) -> void* {
@@ -71,7 +73,9 @@ auto managed_alloc(usize size) -> void* {
   }
 
   CUdeviceptr dptr = 0;
-  CU_TRY(::cuMemAllocManaged(&dptr, size, CU_MEM_ATTACH_GLOBAL));
+  if (auto e = ::cuMemAllocManaged(&dptr, size, CU_MEM_ATTACH_GLOBAL)) {
+    panic::panic_fmt("cuMemAllocManaged failed, err={}", Error{e});
+  }
 
   return reinterpret_cast<void*>(dptr);
 }
@@ -82,7 +86,9 @@ void managed_free(void* ptr) {
   }
 
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
-  CU_TRY(::cuMemFree_v2(dptr));
+  if (auto e = ::cuMemFree_v2(dptr)) {
+    panic::panic_fmt("cuMemFree_v2 failed, err={}", Error{e});
+  }
 }
 
 void prefetch_cpu(void* ptr, usize size) {
@@ -93,7 +99,9 @@ void prefetch_cpu(void* ptr, usize size) {
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
   const auto mloc = CUmemLocation{CU_MEM_LOCATION_TYPE_HOST, 0};
   const auto stream = cuda::stream_get();
-  CU_TRY(::cuMemPrefetchAsync_v2(dptr, size, mloc, 0, stream));
+  if (auto e = ::cuMemPrefetchAsync_v2(dptr, size, mloc, 0, stream)) {
+    panic::panic_fmt("cuMemPrefetchAsync_v2 failed, err={}", Error{e});
+  }
 }
 
 void prefetch_gpu(void* ptr, usize size) {
@@ -105,7 +113,9 @@ void prefetch_gpu(void* ptr, usize size) {
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
   const auto mloc = CUmemLocation{CU_MEM_LOCATION_TYPE_DEVICE, dev.id};
   const auto stream = cuda::stream_get();
-  CU_TRY(::cuMemPrefetchAsync_v2(dptr, size, mloc, 0, stream));
+  if (auto e = ::cuMemPrefetchAsync_v2(dptr, size, mloc, 0, stream)) {
+    panic::panic_fmt("cuMemPrefetchAsync_v2 failed, err={}", Error{e});
+  }
 }
 
 template <class T>
@@ -113,7 +123,9 @@ static auto get_ptr_attr(const void* ptr, CUpointer_attribute attr_kind) -> T {
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
 
   auto attr_val = T{};
-  CU_TRY(::cuPointerGetAttribute(&attr_val, attr_kind, dptr));
+  if (auto e = ::cuPointerGetAttribute(&attr_val, attr_kind, dptr)) {
+    panic::panic_fmt("cuPointerGetAttribute failed, err={}", Error{e});
+  }
   return attr_val;
 }
 
@@ -138,9 +150,13 @@ void copy_bytes(const void* src, void* dst, usize size) {
   const auto sptr = reinterpret_cast<CUdeviceptr>(src);
   const auto stream = cuda::stream_get();
   if (stream) {
-    CU_TRY(::cuMemcpyAsync(dptr, sptr, size, stream));
+    if (auto e = ::cuMemcpyAsync(dptr, sptr, size, stream)) {
+      panic::panic_fmt("cuMemcpyAsync failed, err={}", Error{e});
+    }
   } else {
-    CU_TRY(::cuMemcpy(dptr, sptr, size));
+    if (auto e = ::cuMemcpy(dptr, sptr, size)) {
+      panic::panic_fmt("cuMemcpy failed, err={}", Error{e});
+    }
   }
 }
 
@@ -169,9 +185,13 @@ static void gpu_memset(const void* ptr, u8 byte, usize size) {
     const auto cnt = size / 4;
     const auto s32 = static_cast<u32>(byte * 0x01010101);
     if (stream) {
-      CU_TRY(::cuMemsetD32Async(dptr, s32, cnt, stream));
+      if (auto e = ::cuMemsetD32Async(dptr, s32, cnt, stream)) {
+        panic::panic_fmt("cuMemsetD32Async failed, err={}", Error{e});
+      }
     } else {
-      CU_TRY(::cuMemsetD32_v2(dptr, s32, cnt));
+      if (auto e = ::cuMemsetD32_v2(dptr, s32, cnt)) {
+        panic::panic_fmt("cuMemsetD32_v2 failed, err={}", Error{e});
+      }
     }
   }
 
@@ -179,28 +199,32 @@ static void gpu_memset(const void* ptr, u8 byte, usize size) {
     const auto cnt = size / 2;
     const auto s16 = static_cast<u16>(byte * 0x0101);
     if (stream) {
-      CU_TRY(::cuMemsetD16Async(dptr, s16, cnt, stream));
+      if (auto e = ::cuMemsetD16Async(dptr, s16, cnt, stream)) {
+        panic::panic_fmt("cuMemsetD16Async failed, err={}", Error{e});
+      }
     } else {
-      CU_TRY(::cuMemsetD16_v2(dptr, s16, cnt));
+      if (auto e = ::cuMemsetD16_v2(dptr, s16, cnt)) {
+        panic::panic_fmt("cuMemsetD16_v2 failed, err={}", Error{e});
+      }
     }
   }
 
   const auto cnt = size;
   const auto s8 = static_cast<u8>(byte);
   if (stream) {
-    CU_TRY(::cuMemsetD8Async(dptr, s8, cnt, stream));  // async
+    if (auto e = ::cuMemsetD8Async(dptr, s8, cnt, stream)) {
+      panic::panic_fmt("cuMemsetD8Async failed, err={}", Error{e});
+    }
   } else {
-    CU_TRY(::cuMemsetD8_v2(dptr, s8, cnt));  // default
+    if (auto e = ::cuMemsetD8_v2(dptr, s8, cnt)) {
+      panic::panic_fmt("cuMemsetD8_v2 failed, err={}", Error{e});
+    }
   }
 }
 
 void fill_bytes(void* ptr, u8 val, usize cnt) {
-  if (cnt == 0) {
-    return;
-  }
-  if (ptr == nullptr) {
-    throw Error{CUDA_ERROR_INVALID_VALUE};
-  }
+  if (cnt == 0) return;
+  sfc::expect(ptr != nullptr, "fill_bytes: ptr is null");
 
   const auto mem_type = cuda::get_mem_type(ptr);
   switch (mem_type) {

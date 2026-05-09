@@ -1,29 +1,32 @@
 #include <cuda.h>
 
+#include "sfc/core.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/error.h"
 
-#define CU_TRY(expr)       \
-  if (auto err = (expr)) { \
-    throw Error{err};      \
-  }
 
 namespace sfc::cuda {
 
 auto stream_new(unsigned int flags) -> stream_t {
   auto stream = stream_t{nullptr};
-  CU_TRY(::cuStreamCreate(&stream, flags));
+  if (auto e = ::cuStreamCreate(&stream, flags)) {
+    panic::panic_fmt("cuStreamCreate failed, err={}", Error{e});
+  }
   return stream;
 }
 
 void stream_del(stream_t s) {
   if (s == nullptr) return;
-  CU_TRY(::cuStreamDestroy_v2(s));
+  if (auto e = ::cuStreamDestroy_v2(s)) {
+    panic::panic_fmt("cuStreamDestroy_v2 failed, err={}", Error{e});
+  }
 }
 
 void stream_sync(stream_t s) {
   if (s == nullptr) return;
-  CU_TRY(::cuStreamSynchronize(s));
+  if (auto e = ::cuStreamSynchronize(s)) {
+    panic::panic_fmt("cuStreamSynchronize failed, err={}", Error{e});
+  }
 }
 
 static thread_local stream_t _tls_stream = nullptr;
