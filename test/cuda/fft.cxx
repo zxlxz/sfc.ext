@@ -2,7 +2,7 @@
 #include "sfc/time.h"
 #include "sfc/io.h"
 #include "sfc/cuda.h"
-#include "sfc/math/ndarray.h"
+#include "sfc/math.h"
 
 namespace sfc::cuda::test {
 

@@ -35,9 +35,7 @@ auto host_alloc(usize size) -> void* {
 }
 
 void host_free(void* ptr) {
-  if (ptr == nullptr) {
-    return;
-  }
+  if (ptr == nullptr) return;
 
   if (auto e = ::cuMemFreeHost(ptr)) {
     panic::panic_fmt("cuMemFreeHost failed, err={}", Error{e});
@@ -45,9 +43,7 @@ void host_free(void* ptr) {
 }
 
 auto device_alloc(usize size) -> void* {
-  if (size == 0) {
-    return nullptr;
-  }
+  if (size == 0) return nullptr;
 
   CUdeviceptr dptr = 0;
   if (auto e = ::cuMemAlloc_v2(&dptr, size)) {
@@ -57,9 +53,7 @@ auto device_alloc(usize size) -> void* {
 }
 
 void device_free(void* ptr) {
-  if (ptr == nullptr) {
-    return;
-  }
+  if (ptr == nullptr) return;
 
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
   if (auto e = ::cuMemFree_v2(dptr)) {
@@ -68,9 +62,7 @@ void device_free(void* ptr) {
 }
 
 auto managed_alloc(usize size) -> void* {
-  if (size == 0) {
-    return nullptr;
-  }
+  if (size == 0) return nullptr;
 
   CUdeviceptr dptr = 0;
   if (auto e = ::cuMemAllocManaged(&dptr, size, CU_MEM_ATTACH_GLOBAL)) {
@@ -81,9 +73,7 @@ auto managed_alloc(usize size) -> void* {
 }
 
 void managed_free(void* ptr) {
-  if (ptr == nullptr) {
-    return;
-  }
+  if (ptr == nullptr) return;
 
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
   if (auto e = ::cuMemFree_v2(dptr)) {
@@ -92,9 +82,7 @@ void managed_free(void* ptr) {
 }
 
 void prefetch_cpu(void* ptr, usize size) {
-  if (ptr == nullptr || size == 0) {
-    return;
-  }
+  if (ptr == nullptr || size == 0) return;
 
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
   const auto mloc = CUmemLocation{CU_MEM_LOCATION_TYPE_HOST, 0};
@@ -105,9 +93,7 @@ void prefetch_cpu(void* ptr, usize size) {
 }
 
 void prefetch_gpu(void* ptr, usize size) {
-  if (ptr == nullptr || size == 0) {
-    return;
-  }
+  if (ptr == nullptr || size == 0) return;
 
   const auto dev = Device::current();
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
@@ -130,21 +116,17 @@ static auto get_ptr_attr(const void* ptr, CUpointer_attribute attr_kind) -> T {
 }
 
 auto get_mem_type(const void* ptr) -> CUmemorytype {
-  if (ptr == nullptr) {
-    return CU_MEMORYTYPE_HOST;  // Host
-  }
+  if (ptr == nullptr) return CU_MEMORYTYPE_HOST;  // Host
 
   const auto res = cuda::get_ptr_attr<CUmemorytype>(ptr, CU_POINTER_ATTRIBUTE_MEMORY_TYPE);
   return res;
 }
 
 void copy_bytes(const void* src, void* dst, usize size) {
-  if (size == 0) {
-    return;
-  }
-  if (dst == nullptr || src == nullptr) {
-    throw Error{CUDA_ERROR_INVALID_VALUE};
-  }
+  if (size == 0) return;
+
+  sfc::expect(src != nullptr, "src is null");
+  sfc::expect(dst != nullptr, "dst is null");
 
   const auto dptr = reinterpret_cast<CUdeviceptr>(dst);
   const auto sptr = reinterpret_cast<CUdeviceptr>(src);
@@ -161,22 +143,15 @@ void copy_bytes(const void* src, void* dst, usize size) {
 }
 
 static void cpu_memset(const void* ptr, u8 val, usize size) {
-  if (size == 0) {
-    return;
-  }
-  if (ptr == nullptr) {
-    throw Error{CUDA_ERROR_INVALID_VALUE};
-  }
+  if (size == 0) return;
+
+  sfc::expect(ptr != nullptr, "ptr is null");
   ::memset(const_cast<void*>(ptr), val, size);
 }
 
 static void gpu_memset(const void* ptr, u8 byte, usize size) {
-  if (size == 0) {
-    return;
-  }
-  if (ptr == nullptr) {
-    throw Error{CUDA_ERROR_INVALID_VALUE};
-  }
+  if (size == 0) return;
+  sfc::expect(ptr != nullptr, "ptr is null");
 
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
   const auto stream = cuda::stream_get();
@@ -224,7 +199,7 @@ static void gpu_memset(const void* ptr, u8 byte, usize size) {
 
 void fill_bytes(void* ptr, u8 val, usize cnt) {
   if (cnt == 0) return;
-  sfc::expect(ptr != nullptr, "fill_bytes: ptr is null");
+  sfc::expect(ptr != nullptr, "ptr is null");
 
   const auto mem_type = cuda::get_mem_type(ptr);
   switch (mem_type) {
@@ -244,9 +219,7 @@ void fill_bytes(void* ptr, u8 val, usize cnt) {
 }
 
 auto Alloc::alloc(usize size) -> void* {
-  if (size == 0) {
-    return nullptr;
-  }
+  if (size == 0) return nullptr;
 
   switch (type) {
     default:
@@ -258,9 +231,7 @@ auto Alloc::alloc(usize size) -> void* {
 }
 
 void Alloc::dealloc(void* ptr) {
-  if (ptr == nullptr) {
-    return;
-  }
+  if (ptr == nullptr) return;
 
   switch (type) {
     default:

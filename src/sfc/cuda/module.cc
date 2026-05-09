@@ -17,6 +17,7 @@ auto mod_load(const char* path) -> mod_t {
 
 void mod_unload(mod_t mod) {
   if (mod == nullptr) return;
+
   if (auto e = ::cuModuleUnload(mod)) {
     panic::panic_fmt("cuModuleUnload failed, err={}", Error{e});
   }
@@ -24,6 +25,7 @@ void mod_unload(mod_t mod) {
 
 auto mod_func(mod_t mod, const char* name) -> func_t {
   if (name == nullptr) return nullptr;
+
   sfc::expect(mod != nullptr, "mod_func: mod is null");
 
   auto func = func_t{nullptr};

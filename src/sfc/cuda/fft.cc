@@ -42,7 +42,7 @@ struct CuFFTError {
   }
 };
 
-  void fft_drop(fft_plan_t plan) {
+void fft_drop(fft_plan_t plan) {
   if (plan == CUFFT_PLAN_NULL) {
     return;
   }
@@ -85,6 +85,14 @@ auto fft_plan_c2r(u32 nx, u32 batch) -> fft_plan_t {
   return plan;
 }
 
+auto fft_worksize(fft_plan_t plan) -> usize {
+  auto size = 0UZ;
+  if (auto err = ::cufftGetSize(plan, &size)) {
+    panic::panic_fmt("cufftGetSize failed, err={}", CuFFTError{err});
+  }
+  return size;
+}
+
 void fft_exec_c2c(fft_plan_t plan, const c32* in, c32* out, int direction) {
   const auto fft_in = reinterpret_cast<cufftComplex*>(const_cast<c32*>(in));
   const auto fft_out = reinterpret_cast<cufftComplex*>(out);
@@ -108,65 +116,6 @@ void fft_exec_c2r(fft_plan_t plan, const c32* in, f32* out) {
   if (auto err = ::cufftExecC2R(plan, fft_in, fft_out)) {
     panic::panic_fmt("cufftExecC2R failed, err={}", CuFFTError{err});
   }
-}
-
-template <class I, class O>
-FFT<I, O>::FFT() : _plan{-1} {}
-
-template <class I, class O>
-FFT<I, O>::~FFT() {
-  if (_plan == -1) return;
-  cuda::fft_drop(_plan);
-}
-
-template <class I, class O>
-FFT<I, O>::FFT(FFT&& other) noexcept : _plan{other._plan} {
-  other._plan = -1;
-}
-
-template <class I, class O>
-FFT<I, O>& FFT<I, O>::operator=(FFT&& other) noexcept {
-  if (this == &other) return *this;
-  cuda::fft_drop(_plan);
-  _plan = other._plan;
-  other._plan = -1;
-  return *this;
-}
-
-template <>
-auto FFT<c32, c32>::create(u32 nx, u32 batch) -> FFT {
-  auto res = FFT{};
-  res._plan = cuda::fft_plan_c2c(nx, batch);
-  return res;
-}
-
-template <>
-auto FFT<f32, c32>::create(u32 nx, u32 batch) -> FFT {
-  auto res = FFT{};
-  res._plan = cuda::fft_plan_r2c(nx, batch);
-  return res;
-}
-
-template <>
-auto FFT<c32, f32>::create(u32 nx, u32 batch) -> FFT {
-  auto res = FFT{};
-  res._plan = cuda::fft_plan_c2r(nx, batch);
-  return res;
-}
-
-template <>
-void FFT<c32, c32>::operator()(NdSlice<c32, 2> in, NdSlice<c32, 2> out, int dir) {
-  cuda::fft_exec_c2c(_plan, in._data, out._data, dir);
-}
-
-template <>
-void FFT<f32, c32>::operator()(NdSlice<f32, 2> in, NdSlice<c32, 2> out, int dir) {
-  cuda::fft_exec_r2c(_plan, in._data, out._data);
-}
-
-template <>
-void FFT<c32, f32>::operator()(NdSlice<c32, 2> in, NdSlice<f32, 2> out, int dir) {
-  cuda::fft_exec_c2r(_plan, in._data, out._data);
 }
 
 }  // namespace sfc::cuda

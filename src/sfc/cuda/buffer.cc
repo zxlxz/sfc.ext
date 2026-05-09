@@ -108,6 +108,11 @@ void buffer_set(buf_t arr, const void* src) {
   }
 }
 
+template <class T>
+auto BufFmt::of() -> BufFmt {
+  return {Unknown, sizeof(T)};
+}
+
 #define IMPL_BUF_FMT(T, Kind)       \
   template <>                       \
   auto BufFmt::of<T>() -> BufFmt {  \

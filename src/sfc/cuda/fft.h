@@ -1,14 +1,14 @@
 #pragma once
 
 #include "sfc/cuda/mod.h"
-#include "sfc/math/complex.h"
-#include "sfc/math/ndslice.h"
+
+namespace sfc::math {
+struct c32;
+}
 
 namespace sfc::cuda {
 
 using fft_plan_t = int;
-
-using math::f32;
 using math::c32;
 
 auto fft_plan_c2c(u32 nx, u32 batch) -> fft_plan_t;
@@ -17,23 +17,23 @@ auto fft_plan_c2r(u32 nx, u32 batch) -> fft_plan_t;
 
 void fft_drop(fft_plan_t plan);
 
+/// execute C2C FFT
+/// @param plan create by fft_plan_c2c
+/// @param in c32[n]
+/// @param out c32[n]
+/// @param direction -1 for forward, 1 for inverse
 void fft_exec_c2c(fft_plan_t plan, const c32* in, c32* out, int direction);
+
+/// execute R2C FFT (forward only)
+/// @param plan create by fft_plan_r2c
+/// @param in f32[n]
+/// @param out c32[n/2+1]
 void fft_exec_r2c(fft_plan_t plan, const f32* in, c32* out);
+
+/// execute C2R FFT (inverse only)
+/// @param plan create by fft_plan_c2r
+/// @param in c32[n/2+1]
+/// @param out f32[n]
 void fft_exec_c2r(fft_plan_t plan, const c32* in, f32* out);
-
-template <class I = c32, class O = c32>
-struct FFT {
-  fft_plan_t _plan = -1;
-
- public:
-  FFT();
-  ~FFT();
-  FFT(FFT&& other) noexcept;
-  FFT& operator=(FFT&& other) noexcept;
-
- public:
-  static auto create(u32 nx, u32 batch) -> FFT;
-  void operator()(NdSlice<I, 2> in, NdSlice<O, 2> out, int dir = -1);
-};
 
 }  // namespace sfc::cuda
