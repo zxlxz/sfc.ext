@@ -10,10 +10,11 @@ struct c32 {
 
  public:
   void fmt(auto& f) const {
-    auto spec = f._spec;
-    spec._sign = '+';
-    f.write_arg(spec, real);
-    f.write_arg(spec, imag);
+    const auto old_sign = f._spec._sign;
+    f.write_val(real);
+    f._spec._sign = '+';  // force '+' sign for non-negative imag part
+    f.write_val(imag);
+    f._spec._sign = old_sign;  // restore original sign specifier
     f.write_str("i");
   }
 };

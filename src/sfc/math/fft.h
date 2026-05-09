@@ -5,10 +5,10 @@
 
 namespace sfc::math {
 
-auto fft(NdSlice<c32, 1> x, NdSlice<c32, 1> y)-> bool;
-auto ifft(NdSlice<c32, 1> x, NdSlice<c32, 1> y)-> bool;
+void fft(NdSlice<c32, 1> x, NdSlice<c32, 1> y);
+void ifft(NdSlice<c32, 1> x, NdSlice<c32, 1> y);
 
-auto fft_batch(NdSlice<c32, 2> x, NdSlice<c32, 2> y)-> bool;
-auto ifft_batch(NdSlice<c32, 2> x, NdSlice<c32, 2> y)-> bool;
+void fft_batch(NdSlice<c32, 2> x, NdSlice<c32, 2> y);
+void ifft_batch(NdSlice<c32, 2> x, NdSlice<c32, 2> y);
 
 }  // namespace sfc::math

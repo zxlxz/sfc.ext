@@ -273,7 +273,3 @@ struct NdSlice<T, 4> {
 };
 
 }  // namespace sfc::math
-
-namespace sfc {
-using math::NdSlice;
-}

@@ -22,7 +22,7 @@ auto ndstep(vec<u32, N> dims) -> vec<u32, N> {
 }
 
 template <class T, int N = 1>
-class NdArray {
+class [[nodiscard]] NdArray {
   static constexpr auto NDIM = N;
   using Buf = math::RawBuf<T>;
   using Inn = math::NdSlice<T, NDIM>;
@@ -39,7 +39,8 @@ class NdArray {
   ~NdArray() {}
 
   NdArray(NdArray&& other) noexcept
-      : _inn{static_cast<Inn&&>(other._inn)}, _buf{static_cast<Buf&&>(other._buf)} {}
+      : _inn{static_cast<Inn&&>(other._inn)}
+      , _buf{static_cast<Buf&&>(other._buf)} {}
 
   NdArray& operator=(NdArray&& other) noexcept {
     if (this == &other) return *this;
@@ -104,10 +105,12 @@ class NdArray {
   void copy_from(const NdArray& src) {
     _buf.copy_from(src._buf);
   }
+
+  auto clone(cuda::MemType mem_type) const -> NdArray {
+    auto tmp = NdArray::with_shape(this->shape(), mem_type);
+    tmp.copy_from(*this);
+    return tmp;
+  }
 };
 
 }  // namespace sfc::math
-
-namespace sfc {
-using math::NdArray;
-}

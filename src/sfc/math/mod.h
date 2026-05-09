@@ -2,18 +2,15 @@
 
 #if !defined(__clang__) && !defined(__GNUC__)
 #include <math.h>
+#define __builtin_cosf   ::cosf
+#define __builtin_sinf   ::sinf
+#define __builtin_sqrtf  ::sqrtf
 #endif
 
 #ifdef __CUDACC__
 #define _hd __host__ __device__
 #else
 #define _hd
-#endif
-
-#if !defined(__clang__) && !defined(__GNUC__)
-#define __builtin_cosf  ::cosf
-#define __builtin_sinf  ::sinf
-#define __builtin_sqrtf ::sqrtf
 #endif
 
 namespace sfc::math {

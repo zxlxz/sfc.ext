@@ -6,7 +6,10 @@
 namespace sfc::math {
 template <class T, int N>
 struct vec;
-}
+
+template <class T, int N>
+struct NdSlice;
+}  // namespace sfc::math
 
 namespace sfc::cuda {
 
@@ -46,8 +49,7 @@ class Texture {
     other._tex = {};
   }
 
-  static auto with_shape(math::vec<u32, N> dims,
-                         TexFilt filt_mode = TexFilt::Point,
+  static auto with_shape(math::vec<u32, N> dims, TexFilt filt_mode = TexFilt::Point,
                          TexAddr addr_mode = TexAddr::Clamp) -> Texture {
     auto res = Texture{};
     res._buf = Buf::with_shape(BufExt::from(dims));
@@ -55,8 +57,8 @@ class Texture {
     return res;
   }
 
-  void set_data(const auto& src) {
-    _buf.set_data(src);
+  void set_data(const math::NdSlice<T, N>& src) {
+    _buf.set_data(src._data);
   }
 
   operator Inn() const {
@@ -83,8 +85,7 @@ class LTexture {
     other._tex = {};
   }
 
-  static auto with_shape(math::vec<u32, N> dims,
-                         TexFilt filt_mode = TexFilt::Point,
+  static auto with_shape(math::vec<u32, N> dims, TexFilt filt_mode = TexFilt::Point,
                          TexAddr addr_mode = TexAddr::Clamp) -> LTexture {
     auto res = LTexture{};
     res._buf = Buf::with_shape(BufExt::from(dims));
@@ -92,8 +93,8 @@ class LTexture {
     return res;
   }
 
-  void set_data(const auto& src) {
-    _buf.set_data(src);
+  void set_data(const math::NdSlice<T, N>& src) {
+    _buf.set_data(src._data);
   }
 
   operator Tex() const {
