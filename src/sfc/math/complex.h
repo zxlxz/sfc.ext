@@ -6,9 +6,13 @@ namespace sfc::math {
 
 struct c32 {
   f32 real;
-  f32 imag = 0.0;
+  f32 imag;
 
  public:
+  _hd auto operator~() const {
+    return c32{real, -imag};
+  }
+
   void fmt(auto& f) const {
     const auto old_sign = f._spec._sign;
     f.write_val(real);
@@ -18,6 +22,10 @@ struct c32 {
     f.write_str("i");
   }
 };
+
+_hd inline auto conj(c32 c) -> c32 {
+  return c32{c.real, -c.imag};
+}
 
 _hd inline auto operator+(c32 a, c32 b) -> c32 {
   return c32{a.real + b.real, a.imag + b.imag};

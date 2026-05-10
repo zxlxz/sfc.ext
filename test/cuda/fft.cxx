@@ -6,6 +6,8 @@
 
 namespace sfc::cuda::test {
 
+using math::NdArray;
+
 SFC_TEST(fft_c2c_perf) {
   cuda::device_set(0);
 

@@ -85,14 +85,6 @@ auto fft_plan_c2r(u32 nx, u32 batch) -> fft_plan_t {
   return plan;
 }
 
-auto fft_worksize(fft_plan_t plan) -> usize {
-  auto size = 0UZ;
-  if (auto err = ::cufftGetSize(plan, &size)) {
-    panic::panic_fmt("cufftGetSize failed, err={}", CuFFTError{err});
-  }
-  return size;
-}
-
 void fft_exec_c2c(fft_plan_t plan, const c32* in, c32* out, int direction) {
   const auto fft_in = reinterpret_cast<cufftComplex*>(const_cast<c32*>(in));
   const auto fft_out = reinterpret_cast<cufftComplex*>(out);

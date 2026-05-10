@@ -183,25 +183,25 @@ static void fft_blk(u32 N, c32 H[], f32 SIGN) {
 static void fft_direct(u32 N, const c32 X[], c32 Y[], f32 SIGN) {
   for (u32 k = 0; k < N; ++k) {
     Y[k] = c32{0, 0};
+
+    const auto a = SIGN * (2 * PI) * k / N;
+    const auto t = c32{__builtin_cosf(a), __builtin_sinf(a)};
+    auto w = c32{1, 0};
     for (u32 n = 0; n < N; ++n) {
-      const auto a = SIGN * (2 * PI) * k * n / N;
-      const auto w = c32{__builtin_cosf(a), __builtin_sinf(a)};
       Y[k] = Y[k] + X[n] * w;
+      w = w * t;
     }
   }
 }
 
-static void fft_inplace(u32 N, c32 H[], f32 SIGN) {
+static auto fft_inplace(u32 N, c32 H[], f32 SIGN) -> bool {
   if (N <= 8) {
     detail::fft_blk(N, H, SIGN);
-    return;
+    return true;
   }
 
-  if (N % 2 != 0) {
-    auto Y = (c32*)__builtin_alloca(sizeof(c32) * N);
-    detail::fft_direct(N, H, Y, SIGN);
-    __builtin_memcpy(H, Y, sizeof(c32) * N);
-    return;
+  if ((N & (N - 1)) != 0) {
+    return false;
   }
 
   // 1. reverse bits in-place
@@ -235,6 +235,8 @@ static void fft_inplace(u32 N, c32 H[], f32 SIGN) {
       }
     }
   }
+
+  return true;
 }
 
 static void fft_outplace(u32 N, const c32 X[], c32 Y[], f32 SIGN, u32 KX) {
@@ -275,10 +277,15 @@ static void fft_c2c(const c32 X[], c32 Y[], u32 N, int DIR) {
   if (N == 0) return;
 
   if (X == Y) {
-    detail::fft_inplace(N, Y, DIR);
-  } else {
-    detail::fft_outplace(N, X, Y, DIR, 1);
+    if (detail::fft_inplace(N, Y, DIR)) {
+      return;
+    }
+    auto Z = reinterpret_cast<c32*>(__builtin_alloca(sizeof(c32) * N));
+    detail::fft_outplace(N, X, Z, DIR, 1);
+    __builtin_memcpy(Y, Z, sizeof(c32) * N);
   }
+
+  detail::fft_outplace(N, X, Y, DIR, 1);
 }
 
 }  // namespace sfc::math::detail
