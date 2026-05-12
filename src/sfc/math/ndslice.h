@@ -10,9 +10,9 @@ struct NdSlice;
 template <class T>
 struct NdSlice<T, 1> {
   static constexpr auto NDIM = 1U;
-  using dims_t = vec1u;
-  using step_t = vec1u;
-  using idxs_t = vec1u;
+  using dims_t = math::vec<u32, 1>;
+  using step_t = math::vec<u32, 1>;
+  using idxs_t = math::vec<u32, 1>;
 
   T* _data;
   dims_t _dims;
@@ -86,10 +86,9 @@ struct NdSlice<T, 1> {
   }
 
   void fmt(auto& f) const {
-    const auto spec = f._spec;
     for (auto i = 0U; i < _dims.x; ++i) {
       if (i > 0) f.write_str(", ");
-      f.write_arg(spec, _data[i]);
+      f.write_val(_data[i]);
     }
   }
 };

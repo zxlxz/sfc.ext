@@ -9,19 +9,24 @@ struct c32 {
   f32 imag;
 
  public:
-  _hd auto operator~() const {
+  _hd auto operator~() const -> c32 {
     return c32{real, -imag};
   }
 
   void fmt(auto& f) const {
-    const auto old_sign = f._spec._sign;
     f.write_val(real);
-    f._spec._sign = '+';  // force '+' sign for non-negative imag part
-    f.write_val(imag);
-    f._spec._sign = old_sign;  // restore original sign specifier
-    f.write_str("i");
+    auto spec = f._spec;
+    spec._sign = '+';
+    f.write_arg(spec, imag);
+    f.write_str("j");
   }
 };
+
+_hd inline auto expj(f32 theta) -> c32 {
+  const auto c = __builtin_cosf(theta);
+  const auto s = __builtin_sinf(theta);
+  return c32{c, s};
+}
 
 _hd inline auto conj(c32 c) -> c32 {
   return c32{c.real, -c.imag};

@@ -153,13 +153,13 @@ struct Rot {
   }
 
   _hd auto operator-() const -> Rot {
-    return {cos, -sin};
+    return Rot{cos, -sin};
   }
 
   _hd auto operator()(vec2f v) const -> vec2f {
     const auto x = cos * v.x - sin * v.y;
     const auto y = sin * v.x + cos * v.y;
-    return {x, y};
+    return vec2f{x, y};
   }
 };
 
