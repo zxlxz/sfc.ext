@@ -1,10 +1,7 @@
 #pragma once
 
 #include "sfc/cuda/mod.h"
-
-namespace sfc::math {
-struct c32;
-}
+#include "sfc/math/complex.h"
 
 namespace sfc::cuda {
 

@@ -1,17 +1,32 @@
 #include <cuda.h>
 
+#include "sfc/core/panic.h"
+#include "sfc/math/vec.h"
 #include "sfc/cuda/buffer.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/error.h"
 
+
 namespace sfc::cuda {
 
-#define CU_TRY(expr)       \
-  if (auto err = (expr)) { \
-    throw Error{err};      \
-  }
+using array_fmt_t = CUarray_format;
 
-static auto array_fmt_cast(BufFmt fmt) -> CUarray_format {
+template <>
+auto BufExt::from(const math::vec<u32, 1>& dims) -> BufExt {
+  return {dims.x, 0, 0};
+}
+
+template <>
+auto BufExt::from(const math::vec<u32, 2>& dims) -> BufExt {
+  return {dims.x, dims.y, 0};
+}
+
+template <>
+auto BufExt::from(const math::vec<u32, 3>& dims) -> BufExt {
+  return {dims.x, dims.y, dims.z};
+}
+
+static auto array_fmt_cast(BufFmt fmt) -> array_fmt_t {
   switch (fmt.kind) {
     case BufFmt::UInt:
       if (fmt.size == 1) return CU_AD_FORMAT_UNSIGNED_INT8;
@@ -32,7 +47,7 @@ static auto array_fmt_cast(BufFmt fmt) -> CUarray_format {
   return CU_AD_FORMAT_MAX;
 }
 
-static auto array_fmt_size(CUarray_format fmt) -> unsigned {
+static auto array_fmt_size(array_fmt_t fmt) -> unsigned {
   switch (fmt) {
     case CU_AD_FORMAT_UNSIGNED_INT8:  return 1;
     case CU_AD_FORMAT_UNSIGNED_INT16: return 2;
@@ -61,13 +76,17 @@ auto buffer_new(BufFmt fmt, BufExt ext, bool is_layered) -> buf_t {
   };
 
   auto res = buf_t{nullptr};
-  CU_TRY(::cuArray3DCreate_v2(&res, &desc));
+  if (auto err = ::cuArray3DCreate_v2(&res, &desc)) {
+    panic::panic_fmt("cuArray3DCreate failed, err={}", Error{err});
+  }
   return res;
 }
 
 void buffer_del(buf_t arr) {
   if (arr == nullptr) return;
-  CU_TRY(::cuArrayDestroy(arr));
+  if (auto err = ::cuArrayDestroy(arr)) {
+    panic::panic_fmt("cuArrayDestroy failed, err={}", Error{err});
+  }
 }
 
 void buffer_set(buf_t arr, const void* src) {
@@ -76,7 +95,9 @@ void buffer_set(buf_t arr, const void* src) {
   }
 
   auto desc = CUDA_ARRAY3D_DESCRIPTOR_st{};
-  CU_TRY(::cuArray3DGetDescriptor_v2(&desc, arr));
+  if (auto err = ::cuArray3DGetDescriptor_v2(&desc, arr)) {
+    panic::panic_fmt("cuArray3DGetDescriptor failed, err={}", Error{err});
+  }
 
   const auto fmt_size = cuda::array_fmt_size(desc.Format);  // in bytes
 
@@ -102,9 +123,13 @@ void buffer_set(buf_t arr, const void* src) {
 
   const auto stream = cuda::stream_get();
   if (stream) {
-    CU_TRY(::cuMemcpy3DAsync_v2(&copy_params, stream));
+    if (auto err = ::cuMemcpy3DAsync_v2(&copy_params, stream)) {
+      panic::panic_fmt("cuMemcpy3DAsync failed, err={}", Error{err});
+    }
   } else {
-    CU_TRY(::cuMemcpy3D_v2(&copy_params));
+    if (auto err = ::cuMemcpy3D_v2(&copy_params)) {
+      panic::panic_fmt("cuMemcpy3D failed, err={}", Error{err});
+    }
   }
 }
 

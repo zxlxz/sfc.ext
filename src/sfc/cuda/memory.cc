@@ -15,8 +15,15 @@
 namespace sfc::cuda {
 
 auto heap_alloc(usize size) -> void* {
+  static constexpr auto SIMD_ALIGN = 256UZ;
+  static constexpr auto SIMD_MASK = SIMD_ALIGN - 1;
+
   if (size == 0) return nullptr;
-  return ::malloc(size);
+
+  const auto aligned_size = (size + SIMD_MASK) & ~SIMD_MASK;
+  auto ptr = ::aligned_alloc(SIMD_ALIGN, aligned_size);
+  panic::expect(ptr != nullptr, "heap_alloc failed for size={}", size);
+  return ptr;
 }
 
 void heap_free(void* ptr) {

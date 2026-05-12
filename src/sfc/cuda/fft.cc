@@ -8,7 +8,7 @@
 
 namespace sfc::cuda {
 
-struct CuFFTError {
+struct FFTError {
   cufftResult _code;
 
  public:
@@ -48,7 +48,7 @@ void fft_drop(fft_plan_t plan) {
   }
 
   if (auto err = ::cufftDestroy(plan)) {
-    panic::panic_fmt("cufftDestroy failed: {}", CuFFTError{err});
+    panic::panic_fmt("cufftDestroy failed: {}", FFTError{err});
   }
 }
 
@@ -58,7 +58,7 @@ auto fft_plan_c2c(u32 nx, u32 batch) -> fft_plan_t {
 
   auto plan = CUFFT_PLAN_NULL;
   if (auto err = ::cufftPlan1d(&plan, fft_nx, CUFFT_C2C, fft_batch)) {
-    panic::panic_fmt("cufftPlan1d failed, err={}", CuFFTError{err});
+    panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
   }
   return plan;
 }
@@ -69,7 +69,7 @@ auto fft_plan_r2c(u32 nx, u32 batch) -> fft_plan_t {
 
   auto plan = CUFFT_PLAN_NULL;
   if (auto err = ::cufftPlan1d(&plan, fft_nx, CUFFT_R2C, fft_batch)) {
-    panic::panic_fmt("cufftPlan1d failed, err={}", CuFFTError{err});
+    panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
   }
   return plan;
 }
@@ -80,7 +80,7 @@ auto fft_plan_c2r(u32 nx, u32 batch) -> fft_plan_t {
 
   auto plan = CUFFT_PLAN_NULL;
   if (auto err = ::cufftPlan1d(&plan, fft_nx, CUFFT_C2R, fft_batch)) {
-    panic::panic_fmt("cufftPlan1d failed, err={}", CuFFTError{err});
+    panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
   }
   return plan;
 }
@@ -90,7 +90,7 @@ void fft_exec_c2c(fft_plan_t plan, const c32* in, c32* out, int direction) {
   const auto fft_out = reinterpret_cast<cufftComplex*>(out);
 
   if (auto err = ::cufftExecC2C(plan, fft_in, fft_out, direction)) {
-    panic::panic_fmt("cufftExecC2C failed, err={}", CuFFTError{err});
+    panic::panic_fmt("cufftExecC2C failed, err={}", FFTError{err});
   }
 }
 
@@ -98,7 +98,7 @@ void fft_exec_r2c(fft_plan_t plan, const f32* in, c32* out) {
   const auto fft_in = reinterpret_cast<cufftReal*>(const_cast<f32*>(in));
   const auto fft_out = reinterpret_cast<cufftComplex*>(out);
   if (auto err = ::cufftExecR2C(plan, fft_in, fft_out)) {
-    panic::panic_fmt("cufftExecR2C failed, err={}", CuFFTError{err});
+    panic::panic_fmt("cufftExecR2C failed, err={}", FFTError{err});
   }
 }
 
@@ -106,7 +106,7 @@ void fft_exec_c2r(fft_plan_t plan, const c32* in, f32* out) {
   const auto fft_in = reinterpret_cast<cufftComplex*>(const_cast<c32*>(in));
   const auto fft_out = reinterpret_cast<cufftReal*>(out);
   if (auto err = ::cufftExecC2R(plan, fft_in, fft_out)) {
-    panic::panic_fmt("cufftExecC2R failed, err={}", CuFFTError{err});
+    panic::panic_fmt("cufftExecC2R failed, err={}", FFTError{err});
   }
 }
 

@@ -1,8 +1,9 @@
 #include "sfc/test.h"
 #include "sfc/time.h"
 #include "sfc/io.h"
-#include "sfc/cuda.h"
-#include "sfc/math.h"
+#include "sfc/math/ndarray.h"
+#include "sfc/cuda/device.h"
+#include "sfc/cuda/fft.h"
 
 namespace sfc::cuda::test {
 

@@ -4,11 +4,6 @@
 
 struct CUstream_st;
 
-namespace sfc::math {
-template<class T, int N>
-struct vec;
-}
-
 namespace sfc::cuda {
 
 struct dim3_t {
@@ -17,10 +12,10 @@ struct dim3_t {
   unsigned z = 1;
 
  public:
-  dim3_t(unsigned x, unsigned y = 1, unsigned z = 1) : x{x}, y{y}, z{z} {}
+  dim3_t(unsigned x, unsigned y, unsigned z) : x{x}, y{y}, z{z} {}
 
-  template <int N>
-  dim3_t(const math::vec<unsigned, N>& v) {
+  dim3_t(const auto& v) {
+    static constexpr auto N = decltype(v)::NDIM;
     static_assert(N > 0 && N <= 3, "sfc::cuda::dime_t: dims must be 1, 2 or 3");
     if constexpr (N > 0) this->x = v.x;
     if constexpr (N > 1) this->y = v.y;
@@ -47,8 +42,6 @@ void config(dim3_t work_size, dim3_t block_size);
 #endif
 
 #if defined(__INTELLISENSE__) || defined(__clang_analyzer__)
-#define __global__
-#define _device__
 extern const sfc::cuda::dim3_t gridDim;
 extern const sfc::cuda::dim3_t blockIdx;
 extern const sfc::cuda::dim3_t blockDim;

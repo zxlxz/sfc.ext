@@ -1,7 +1,6 @@
 #pragma once
 
 #include "sfc/cuda/mod.h"
-#include "sfc/math/vec.h"
 
 struct CUarray_st;
 
@@ -30,24 +29,7 @@ struct BufExt {
   u32 depth = 0;   //  1D/2D: depth=0
 
   template <int N>
-  static auto from(const math::vec<u32, N>& dims) -> BufExt {
-    static_assert(N >= 1 && N <= 3, "BufExt only supports up 1D/2D/3D");
-    if constexpr (N == 1) {
-      return BufExt{dims.x, 0, 0};
-    } else if constexpr (N == 2) {
-      return BufExt{dims.x, dims.y, 0};
-    } else {
-      return BufExt{dims.x, dims.y, dims.z};
-    }
-  }
-
-  static auto from(math::vec<u32, 2> dims) -> BufExt {
-    return BufExt{dims.x, dims.y, 0};
-  }
-
-  static auto from(math::vec<u32, 3> dims) -> BufExt {
-    return BufExt{dims.x, dims.y, dims.z};
-  }
+  static auto from(const math::vec<u32, N>& dims) -> BufExt;
 };
 
 auto buffer_new(BufFmt fmt, BufExt ext, bool is_layered = false) -> buf_t;
