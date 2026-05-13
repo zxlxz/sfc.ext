@@ -1,34 +1,27 @@
 #include <cuda.h>
 #include <string.h>
 
-#include "sfc/core.h"
+#include "sfc/alloc.h"
 #include "sfc/cuda/memory.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/device.h"
 #include "sfc/cuda/error.h"
 
-#define CU_TRY(expr)       \
-  if (auto err = (expr)) { \
-    throw Error{err};      \
-  }
-
 namespace sfc::cuda {
 
+struct alignas(256) SimdBlock {
+  u8 _data[256];
+};
+
 auto heap_alloc(usize size) -> void* {
-  static constexpr auto SIMD_ALIGN = 256UZ;
-  static constexpr auto SIMD_MASK = SIMD_ALIGN - 1;
-
-  if (size == 0) return nullptr;
-
-  const auto aligned_size = (size + SIMD_MASK) & ~SIMD_MASK;
-  auto ptr = ::aligned_alloc(SIMD_ALIGN, aligned_size);
-  panic::expect(ptr != nullptr, "heap_alloc failed for size={}", size);
-  return ptr;
+  const auto a = alloc::Global{};
+  const auto p = a.alloc({size, alignof(SimdBlock)});
+  return p;
 }
 
 void heap_free(void* ptr) {
-  if (ptr == nullptr) return;
-  ::free(ptr);
+  const auto a = alloc::Global{};
+  return a.dealloc(ptr, {0, alignof(SimdBlock)});
 }
 
 auto host_alloc(usize size) -> void* {

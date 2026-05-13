@@ -3,6 +3,9 @@
 .vscode
 CLAUDE.md
 
+# 3rd party
+3rdparty/
+
 # build & test
 build/
 data/
