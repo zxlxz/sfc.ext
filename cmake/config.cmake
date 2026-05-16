@@ -1,6 +1,2 @@
 
-if (APPLE)
-  set(_HOMEBREW_DIR "/opt/homebrew")
-  list(APPEND CMAKE_INCLUDE_PATH "${_HOMEBREW_DIR}/include")
-  list(APPEND CMAKE_LIBRARY_PATH "${_HOMEBREW_DIR}/lib")
-endif()
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_LIST_DIR}")
