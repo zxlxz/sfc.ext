@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sfc/cuda/mod.h"
+#include "sfc/math/vec.h"
 
 struct CUstream_st;
 
@@ -12,15 +13,11 @@ struct dim3_t {
   unsigned z = 1;
 
  public:
-  dim3_t(unsigned x, unsigned y, unsigned z) : x{x}, y{y}, z{z} {}
+  dim3_t(unsigned x, unsigned y, unsigned z = 1) : x{x}, y{y}, z{z} {}
 
-  dim3_t(const auto& v) {
-    static constexpr auto N = decltype(v)::NDIM;
-    static_assert(N > 0 && N <= 3, "sfc::cuda::dime_t: dims must be 1, 2 or 3");
-    if constexpr (N > 0) this->x = v.x;
-    if constexpr (N > 1) this->y = v.y;
-    if constexpr (N > 2) this->z = v.z;
-  }
+  dim3_t(const math::vec<unsigned, 1>& v) : x{v.x} {}
+  dim3_t(const math::vec<unsigned, 2>& v) : x{v.x}, y{v.y} {}
+  dim3_t(const math::vec<unsigned, 3>& v) : x{v.x}, y{v.y}, z{v.z} {}
 
 #ifdef __CUDACC__
   operator ::dim3() const {

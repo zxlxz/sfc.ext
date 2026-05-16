@@ -6,14 +6,6 @@
 
 namespace sfc::math {
 
-template <class I, class O>
-struct FFTPlan {
-  FFTPlan() {}
-  virtual ~FFTPlan() {}
-
-  virtual void exec(const I X[], O Y[], int DIR) = 0;
-};
-
 namespace fftw {
 
 using fft_plan_t = fftwf_plan;
@@ -78,6 +70,15 @@ struct Plan<f32, c32> : FFTPlan<f32, c32> {
 
   Plan(const Plan&) = delete;
 
+ public:
+  auto len() const -> u32 override {
+    return _len;
+  }
+
+  auto batch() const -> u32 override {
+    return _batch;
+  }
+
   void exec(const f32 input[], c32 output[], int DIR) override {
     auto I = input;
     auto O = output;
@@ -105,6 +106,15 @@ struct Plan<c32, f32> : FFTPlan<c32, f32> {
   }
 
   Plan(const Plan&) = delete;
+
+ public:
+  auto len() const -> u32 override {
+    return _len;
+  }
+
+  auto batch() const -> u32 override {
+    return _batch;
+  }
 
   void exec(const c32 input[], f32 output[], int DIR) override {
     auto I = input;
@@ -137,6 +147,15 @@ struct Plan<c32, c32> : FFTPlan<c32, c32> {
   }
 
   Plan(const Plan&) = delete;
+
+ public:
+  auto len() const -> u32 override {
+    return _len;
+  }
+
+  auto batch() const -> u32 override {
+    return _batch;
+  }
 
   void exec(const c32 input[], c32 output[], int DIR) override {
     auto p = this->get_plan(input, output, DIR);
@@ -186,6 +205,14 @@ struct Plan : FFTPlan<I, O> {
   }
 
   Plan(const Plan&) = delete;
+
+  auto len() const -> u32 override {
+    return _len;
+  }
+
+  auto batch() const -> u32 override {
+    return _batch;
+  }
 
   void exec(const I X[], O Y[], int DIR) override {
     if constexpr (sfc::same_<I, c32> && sfc::same_<O, c32>) {
@@ -244,8 +271,8 @@ void FFT<I, O>::inverse(const I in[], O out[]) {
 }
 
 template <class I, class O>
-void FFT<I, O>::operator()(const I in[], O out[]) {
-  return _inn->exec(in, out, -1);
+void FFT<I, O>::operator()(math::NdSlice<I, 2> in, math::NdSlice<O, 2> out) {
+  return _inn->exec(in._data, out._data, -1);
 }
 
 template class FFT<c32, c32>;
@@ -265,6 +292,22 @@ void fft_r2c(u32 N, const f32 X[], c32 Y[]) {
 void fft_c2r(u32 N, const c32 X[], f32 Y[]) {
   auto plan = fftw::Plan<c32, f32>(N, 1);
   plan.exec(X, Y, +1);
+}
+
+void fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
+  panic::expect(in.len() == out.len(), "input len(=`{}`) and output.len(=`{}`) must equal",
+                in.len(), out.len());
+
+  auto plan = fftw::Plan<c32, c32>{in.len(), 1};
+  plan.exec(in._data, out._data, -1);
+}
+
+void ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
+  panic::expect(in.len() == out.len(), "input len(=`{}`) and output.len(=`{}`) must equal",
+                in.len(), out.len());
+
+  auto plan = fftw::Plan<c32, c32>{in.len(), 1};
+  plan.exec(in._data, out._data, +1);
 }
 
 }  // namespace sfc::math

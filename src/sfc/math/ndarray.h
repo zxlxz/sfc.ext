@@ -49,15 +49,11 @@ class [[nodiscard]] NdArray {
     return *this;
   }
 
-  static auto with_shape(dims_t dims, cuda::MemType mem_type = {}) -> NdArray {
+  static auto with_shape(dims_t dims, cuda::MemType mtype = {}) -> NdArray {
     auto res = NdArray{};
-    res._buf = Buf::with_capacity(math::numel(dims), mem_type);
+    res._buf = Buf::with_capacity(math::numel(dims), mtype);
     res._inn = Inn{res._buf.ptr(), dims, math::ndstep(dims)};
     return res;
-  }
-
-  auto shape() const -> const dims_t& {
-    return _inn._dims;
   }
 
   auto buf() const -> const Buf& {
@@ -66,6 +62,18 @@ class [[nodiscard]] NdArray {
 
   auto buf() -> Buf& {
     return _buf;
+  }
+
+  auto len() const -> u32 {
+    return _inn.len();
+  }
+
+  auto numel() const -> u32 {
+    return _inn.numel();
+  }
+
+  auto shape() const -> dims_t {
+    return _inn._dims;
   }
 
  public:
@@ -106,10 +114,8 @@ class [[nodiscard]] NdArray {
     _buf.copy_from(src._buf);
   }
 
-  auto clone(cuda::MemType mem_type) const -> NdArray {
-    auto tmp = NdArray::with_shape(this->shape(), mem_type);
-    tmp.copy_from(*this);
-    return tmp;
+  void sync(cuda::MemType mtype) {
+    _buf.sync(mtype);
   }
 };
 

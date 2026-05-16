@@ -28,11 +28,16 @@ class RawBuf {
 
   RawBuf& operator=(RawBuf&& other) noexcept {
     if (this == &other) return *this;
-    _a.dealloc(_ptr);
-    _ptr = other._ptr, other._ptr = nullptr;
-    _cap = other._cap, other._cap = 0;
-    _a = other._a;
+    // to keep this operator noexcept
+    // we just swap, and let the destructor of other to do the cleanup
+    this->swap(other);
     return *this;
+  }
+
+  void swap(RawBuf& other) noexcept {
+    mem::swap(_ptr, other._ptr);
+    mem::swap(_cap, other._cap);
+    mem::swap(_a, other._a);
   }
 
   static auto with_capacity(usize cap, cuda::MemType type = {}) -> RawBuf {
@@ -52,7 +57,7 @@ class RawBuf {
     return _cap;
   }
 
-  auto mem_type() const -> cuda::MemType {
+  auto mtype() const -> cuda::MemType {
     return _a.type;
   }
 
@@ -81,6 +86,11 @@ class RawBuf {
     cuda::fill_bytes(_ptr, 0, _cap * sizeof(T));
   }
 
+  void sync(cuda::MemType mtype) {
+    if (_a.type == mtype) return;
+    auto new_buf = RawBuf::with_capacity(_cap, mtype);
+    this->swap(new_buf);
+  }
 };
 
 }  // namespace sfc::math
