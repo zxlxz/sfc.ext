@@ -43,7 +43,8 @@ class Texture {
     other._tex = {};
   }
 
-  static auto with_shape(math::vec<u32, N> dims, TexFilt filt_mode = TexFilt::Point,
+  static auto with_shape(math::vec<u32, N> dims,
+                         TexFilt filt_mode = TexFilt::Point,
                          TexAddr addr_mode = TexAddr::Clamp) -> Texture {
     auto res = Texture{};
     res._buf = Buf::with_shape(BufExt::from(dims));
@@ -51,6 +52,7 @@ class Texture {
     return res;
   }
 
+ public:
   void set_data(const math::NdSlice<T, N>& src) {
     _buf.set_data(src._data);
   }
@@ -79,7 +81,8 @@ class LTexture {
     other._tex = {};
   }
 
-  static auto with_shape(math::vec<u32, N> dims, TexFilt filt_mode = TexFilt::Point,
+  static auto with_shape(math::vec<u32, N> dims,
+                         TexFilt filt_mode = TexFilt::Point,
                          TexAddr addr_mode = TexAddr::Clamp) -> LTexture {
     auto res = LTexture{};
     res._buf = Buf::with_shape(BufExt::from(dims));
@@ -87,6 +90,7 @@ class LTexture {
     return res;
   }
 
+ public:
   void set_data(const math::NdSlice<T, N>& src) {
     _buf.set_data(src._data);
   }

@@ -17,7 +17,7 @@ struct Tex<T, 2> {
   tex_t _tex = 0;
 
  public:
-  _dev auto get(auto pos) const -> T {
+  __dev auto get(auto pos) const -> T {
     auto res = T{0};
 #ifdef __CUDACC__
     ::tex2D(&res, _tex, pos.x, pos.y);
@@ -31,7 +31,7 @@ struct Tex<T, 3> {
   tex_t _tex = 0;
 
  public:
-  _dev auto get(auto pos) const -> T {
+  __dev auto get(auto pos) const -> T {
     auto res = T{0};
 #ifdef __CUDACC__
     ::tex3D(&res, _tex, pos.x, pos.y, pos.z);
@@ -45,7 +45,7 @@ struct LTex<T, 3> {
   tex_t _tex = 0;
 
  public:
-  _dev auto get(auto pos, int k) const -> T {
+  __dev auto get(auto pos, int k) const -> T {
     auto res = T{0};
 #ifdef __CUDACC__
     ::tex2DLayered(&res, _tex, pos.x, pos.y, k);
@@ -58,7 +58,7 @@ struct LTex<T, 3> {
     tex_t _tex;
     int _layer;
 
-    _dev auto get(auto pos) const -> T {
+    __dev auto get(auto pos) const -> T {
       auto res = T{0};
 #ifdef __CUDACC__
       ::tex2DLayered(&res, _tex, pos.x, pos.y, _layer);
@@ -67,7 +67,7 @@ struct LTex<T, 3> {
     }
   };
 
-  _dev auto operator[](int k) const -> Item {
+  __dev auto operator[](int k) const -> Item {
     return {_tex, k};
   }
 };

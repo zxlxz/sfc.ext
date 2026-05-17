@@ -1,24 +1,21 @@
 #pragma once
 
-#ifdef __CUDACC__
-#define _dev __device__
-#else
-#define _dev
+#include "sfc/core/mod.h"
+
+// don't really define these macros, just to make intellisense happy
+#if defined(__INTELLISENSE__) || defined(__clang_analyzer__)
+#ifndef __global__
+#define __host__
+#define __device__
+#define __global__
+#endif
 #endif
 
-namespace sfc::cuda {
+// don't use cuda macros directly, to avoid including cuda headers in non-cuda files
+#ifdef __device__
+#define __dev __device__
+#else
+#define __dev
+#endif
 
-using i8 = signed char;
-using i16 = short;
-using i32 = int;
-
-using u8 = unsigned char;
-using u16 = unsigned short;
-using u32 = unsigned int;
-
-using f32 = float;
-using f64 = double;
-
-using usize = decltype(sizeof(0));
-
-}  // namespace sfc::cuda
+namespace sfc::cuda {}
