@@ -10,9 +10,9 @@ struct NdSlice;
 template <class T>
 struct NdSlice<T, 1> {
   static constexpr auto NDIM = 1U;
-  using dims_t = math::vec<u32, 1>;
-  using step_t = math::vec<u32, 1>;
-  using idxs_t = math::vec<u32, 1>;
+  using dims_t = math::vec<u32, NDIM>;
+  using step_t = math::vec<u32, NDIM>;
+  using idxs_t = math::vec<u32, NDIM>;
 
   T* _data;
   dims_t _dims;
@@ -60,13 +60,6 @@ struct NdSlice<T, 1> {
   }
 
  public:
-  void imap(auto&& f) {
-    for (auto i = 0U; i < _dims.x; ++i) {
-      auto& e = _data[i];
-      f(i, e);
-    }
-  }
-
   // [0 ... shape]
   __hd auto load_interp(f32 x) const -> T {
     if (x < 0 || x >= _dims.x) return 0;
@@ -83,26 +76,34 @@ struct NdSlice<T, 1> {
     return t0 * (1.0f - p1) + t1 * p1;
   }
 
-  void fill(T val) {
+  void imap(auto&& f) const {
     for (auto i = 0U; i < _dims.x; ++i) {
-      _data[i] = val;
+      const auto& e = _data[i];
+      f(i, e);
+    }
+  }
+
+  void imap_mut(auto&& f) {
+    for (auto i = 0U; i < _dims.x; ++i) {
+      auto& e = _data[i];
+      f(i, e);
     }
   }
 
   void fmt(auto& f) const {
-    for (auto i = 0U; i < _dims.x; ++i) {
+    this->imap([&](u32 i, const T& e) {
       if (i > 0) f.write_str(", ");
-      f.write_val(_data[i]);
-    }
+      f.write_val(e);
+    });
   }
 };
 
 template <class T>
 struct NdSlice<T, 2> {
   static constexpr auto NDIM = 2U;
-  using dims_t = vec2u;
-  using step_t = vec2u;
-  using idxs_t = vec2u;
+  using dims_t = math::vec<u32, NDIM>;
+  using step_t = math::vec<u32, NDIM>;
+  using idxs_t = math::vec<u32, NDIM>;
   T* _data;
   dims_t _dims;
   step_t _step;
@@ -166,16 +167,17 @@ struct NdSlice<T, 2> {
     return t0 * (1.0f - p1) + t1 * p1;
   }
 
-  void imap(auto&& f) {
+  void imap(auto&& f) const {
     for (auto j = 0U; j < _dims.y; ++j) {
-      auto col = (*this)[j];
-      col.imap([&](u32 i, T& e) { f(i, j, e); });
+      const auto col = (*this)[j];
+      col.imap([&](u32 i, const T& e) { f(i, j, e); });
     }
   }
 
-  void fill(T val) {
-    for (auto k = 0U; k < _dims.y; ++k) {
-      (*this)[k].fill(val);
+  void imap_mut(auto&& f) {
+    for (auto j = 0U; j < _dims.y; ++j) {
+      auto col = (*this)[j];
+      col.imap_mut([&](u32 i, T& e) { f(i, j, e); });
     }
   }
 
@@ -189,10 +191,10 @@ struct NdSlice<T, 2> {
 
 template <class T>
 struct NdSlice<T, 3> {
-  static constexpr auto NDIM = 3U;
-  using dims_t = vec3u;
-  using step_t = vec3u;
-  using idxs_t = vec3u;
+  static constexpr auto NDIM = 3;
+  using dims_t = math::vec<u32, NDIM>;
+  using step_t = math::vec<u32, NDIM>;
+  using idxs_t = math::vec<u32, NDIM>;
   T* _data;
   dims_t _dims;
   step_t _step;
@@ -236,31 +238,27 @@ struct NdSlice<T, 3> {
   }
 
  public:
-  void imap(auto&& f) {
+  void imap(auto&& f) const {
+    for (auto z = 0U; z < _dims.z; ++z) {
+      const auto img = (*this)[z];
+      img.imap([&](u32 i, u32 j, const T& e) { f(i, j, z, e); });
+    }
+  }
+
+  void imap_mut(auto&& f) {
     for (auto z = 0U; z < _dims.z; ++z) {
       auto img = (*this)[z];
-      img.imap([&](u32 i, u32 j, T& e) { f(i, j, z, e); });
+      img.imap_mut([&](u32 i, u32 j, T& e) { f(i, j, z, e); });
     }
-  }
-
-  void fill(T val) {
-    for (auto k = 0U; k < _dims.z; ++k) {
-      (*this)[k].fill(val);
-    }
-  }
-
-  auto slice(idxs_t idx, dims_t size) -> NdSlice {
-    auto p = &(*this)[idx];
-    return {p, size, _step};
   }
 };
 
 template <class T>
 struct NdSlice<T, 4> {
-  static constexpr auto NDIM = 4U;
-  using dims_t = vec4u;
-  using step_t = vec4u;
-  using idxs_t = vec4u;
+  static constexpr auto NDIM = 4;
+  using dims_t = math::vec<u32, NDIM>;
+  using step_t = math::vec<u32, NDIM>;
+  using idxs_t = math::vec<u32, NDIM>;
   T* _data;
   dims_t _dims;
   step_t _step;
@@ -289,6 +287,26 @@ struct NdSlice<T, 4> {
   __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
     const auto p = _data + idx * _step.w;
     return {p, {_dims.x, _dims.y, _dims.z}, {_step.x, _step.y, _step.z}};
+  }
+
+  __hd auto in_bounds(idxs_t idxs) const -> bool {
+    return idxs.x < _dims.x && idxs.y < _dims.y && idxs.z < _dims.z && idxs.w < _dims.w;
+  }
+
+  __hd auto operator[](idxs_t idxs) const -> const T& {
+    return _data[idxs.x + idxs.y * _step.y + idxs.z * _step.z + idxs.w * _step.w];
+  }
+
+  __hd auto operator[](idxs_t idxs) -> T& {
+    return _data[idxs.x + idxs.y * _step.y + idxs.z * _step.z + idxs.w * _step.w];
+  }
+
+ public:
+  void imap(auto&& f) {
+    for (auto w = 0U; w < _dims.w; ++w) {
+      auto img = (*this)[w];
+      img.imap([&](u32 i, u32 j, T& e) { f(i, j, w, e); });
+    }
   }
 };
 

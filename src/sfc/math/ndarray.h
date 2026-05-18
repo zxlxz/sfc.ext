@@ -84,8 +84,12 @@ class [[nodiscard]] NdArray {
     return _inn;
   }
 
-  auto operator*() const -> Inn {
-    return _inn;
+  auto operator->() const -> const Inn* {
+    return &_inn;
+  }
+
+  auto operator->() -> Inn* {
+    return &_inn;
   }
 
   auto operator[](u32 idx) const -> decltype(auto) {
@@ -105,8 +109,12 @@ class [[nodiscard]] NdArray {
   }
 
  public:
-  void imap(auto f) {
+  void imap(auto&& f) const {
     _inn.imap(f);
+  }
+
+  void imap_mut(auto&& f) {
+    _inn.imap_mut(f);
   }
 
  public:
@@ -122,6 +130,10 @@ class [[nodiscard]] NdArray {
     auto res = NdArray::with_shape(_inn._dims, mtype);
     res.copy_from(*this);
     return res;
+  }
+
+  void fmt(auto& f) const {
+    _inn.fmt(f);
   }
 };
 

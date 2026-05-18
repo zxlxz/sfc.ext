@@ -34,16 +34,16 @@ SFC_TEST(fft_c2c_perf) {
       X.buf().zero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
-      auto plan = cuda::fft_plan_c2c(N, BATCH);
+      auto fft_c2c = cuda::FFT<c32, c32>::create(N, BATCH);
       cuda::device_sync();
       const auto t2 = time::Instant::now();
-      cuda::fft_exec_c2c(plan, X->_data, X->_data, -1);
+      fft_c2c(X, X, -1);
       cuda::device_sync();
       const auto t3 = time::Instant::now();
-      cuda::fft_exec_c2c(plan, X->_data, Y->_data, -1);
+      fft_c2c(X, X, +1);
       cuda::device_sync();
       const auto t4 = time::Instant::now();
-      cuda::fft_drop(plan);
+      fft_c2c = {};
       cuda::device_sync();
       const auto t5 = time::Instant::now();
       io::println("fft_c2c: N={:4}, plan={:5.3m}, drop={:5.3m}, inplace={:5.3m}, outplace={:5.3m}",
@@ -80,18 +80,18 @@ SFC_TEST(fft_r2c_perf) {
       X.buf().zero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
-      auto plan_r2c = cuda::fft_plan_r2c(N, BATCH);
-      auto plan_c2r = cuda::fft_plan_c2r(N, BATCH);
+      auto fft_r2c = cuda::FFT<f32, c32>::create(N, BATCH);
+      auto fft_c2r = cuda::FFT<c32, f32>::create(N, BATCH);
       cuda::device_sync();
       const auto t2 = time::Instant::now();
-      cuda::fft_exec_r2c(plan_r2c, X->_data, Y->_data);
+      fft_r2c(X, Y, -1);
       cuda::device_sync();
       const auto t3 = time::Instant::now();
-      cuda::fft_exec_c2r(plan_c2r, Y->_data, X->_data);
+      fft_c2r(Y, X, +1);
       cuda::device_sync();
       const auto t4 = time::Instant::now();
-      cuda::fft_drop(plan_r2c);
-      cuda::fft_drop(plan_c2r);
+      fft_r2c = {};
+      fft_c2r = {};
       cuda::device_sync();
       const auto t5 = time::Instant::now();
       io::println("fft_r2c: N={:4}, plan={:5.3m}, drop={:5.3m}, r2c={:5.3m}, c2r={:5.3m}",

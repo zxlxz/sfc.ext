@@ -66,20 +66,20 @@ using vec2f = math::vec<f32, 2>;
 using vec3f = math::vec<f32, 3>;
 using vec4f = math::vec<f32, 4>;
 
+template <class T, int N>
+__hd inline auto operator==(vec<T, N> a, vec<T, N> b) -> bool {
+  if constexpr (N == 1) return a.x == b.x;
+  if constexpr (N == 2) return a.x == b.x && a.y == b.y;
+  if constexpr (N == 3) return a.x == b.x && a.y == b.y && a.z == b.z;
+  if constexpr (N == 4) return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
 template <class T, class F, int N>
 __hd inline auto cast(vec<F, N> v) -> vec<T, N> {
   if constexpr (N == 1) return {(T)(v.x)};
   if constexpr (N == 2) return {(T)(v.x), (T)(v.y)};
   if constexpr (N == 3) return {(T)(v.x), (T)(v.y), (T)(v.z)};
   if constexpr (N == 4) return {(T)(v.x), (T)(v.y), (T)(v.z), (T)(v.w)};
-}
-
-template <class T, int N>
-__hd inline auto make_vec(const T (&v)[N]) -> vec<T, N> {
-  if constexpr (N == 1) return {v[0]};
-  if constexpr (N == 2) return {v[0], v[1]};
-  if constexpr (N == 3) return {v[0], v[1], v[2]};
-  if constexpr (N == 4) return {v[0], v[1], v[2], v[3]};
 }
 
 template <class T, int N>
@@ -128,6 +128,38 @@ __hd inline auto operator/(T s, const vec<T, N>& v) -> vec<T, N> {
   if constexpr (N == 2) return {s / v.x, s / v.y};
   if constexpr (N == 3) return {s / v.x, s / v.y, s / v.z};
   if constexpr (N == 4) return {s / v.x, s / v.y, s / v.z, s / v.w};
+}
+
+template <class T, int N>
+__hd inline auto operator<(vec<T, N> a, vec<T, N> b) -> bool {
+  if constexpr (N == 1) return a.x < b.x;
+  if constexpr (N == 2) return a.x < b.x && a.y < b.y;
+  if constexpr (N == 3) return a.x < b.x && a.y < b.y && a.z < b.z;
+  if constexpr (N == 4) return a.x < b.x && a.y < b.y && a.z < b.z && a.w < b.w;
+}
+
+template <class T, int N>
+__hd inline auto dot(vec<T, N> a, vec<T, N> b) -> T {
+  if constexpr (N == 1) return a.x * b.x;
+  if constexpr (N == 2) return a.x * b.x + a.y * b.y;
+  if constexpr (N == 3) return a.x * b.x + a.y * b.y + a.z * b.z;
+  if constexpr (N == 4) return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
+
+template <class T, int N>
+__hd inline auto reduce_add(vec<T, N> v) -> T {
+  if constexpr (N == 1) return v.x;
+  if constexpr (N == 2) return v.x + v.y;
+  if constexpr (N == 3) return v.x + v.y + v.z;
+  if constexpr (N == 4) return v.x + v.y + v.z + v.w;
+}
+
+template <class T, int N>
+__hd inline auto reduce_mul(vec<T, N> v) -> T {
+  if constexpr (N == 1) return v.x;
+  if constexpr (N == 2) return v.x * v.y;
+  if constexpr (N == 3) return v.x * v.y * v.z;
+  if constexpr (N == 4) return v.x * v.y * v.z * v.w;
 }
 
 template <int N>

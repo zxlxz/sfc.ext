@@ -8,6 +8,8 @@
 
 namespace sfc::cuda {
 
+using fft_plan_t = int;
+
 struct FFTError {
   cufftResult _code;
 
@@ -52,114 +54,113 @@ void fft_drop(fft_plan_t plan) {
   }
 }
 
-auto fft_plan_c2c(u32 nx, u32 batch) -> fft_plan_t {
-  const auto fft_nx = static_cast<int>(nx);
-  const auto fft_batch = static_cast<int>(batch);
-
+auto fft_plan(i32 N, c32 I[], c32 O[], i32 batch) -> fft_plan_t {
   auto plan = CUFFT_PLAN_NULL;
-  if (auto err = ::cufftPlan1d(&plan, fft_nx, CUFFT_C2C, fft_batch)) {
+  if (auto err = ::cufftPlan1d(&plan, N, CUFFT_C2C, batch)) {
     panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
   }
   return plan;
 }
 
-auto fft_plan_r2c(u32 nx, u32 batch) -> fft_plan_t {
-  const auto fft_nx = static_cast<int>(nx);
-  const auto fft_batch = static_cast<int>(batch);
-
+auto fft_plan(i32 N, f32 I[], c32 O[], i32 batch) -> fft_plan_t {
   auto plan = CUFFT_PLAN_NULL;
-  if (auto err = ::cufftPlan1d(&plan, fft_nx, CUFFT_R2C, fft_batch)) {
+  if (auto err = ::cufftPlan1d(&plan, N, CUFFT_R2C, batch)) {
     panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
   }
   return plan;
 }
 
-auto fft_plan_c2r(u32 nx, u32 batch) -> fft_plan_t {
-  const auto fft_nx = static_cast<int>(nx);
-  const auto fft_batch = static_cast<int>(batch);
-
+auto fft_plan(i32 N, c32 I[], f32 O[], i32 batch) -> fft_plan_t {
   auto plan = CUFFT_PLAN_NULL;
-  if (auto err = ::cufftPlan1d(&plan, fft_nx, CUFFT_C2R, fft_batch)) {
+  if (auto err = ::cufftPlan1d(&plan, N, CUFFT_C2R, batch)) {
     panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
   }
   return plan;
 }
 
-void fft_exec_c2c(fft_plan_t plan, const c32* in, c32* out, int direction) {
-  const auto fft_in = reinterpret_cast<cufftComplex*>(const_cast<c32*>(in));
-  const auto fft_out = reinterpret_cast<cufftComplex*>(out);
-
-  if (auto err = ::cufftExecC2C(plan, fft_in, fft_out, direction)) {
+void fft_exec(fft_plan_t plan, c32 Ic[], c32 Oc[], int SIGN) {
+  const auto idata = reinterpret_cast<cufftComplex*>(Ic);
+  const auto odata = reinterpret_cast<cufftComplex*>(Oc);
+  if (auto err = ::cufftExecC2C(plan, idata, odata, SIGN)) {
     panic::panic_fmt("cufftExecC2C failed, err={}", FFTError{err});
   }
 }
 
-void fft_exec_r2c(fft_plan_t plan, const f32* in, c32* out) {
-  const auto fft_in = reinterpret_cast<cufftReal*>(const_cast<f32*>(in));
-  const auto fft_out = reinterpret_cast<cufftComplex*>(out);
-  if (auto err = ::cufftExecR2C(plan, fft_in, fft_out)) {
+void fft_exec(fft_plan_t plan, f32 Ir[], c32 Oc[], [[maybe_unused]] int SIGN) {
+  const auto idata = reinterpret_cast<cufftReal*>(Ir);
+  const auto odata = reinterpret_cast<cufftComplex*>(Oc);
+  if (auto err = ::cufftExecR2C(plan, idata, odata)) {
     panic::panic_fmt("cufftExecR2C failed, err={}", FFTError{err});
   }
 }
 
-void fft_exec_c2r(fft_plan_t plan, const c32* in, f32* out) {
-  const auto fft_in = reinterpret_cast<cufftComplex*>(const_cast<c32*>(in));
-  const auto fft_out = reinterpret_cast<cufftReal*>(out);
-  if (auto err = ::cufftExecC2R(plan, fft_in, fft_out)) {
+void fft_exec(fft_plan_t plan, c32 Ic[], f32 Or[], [[maybe_unused]] int SIGN) {
+  const auto idata = reinterpret_cast<cufftComplex*>(Ic);
+  const auto odata = reinterpret_cast<cufftReal*>(Or);
+  if (auto err = ::cufftExecC2R(plan, idata, odata)) {
     panic::panic_fmt("cufftExecC2R failed, err={}", FFTError{err});
   }
 }
 
 template <class I, class O>
-FFT<I, O>::FFT() : _len{0}, _batch{0}, _plan{-1} {}
+FFT<I, O>::FFT() noexcept : _plan{-1} {}
 
 template <class I, class O>
-FFT<I, O>::~FFT() {
-  if (_plan == -1) return;
-  cuda::fft_drop(_plan);
-}
-
-template <class I, class O>
-FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len}, _batch{other._batch}, _plan{other._plan} {
-  other._len = 0;
-  other._batch = 0;
+FFT<I, O>::FFT(FFT&& other) noexcept : _plan{other._plan} {
   other._plan = -1;
 }
 
 template <class I, class O>
-FFT<I, O>& FFT<I, O>::operator=(FFT&& other) noexcept {
-  if (this == &other) return;
-  mem::swap(_len, other._len);
-  mem::swap(_batch, other._batch);
+FFT<I, O>::~FFT() {
+  cuda::fft_drop(_plan);
+}
+
+template <class I, class O>
+auto FFT<I, O>::operator=(FFT&& other) noexcept -> FFT& {
+  if (this == &other) return *this;
   mem::swap(_plan, other._plan);
   return *this;
 }
 
 template <class I, class O>
-auto FFT<I, O>::create(u32 len, u32 batch) -> FFT<I, O> {
-  auto plan = FFT<I, O>{};
-  plan._len = len;
-  plan._batch = batch;
-
-  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
-    plan._plan = cuda::fft_plan_c2c(plan._len, plan._batch);
-  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
-    plan._plan = cuda::fft_plan_r2c(plan._len, plan._batch);
-  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
-    plan._plan = cuda::fft_plan_c2r(plan._len, plan._batch);
-  }
-  return plan;
+auto FFT<I, O>::create(u32 len, u32 batch) -> FFT {
+  auto res = FFT{};
+  res._len = len;
+  res._batch = batch;
+  res._plan = cuda::fft_plan(len, (I*)nullptr, (O*)nullptr, batch);
+  return res;
 }
 
 template <class I, class O>
-void FFT<I, O>::exec(const I X[], O Y[], int DIR) {
-  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
-    cuda::fft_exec_c2c(_plan, X, Y, DIR);
-  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
-    cuda::fft_exec_r2c(_plan, X, Y);
-  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
-    cuda::fft_exec_c2r(_plan, X, Y);
-  }
+void FFT<I, O>::exec(const I idata[], O odata[], int DIR) {
+  return cuda::fft_exec(_plan, const_cast<I*>(idata), odata, DIR);
 }
+
+template <class I, class O>
+void FFT<I, O>::operator()(math::NdSlice<I, 1> i, math::NdSlice<O, 1> o, int DIR) {
+  panic::expect(_batch == 1, "batch size must be 1 for 1D slice");
+
+  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
+  const auto olen = trait::same_<I, c32> ? _len : _len / 2 + 1;
+  panic::expect(i._dims.x == ilen, "in.shape(=`{}`) not match plan(=`{}`)", i._dims, ilen);
+  panic::expect(o._dims.x == olen, "out.shape(=`{}`) not match plan(=`{}`)", o._dims, olen);
+  return cuda::fft_exec(_plan, i._data, o._data, DIR);
+}
+
+template <class I, class O>
+void FFT<I, O>::operator()(math::NdSlice<I, 2> i, math::NdSlice<O, 2> o, int DIR) {
+  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
+  const auto olen = trait::same_<I, c32> ? _len : _len / 2 + 1;
+  const auto idim = math::vec2u{ilen, _batch};
+  const auto odim = math::vec2u{olen, _batch};
+
+  panic::expect(i._dims == idim, "in.shape(=`{}`) not match plan(=`{}`)", i._dims, idim);
+  panic::expect(o._dims == odim, "out.shape(=`{}`) not match plan(=`{}`)", o._dims, odim);
+  return cuda::fft_exec(_plan, i._data, o._data, DIR);
+}
+
+template struct FFT<c32, c32>;
+template struct FFT<f32, c32>;
+template struct FFT<c32, f32>;
 
 }  // namespace sfc::cuda

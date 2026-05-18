@@ -5,155 +5,181 @@
 
 namespace sfc::math {
 
-FFT<f32, c32>::FFT() {}
+using fft_plan_t = fftwf_plan_s*;
 
-FFT<f32, c32>::~FFT() {
-  if (_plan == nullptr) return;
-  ::fftwf_destroy_plan(_plan);
+static void fft_drop(fft_plan_t p) {
+  if (p == nullptr) return;
+  ::fftwf_destroy_plan(p);
 }
 
-FFT<f32, c32>::FFT(FFT&& other) noexcept
-    : _plan{other._plan}, _len{other._len}, _batch{other._batch} {
-  other._plan = nullptr;
+static auto fft_plan(int N, c32* I, c32* O, int SIGN) -> fft_plan_t {
+  return ::fftwf_plan_dft_1d(N, (fftwf_complex*)I, (fftwf_complex*)O, SIGN, FFTW_ESTIMATE);
+}
+
+static auto fft_plan(int N, f32* I, c32* O, [[maybe_unused]] int SIGN = 0) -> fft_plan_t {
+  return ::fftwf_plan_dft_r2c_1d(N, I, (fftwf_complex*)O, FFTW_ESTIMATE);
+}
+
+static auto fft_plan(int N, c32* I, f32* O, [[maybe_unused]] int SIGN = 0) -> fft_plan_t {
+  return ::fftwf_plan_dft_c2r_1d(N, (fftwf_complex*)I, (f32*)O, FFTW_ESTIMATE);
+}
+
+static void fft_exec(fft_plan_t plan, c32 I[], c32 O[]) {
+  ::fftwf_execute_dft(plan, (fftwf_complex*)I, (fftwf_complex*)O);
+}
+
+static void fft_exec(fft_plan_t plan, f32 I[], c32 O[]) {
+  ::fftwf_execute_dft_r2c(plan, (f32*)I, (fftwf_complex*)O);
+}
+
+static void fft_exec(fft_plan_t plan, c32 I[], f32 O[]) {
+  ::fftwf_execute_dft_c2r(plan, (fftwf_complex*)I, (f32*)O);
+}
+
+template <class I, class O>
+struct FFT<I, O>::Inn {
+  fft_plan_t _plan{nullptr};
+
+ public:
+  explicit Inn(u32 N) {
+    _plan = math::fft_plan(static_cast<int>(N), (I*)nullptr, (O*)nullptr, 0);
+  }
+
+  ~Inn() {
+    math::fft_drop(_plan);
+  }
+
+  void exec(const I in[], O out[], [[maybe_unused]] int SIGN = 0) {
+    math::fft_exec(_plan, const_cast<I*>(in), out);
+  }
+};
+
+template <>
+struct FFT<c32, c32>::Inn {
+  int _len;
+  fft_plan_t _inplace[2] = {nullptr, nullptr};
+  fft_plan_t _outplace[2] = {nullptr, nullptr};
+
+ public:
+  Inn(u32 len) : _len{static_cast<int>(len)} {}
+
+  ~Inn() {
+    math::fft_drop(_inplace[0]);
+    math::fft_drop(_inplace[1]);
+    math::fft_drop(_outplace[0]);
+    math::fft_drop(_outplace[1]);
+  }
+
+  void exec(const c32 Ic[], c32 Oc[], int SIGN) {
+    const auto id = SIGN < 0 ? 0 : 1;
+    auto& p = Ic == Oc ? _inplace[id] : _outplace[id];
+    if (p == nullptr) {
+      p = math::fft_plan(_len, const_cast<c32*>(Ic), Oc, SIGN);
+    }
+    math::fft_exec(p, const_cast<c32*>(Ic), Oc);
+  }
+};
+
+template <class I, class O>
+FFT<I, O>::FFT() noexcept : _inn{nullptr} {}
+
+template <class I, class O>
+FFT<I, O>::~FFT() {
+  if (!_inn) return;
+  delete _inn;
+}
+
+template <class I, class O>
+FFT<I, O>::FFT(FFT&& other) noexcept : _inn{other._inn}, _len{other._len}, _batch{other._batch} {
+  other._inn = nullptr;
   other._len = 0;
   other._batch = 0;
 }
 
-FFT<f32, c32>& FFT<f32, c32>::operator=(FFT&& other) noexcept {
+template <class I, class O>
+FFT<I, O>& FFT<I, O>::operator=(FFT&& other) noexcept {
   if (this == &other) return *this;
-  mem::swap(_plan, other._plan);
+  mem::swap(_inn, other._inn);
   mem::swap(_len, other._len);
   mem::swap(_batch, other._batch);
   return *this;
 }
 
-auto FFT<f32, c32>::create(u32 len, u32 batch) -> FFT {
+template <class I, class O>
+auto FFT<I, O>::create(u32 len, u32 batch) -> FFT {
   auto res = FFT{};
   res._len = len;
   res._batch = batch;
-  res._plan = ::fftwf_plan_dft_r2c_1d(len, nullptr, nullptr, FFTW_ESTIMATE);
+  res._inn = new Inn{len};
   return res;
 }
 
-void FFT<f32, c32>::exec(f32 X[], c32 Y[]) {
-  auto I = X;
-  auto O = reinterpret_cast<fftwf_complex*>(Y);
+template <class I, class O>
+void FFT<I, O>::exec(const I in[], O out[], int DIR) {
+  panic::expect(_inn, "FFT not initialized");
+
+  const auto SIGN = DIR <= 0 ? -1 : +1;
+  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
+  const auto olen = trait::same_<O, c32> ? _len : _len / 2 + 1;
+
+  auto pi = in;
+  auto po = out;
   for (auto k = 0U; k < _batch; ++k) {
-    ::fftwf_execute_dft_r2c(_plan, I, O);
-    I += _len;
-    O += _len / 2 + 1;
+    _inn->exec(pi, po, SIGN);
+    pi += _len;
+    po += _len / 2 + 1;
   }
 }
 
-FFT<c32, f32>::FFT() {}
+template <class I, class O>
+void FFT<I, O>::operator()(math::NdSlice<I, 1> i, math::NdSlice<O, 1> o, int DIR) {
+  panic::expect(_batch == 1, "batch size must be 1 for 1D slice");
 
-FFT<c32, f32>::~FFT() {
-  if (_plan == nullptr) return;
-  ::fftwf_destroy_plan(_plan);
+  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
+  const auto olen = trait::same_<I, c32> ? _len : _len / 2 + 1;
+  panic::expect(i._dims.x == ilen, "in.shape(=`{}`) not match plan(=`{}`)", i._dims, ilen);
+  panic::expect(o._dims.x == olen, "out.shape(=`{}`) not match plan(=`{}`)", o._dims, olen);
+  return this->exec(i._data, o._data, DIR);
 }
 
-FFT<c32, f32>::FFT(FFT&& other) noexcept
-    : _plan{other._plan}, _len{other._len}, _batch{other._batch} {
-  other._plan = nullptr;
-  other._len = 0;
-  other._batch = 0;
+template <class I, class O>
+void FFT<I, O>::operator()(math::NdSlice<I, 2> i, math::NdSlice<O, 2> o, int DIR) {
+  using math::vec2u;
+
+  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
+  const auto olen = trait::same_<I, c32> ? _len : _len / 2 + 1;
+  const auto idim = vec2u{ilen, _batch};
+  const auto odim = vec2u{olen, _batch};
+  panic::expect(i._dims == idim, "in.shape(=`{}`) not match plan(=`{}`)", i._dims, idim);
+  panic::expect(o._dims == odim, "out.shape(=`{}`) not match plan(=`{}`)", o._dims, odim);
+  return this->exec(i._data, o._data, DIR);
 }
 
-FFT<c32, f32>& FFT<c32, f32>::operator=(FFT&& other) noexcept {
-  if (this == &other) return *this;
-  mem::swap(_plan, other._plan);
-  mem::swap(_len, other._len);
-  mem::swap(_batch, other._batch);
-  return *this;
-}
-
-auto FFT<c32, f32>::create(u32 len, u32 batch) -> FFT {
-  auto res = FFT{};
-  res._len = len;
-  res._batch = batch;
-  res._plan = ::fftwf_plan_dft_c2r_1d(len, nullptr, nullptr, FFTW_ESTIMATE);
-  return res;
-}
-
-void FFT<c32, f32>::exec(c32 X[], f32 Y[]) {
-  auto I = reinterpret_cast<fftwf_complex*>(X);
-  auto O = Y;
-  for (auto k = 0U; k < _batch; ++k) {
-    ::fftwf_execute_dft_c2r(_plan, I, O);
-    I += _len / 2 + 1;
-    O += _len;
-  }
-}
-
-FFT<c32, c32>::FFT() {}
-
-FFT<c32, c32>::~FFT() {
-  if (_inplace_fwd) ::fftwf_destroy_plan(_inplace_fwd);
-  if (_inplace_inv) ::fftwf_destroy_plan(_inplace_inv);
-  if (_outplace_fwd) ::fftwf_destroy_plan(_outplace_fwd);
-  if (_outplace_inv) ::fftwf_destroy_plan(_outplace_inv);
-}
-
-FFT<c32, c32>::FFT(FFT&& other) noexcept
-    : _len{mem::take(other._len)}
-    , _batch{mem::take(other._batch)}
-    , _inplace_fwd{mem::take(other._inplace_fwd)}
-    , _inplace_inv{mem::take(other._inplace_inv)}
-    , _outplace_fwd{mem::take(other._outplace_fwd)}
-    , _outplace_inv{mem::take(other._outplace_inv)} {}
-
-FFT<c32, c32>& FFT<c32, c32>::operator=(FFT&& other) noexcept {
-  if (this == &other) return *this;
-  mem::swap(_len, other._len);
-  mem::swap(_batch, other._batch);
-  mem::swap(_inplace_fwd, other._inplace_fwd);
-  mem::swap(_inplace_inv, other._inplace_inv);
-  mem::swap(_outplace_fwd, other._outplace_fwd);
-  mem::swap(_outplace_inv, other._outplace_inv);
-  return *this;
-}
-
-auto FFT<c32, c32>::create(u32 len, u32 batch) -> FFT {
-  auto res = FFT{};
-  res._len = len;
-  res._batch = batch;
-  return res;
-}
-
-void FFT<c32, c32>::exec(c32 X[], c32 Y[], int DIR) {
-  auto I = reinterpret_cast<fftwf_complex*>(X);
-  auto O = reinterpret_cast<fftwf_complex*>(Y);
-
-  auto& p = X == Y ? (DIR == -1 ? _inplace_fwd : _inplace_inv)
-                   : (DIR == -1 ? _outplace_fwd : _outplace_inv);
-  if (p == nullptr) {
-    p = ::fftwf_plan_dft_1d(_len, I, O, DIR, FFTW_ESTIMATE);
-  }
-
-  for (auto k = 0U; k < _batch; ++k) {
-    ::fftwf_execute_dft(p, I, O);
-    I += _len;
-    O += _len;
-  }
-}
+template class FFT<f32, c32>;
+template class FFT<c32, f32>;
+template class FFT<c32, c32>;
 
 void fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
-  panic::expect(in.len() == out.len(),
-                "input len(=`{}`) and output.len(=`{}`) must equal",
-                in.len(),
-                out.len());
+  const auto is = in._dims.x;
+  const auto os = out._dims.x;
+  panic::expect(is == os, "input len(=`{}`) and output.len(=`{}`) must equal", is, os);
+  if (is == 0) {
+    return;
+  }
 
-  auto plan = FFT<c32, c32>::create(in.len(), 1);
+  auto plan = FFT<c32, c32>::create(is, 1);
   plan.exec(in._data, out._data, -1);
 }
 
 void ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
-  panic::expect(in.len() == out.len(),
-                "input len(=`{}`) and output.len(=`{}`) must equal",
-                in.len(),
-                out.len());
+  const auto is = in._dims.x;
+  const auto os = out._dims.x;
+  panic::expect(is == os, "input(len=`{}`) and output(len=`{}`) must equal", is, os);
+  if (is == 0) {
+    return;
+  }
 
-  auto plan = FFT<c32, c32>::create(in.len(), 1);
+  auto plan = FFT<c32, c32>::create(is, 1);
   plan.exec(in._data, out._data, +1);
 }
 
