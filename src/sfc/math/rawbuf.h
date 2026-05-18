@@ -1,10 +1,12 @@
 #pragma once
 
-#include "sfc/math/mod.h"
-#include "sfc/core/slice.h"
+#include "sfc/core.h"
 #include "sfc/cuda/memory.h"
 
 namespace sfc::math {
+
+using cuda::Alloc;
+using cuda::MemType;
 
 template <class T>
 class RawBuf {
@@ -49,6 +51,7 @@ class RawBuf {
     return buf;
   }
 
+ public:
   auto ptr() const -> T* {
     return _ptr;
   }
@@ -69,6 +72,7 @@ class RawBuf {
     return {_ptr, _cap};
   }
 
+#ifndef __CUDACC__
   auto as_bytes() const -> slice::Slice<const u8> {
     return this->as_slice().as_bytes();
   }
@@ -76,20 +80,18 @@ class RawBuf {
   auto as_mut_bytes() -> slice::Slice<u8> {
     return this->as_mut_slice().as_mut_bytes();
   }
+#endif
+
+ public:
+  void zero() {
+    const auto blk = cuda::MemBlock{_ptr, _cap * sizeof(T), _a.type};
+    cuda::fill_bytes(blk, 0);
+  }
 
   void copy_from(const RawBuf& src) {
-    const auto cnt = src._cap < _cap ? src._cap : _cap;
-    cuda::copy_bytes(src._ptr, _ptr, cnt * sizeof(T));
-  }
-
-  void zero() {
-    cuda::fill_bytes(_ptr, 0, _cap * sizeof(T));
-  }
-
-  void sync(cuda::MemType mtype) {
-    if (_a.type == mtype) return;
-    auto new_buf = RawBuf::with_capacity(_cap, mtype);
-    this->swap(new_buf);
+    const auto dst_blk = cuda::MemBlock{_ptr, _cap * sizeof(T), _a.type};
+    const auto src_blk = cuda::MemBlock{src._ptr, src._cap * sizeof(T), src._a.type};
+    cuda::copy_bytes(dst_blk, src_blk);
   }
 };
 

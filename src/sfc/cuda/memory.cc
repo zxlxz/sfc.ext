@@ -122,34 +122,7 @@ auto get_mem_type(const void* ptr) -> CUmemorytype {
   return res;
 }
 
-void copy_bytes(const void* src, void* dst, usize size) {
-  if (size == 0) return;
-
-  sfc::expect(src != nullptr, "src is null");
-  sfc::expect(dst != nullptr, "dst is null");
-
-  const auto dptr = reinterpret_cast<CUdeviceptr>(dst);
-  const auto sptr = reinterpret_cast<CUdeviceptr>(src);
-  const auto stream = cuda::stream_get();
-  if (stream) {
-    if (auto e = ::cuMemcpyAsync(dptr, sptr, size, stream)) {
-      panic::panic_fmt("cuMemcpyAsync failed, err={}", Error{e});
-    }
-  } else {
-    if (auto e = ::cuMemcpy(dptr, sptr, size)) {
-      panic::panic_fmt("cuMemcpy failed, err={}", Error{e});
-    }
-  }
-}
-
-static void cpu_memset(const void* ptr, u8 val, usize size) {
-  if (size == 0) return;
-
-  sfc::expect(ptr != nullptr, "ptr is null");
-  ::memset(const_cast<void*>(ptr), val, size);
-}
-
-static void gpu_memset(const void* ptr, u8 byte, usize size) {
+void cuda_memset(const void* ptr, u8 byte, usize size) {
   if (size == 0) return;
   sfc::expect(ptr != nullptr, "ptr is null");
 
@@ -197,24 +170,60 @@ static void gpu_memset(const void* ptr, u8 byte, usize size) {
   }
 }
 
-void fill_bytes(void* ptr, u8 val, usize cnt) {
-  if (cnt == 0) return;
+void cuda_memcpy(void* dst, const void* src, usize size) {
+  if (size == 0) return;
+
+  const auto dptr = reinterpret_cast<CUdeviceptr>(dst);
+  const auto sptr = reinterpret_cast<CUdeviceptr>(src);
+  const auto stream = cuda::stream_get();
+  if (stream) {
+    if (auto e = ::cuMemcpyAsync(dptr, sptr, size, stream)) {
+      panic::panic_fmt("cuMemcpyAsync failed, err={}", Error{e});
+    }
+  } else {
+    if (auto e = ::cuMemcpy(dptr, sptr, size)) {
+      panic::panic_fmt("cuMemcpy failed, err={}", Error{e});
+    }
+  }
+}
+
+void fill_bytes(MemBlock blk, u8 val) {
+  const auto ptr = blk.ptr;
+  const auto size = blk.size;
+  if (size == 0) return;
   sfc::expect(ptr != nullptr, "ptr is null");
 
-  const auto mem_type = cuda::get_mem_type(ptr);
-  switch (mem_type) {
-    case CU_MEMORYTYPE_HOST: {
-      cuda::cpu_memset(ptr, val, cnt);
+  switch (blk.mtype) {
+    default:
+    case MemType::Heap:
+    case MemType::Host: {
+      ::memset(blk.ptr, val, size);
       break;
     }
-    case CU_MEMORYTYPE_DEVICE:
-    case CU_MEMORYTYPE_UNIFIED: {
-      cuda::gpu_memset(ptr, val, cnt);
+    case MemType::Device:
+    case MemType::UVA:    {
+      cuda::cuda_memset(ptr, val, size);
       break;
     }
-    case CU_MEMORYTYPE_ARRAY: {
-      throw Error{CUDA_ERROR_NOT_SUPPORTED};  // Not supported
-    }
+  }
+}
+
+void copy_bytes(MemBlock src, MemBlock dst) {
+  sfc::expect(src.size == dst.size,
+              "src.size(=`{}`) not equal to dst.size(=`{}`)",
+              src.size,
+              dst.size);
+
+  if (src.size == 0) return;
+  sfc::expect(src.ptr != nullptr, "src.ptr is null");
+  sfc::expect(dst.ptr != nullptr, "dst.ptr is null");
+
+  const auto src_host = src.mtype == MemType::Heap || src.mtype == MemType::Host;
+  const auto dst_host = dst.mtype == MemType::Heap || dst.mtype == MemType::Host;
+  if (src_host && dst_host) {
+    ::memcpy(dst.ptr, src.ptr, src.size);
+  } else {
+    cuda::cuda_memcpy(dst.ptr, src.ptr, src.size);
   }
 }
 

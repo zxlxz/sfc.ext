@@ -39,8 +39,7 @@ class [[nodiscard]] NdArray {
   ~NdArray() {}
 
   NdArray(NdArray&& other) noexcept
-      : _inn{static_cast<Inn&&>(other._inn)}
-      , _buf{static_cast<Buf&&>(other._buf)} {}
+      : _inn{static_cast<Inn&&>(other._inn)}, _buf{static_cast<Buf&&>(other._buf)} {}
 
   NdArray& operator=(NdArray&& other) noexcept {
     if (this == &other) return *this;
@@ -68,6 +67,10 @@ class [[nodiscard]] NdArray {
     return _inn.len();
   }
 
+  auto data() const -> const T* {
+    return _inn._data;
+  }
+
   auto numel() const -> u32 {
     return _inn.numel();
   }
@@ -83,14 +86,6 @@ class [[nodiscard]] NdArray {
 
   auto operator*() const -> Inn {
     return _inn;
-  }
-
-  auto operator->() const -> const Inn* {
-    return &_inn;
-  }
-
-  auto operator->() -> Inn* {
-    return &_inn;
   }
 
   auto operator[](u32 idx) const -> decltype(auto) {
@@ -110,12 +105,23 @@ class [[nodiscard]] NdArray {
   }
 
  public:
+  void imap(auto f) {
+    _inn.imap(f);
+  }
+
+ public:
+  void zero() {
+    _buf.zero();
+  }
+
   void copy_from(const NdArray& src) {
     _buf.copy_from(src._buf);
   }
 
-  void sync(cuda::MemType mtype) {
-    _buf.sync(mtype);
+  auto clone(MemType mtype = {}) const -> NdArray {
+    auto res = NdArray::with_shape(_inn._dims, mtype);
+    res.copy_from(*this);
+    return res;
   }
 };
 

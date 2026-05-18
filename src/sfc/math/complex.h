@@ -23,9 +23,7 @@ struct c32 {
 };
 
 __hd inline auto expj(f32 theta) -> c32 {
-  const auto c = __builtin_cosf(theta);
-  const auto s = __builtin_sinf(theta);
-  return c32{c, s};
+  return c32{math::cosf(theta), math::sinf(theta)};
 }
 
 __hd inline auto conj(c32 c) -> c32 {

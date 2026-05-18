@@ -110,4 +110,56 @@ void fft_exec_c2r(fft_plan_t plan, const c32* in, f32* out) {
   }
 }
 
+template <class I, class O>
+FFT<I, O>::FFT() : _len{0}, _batch{0}, _plan{-1} {}
+
+template <class I, class O>
+FFT<I, O>::~FFT() {
+  if (_plan == -1) return;
+  cuda::fft_drop(_plan);
+}
+
+template <class I, class O>
+FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len}, _batch{other._batch}, _plan{other._plan} {
+  other._len = 0;
+  other._batch = 0;
+  other._plan = -1;
+}
+
+template <class I, class O>
+FFT<I, O>& FFT<I, O>::operator=(FFT&& other) noexcept {
+  if (this == &other) return;
+  mem::swap(_len, other._len);
+  mem::swap(_batch, other._batch);
+  mem::swap(_plan, other._plan);
+  return *this;
+}
+
+template <class I, class O>
+auto FFT<I, O>::create(u32 len, u32 batch) -> FFT<I, O> {
+  auto plan = FFT<I, O>{};
+  plan._len = len;
+  plan._batch = batch;
+
+  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
+    plan._plan = cuda::fft_plan_c2c(plan._len, plan._batch);
+  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
+    plan._plan = cuda::fft_plan_r2c(plan._len, plan._batch);
+  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
+    plan._plan = cuda::fft_plan_c2r(plan._len, plan._batch);
+  }
+  return plan;
+}
+
+template <class I, class O>
+void FFT<I, O>::exec(const I X[], O Y[], int DIR) {
+  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
+    cuda::fft_exec_c2c(_plan, X, Y, DIR);
+  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
+    cuda::fft_exec_r2c(_plan, X, Y);
+  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
+    cuda::fft_exec_c2r(_plan, X, Y);
+  }
+}
+
 }  // namespace sfc::cuda

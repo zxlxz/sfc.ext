@@ -1,9 +1,13 @@
 #pragma once
 
+#include "sfc/math/vec.h"
 #include "sfc/cuda/tex.h"
 #include "sfc/cuda/buffer.h"
-#include "sfc/math/vec.h"
-#include "sfc/math/ndslice.h"
+
+namespace sfc::math {
+template <class T, int N>
+struct NdSlice;
+}
 
 namespace sfc::cuda {
 
@@ -47,18 +51,23 @@ class Texture {
                          TexFilt filt_mode = TexFilt::Point,
                          TexAddr addr_mode = TexAddr::Clamp) -> Texture {
     auto res = Texture{};
-    res._buf = Buf::with_shape(BufExt::from(dims));
+    res._buf = Buf::xnew(BufExt::from(dims));
     res._tex = {cuda::texture_new(res._buf.as_ptr(), filt_mode, addr_mode)};
     return res;
   }
 
  public:
-  void set_data(const math::NdSlice<T, N>& src) {
-    _buf.set_data(src._data);
-  }
-
   operator Inn() const {
     return _tex;
+  }
+
+  auto operator*() const -> Inn {
+    return _tex;
+  }
+
+ public:
+  void set_data(const math::NdSlice<T, N>& src) {
+    _buf.set_data(src._data);
   }
 };
 
@@ -85,18 +94,23 @@ class LTexture {
                          TexFilt filt_mode = TexFilt::Point,
                          TexAddr addr_mode = TexAddr::Clamp) -> LTexture {
     auto res = LTexture{};
-    res._buf = Buf::with_shape(BufExt::from(dims));
+    res._buf = Buf::xnew(BufExt::from(dims));
     res._tex = {cuda::texture_new(res._buf.as_ptr(), filt_mode, addr_mode)};
     return res;
   }
 
  public:
-  void set_data(const math::NdSlice<T, N>& src) {
-    _buf.set_data(src._data);
-  }
-
   operator Tex() const {
     return _tex;
+  }
+
+  auto operator*() const -> Tex {
+    return _tex;
+  }
+
+ public:
+  void set_data(const math::NdSlice<T, N>& src) {
+    _buf.set_data(src._data);
   }
 };
 

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "sfc/core/mod.h"
+#include <math.h>
+#include "sfc/core.h"
 
 #ifdef __CUDACC__
 #define __hd __host__ __device__
@@ -12,16 +13,12 @@ namespace sfc::math {
 
 static constexpr float PI = 3.1415927F;
 
-__hd inline auto fabsf(f32 x) -> f32 {
-  return __builtin_fabsf(x);
-}
+using ::fabsf;
+using ::sqrtf;
+using ::hypotf;
 
-__hd inline auto sqrtf(f32 x) -> float {
-  return __builtin_sqrtf(x);
-}
-
-__hd inline auto hypotf(f32 x, f32 y) -> f32 {
-  return __builtin_sqrtf(x * x + y * y);
-}
+using ::sinf;
+using ::cosf;
+using ::tanf;
 
 }  // namespace sfc::math

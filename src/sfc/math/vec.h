@@ -116,6 +116,7 @@ __hd inline auto operator/(vec<T, N> a, vec<T, N> b) -> vec<T, N> {
 
 template <class T, int N>
 __hd inline auto operator*(T s, const vec<T, N>& v) -> vec<T, N> {
+  if constexpr (N == 1) return {s * v.x};
   if constexpr (N == 2) return {s * v.x, s * v.y};
   if constexpr (N == 3) return {s * v.x, s * v.y, s * v.z};
   if constexpr (N == 4) return {s * v.x, s * v.y, s * v.z, s * v.w};
@@ -123,6 +124,7 @@ __hd inline auto operator*(T s, const vec<T, N>& v) -> vec<T, N> {
 
 template <class T, int N>
 __hd inline auto operator/(T s, const vec<T, N>& v) -> vec<T, N> {
+  if constexpr (N == 1) return {s / v.x};
   if constexpr (N == 2) return {s / v.x, s / v.y};
   if constexpr (N == 3) return {s / v.x, s / v.y, s / v.z};
   if constexpr (N == 4) return {s / v.x, s / v.y, s / v.z, s / v.w};
@@ -130,8 +132,10 @@ __hd inline auto operator/(T s, const vec<T, N>& v) -> vec<T, N> {
 
 template <int N>
 __hd inline auto len(vec<f32, N> a) -> float {
-  if constexpr (N == 2) return __builtin_sqrtf(a.x * a.x + a.y * a.y);
-  if constexpr (N == 3) return __builtin_sqrtf(a.x * a.x + a.y * a.y + a.z * a.z);
+  if constexpr (N == 1) return math::fabsf(a.x);
+  if constexpr (N == 2) return math::sqrtf(a.x * a.x + a.y * a.y);
+  if constexpr (N == 3) return math::sqrtf(a.x * a.x + a.y * a.y + a.z * a.z);
+  if constexpr (N == 4) return math::sqrtf(a.x * a.x + a.y * a.y + a.z * a.z + a.w * a.w);
 }
 
 struct Rot {
@@ -144,7 +148,7 @@ struct Rot {
   }
 
   static auto from_rad(f32 angle) -> Rot {
-    return {__builtin_cosf(angle), __builtin_sinf(angle)};
+    return {math::cosf(angle), math::sinf(angle)};
   }
 
   static auto from_deg(f32 deg) -> Rot {

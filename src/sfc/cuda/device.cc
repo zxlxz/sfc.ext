@@ -12,7 +12,6 @@ void init() {
   if (err != CUDA_SUCCESS) {
     panic::panic_fmt("cuInit failed, err={}", Error{err});
   }
-
 }
 
 auto dev_count() -> int {
@@ -36,12 +35,12 @@ auto device_get() -> int {
 }
 
 void device_set(int dev) {
+  cuda::init();
+
   static auto _tls_dev = -1;
   if (_tls_dev == dev) {
     return;
   }
-
-  cuda::init();
 
   // get primary context
   auto context = CUcontext{nullptr};
@@ -57,17 +56,41 @@ void device_set(int dev) {
 }
 
 void device_sync() {
+  cuda::init();
+
   if (auto e = ::cuCtxSynchronize()) {
     panic::panic_fmt("cuCtxSynchronize failed, err={}", Error{e});
   }
 }
 
 auto device_attribute(int dev, CUdevice_attribute attr_id) -> int {
+  cuda::init();
+
   auto attr_val = int{0};
   if (auto e = ::cuDeviceGetAttribute(&attr_val, attr_id, dev)) {
     panic::panic_fmt("cuDeviceGetAttribute failed, err={}", Error{e});
   }
   return attr_val;
+}
+
+auto device_total_mem(int dev) -> usize {
+  cuda::init();
+
+  auto bytes = usize{0};
+  if (auto e = ::cuDeviceTotalMem_v2(&bytes, dev)) {
+    panic::panic_fmt("cuDeviceTotalMem_v2 failed, err={}", Error{e});
+  }
+  return bytes;
+}
+
+auto device_name(int dev) -> const char* {
+  cuda::init();
+
+  static thread_local char buf[64] = {};
+  if (auto e = ::cuDeviceGetName(buf, sizeof(buf), dev)) {
+    panic::panic_fmt("cuDeviceGetName failed, err={}", Error{e});
+  }
+  return buf;
 }
 
 auto Device::current() -> Device {
@@ -76,18 +99,11 @@ auto Device::current() -> Device {
 }
 
 auto Device::name() const -> const char* {
-  static thread_local char buf[64] = {};
-  if (auto e = ::cuDeviceGetName(buf, sizeof(buf), id)) {
-    panic::panic_fmt("cuDeviceGetName failed, err={}", Error{e});
-  }
-  return buf;
+  return cuda::device_name(id);
 }
 
 auto Device::total_memory() const -> usize {
-  auto bytes = usize{0};
-  if (auto e = ::cuDeviceTotalMem_v2(&bytes, id)) {
-    panic::panic_fmt("cuDeviceTotalMem_v2 failed, err={}", Error{e});
-  }
-  return bytes;
+  return cuda::device_total_mem(id);
 }
+
 }  // namespace sfc::cuda

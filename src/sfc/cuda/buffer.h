@@ -59,7 +59,7 @@ class Buffer {
     return *this;
   }
 
-  static auto with_shape(BufExt ext) -> Buffer {
+  static auto xnew(BufExt ext) -> Buffer {
     const auto fmt = BufFmt::of<T>();
     auto res = Buffer{};
     res._arr = cuda::buffer_new(fmt, ext, false);

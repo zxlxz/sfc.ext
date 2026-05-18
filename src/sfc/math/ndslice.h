@@ -19,6 +19,14 @@ struct NdSlice<T, 1> {
   step_t _step;
 
  public:
+  __hd auto len() const -> u32 {
+    return _dims.x;
+  }
+
+  __hd auto data() const -> const T* {
+    return _data;
+  }
+
   __hd auto shape() const -> const dims_t& {
     return _dims;
   }
@@ -28,10 +36,6 @@ struct NdSlice<T, 1> {
   }
 
   __hd auto numel() const -> u32 {
-    return _dims.x;
-  }
-
-  __hd auto len() const -> u32 {
     return _dims.x;
   }
 
@@ -104,6 +108,14 @@ struct NdSlice<T, 2> {
   step_t _step;
 
  public:
+  __hd auto len() const -> u32 {
+    return _dims.y;
+  }
+
+  __hd auto data() const -> const T* {
+    return _data;
+  }
+
   __hd auto shape() const -> const dims_t& {
     return _dims;
   }
@@ -114,10 +126,6 @@ struct NdSlice<T, 2> {
 
   __hd auto numel() const -> u32 {
     return _dims.x * _dims.y;
-  }
-
-  __hd auto len() const -> u32 {
-    return _dims.y;
   }
 
   __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
@@ -190,6 +198,14 @@ struct NdSlice<T, 3> {
   step_t _step;
 
  public:
+  __hd auto len() const -> u32 {
+    return _dims.z;
+  }
+
+  __hd auto data() const -> const T* {
+    return _data;
+  }
+
   __hd auto shape() const -> const dims_t& {
     return _dims;
   }
@@ -200,10 +216,6 @@ struct NdSlice<T, 3> {
 
   __hd auto numel() const -> u32 {
     return _dims.x * _dims.y * _dims.z;
-  }
-
-  __hd auto len() const -> u32 {
-    return _dims.z;
   }
 
   __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
@@ -254,6 +266,14 @@ struct NdSlice<T, 4> {
   step_t _step;
 
  public:
+  __hd auto len() const -> u32 {
+    return _dims.w;
+  }
+
+  __hd auto data() const -> const T* {
+    return _data;
+  }
+
   __hd auto shape() const -> const dims_t& {
     return _dims;
   }
@@ -264,10 +284,6 @@ struct NdSlice<T, 4> {
 
   __hd auto numel() const -> u32 {
     return _dims.x * _dims.y * _dims.z * _dims.w;
-  }
-
-  __hd auto len() const -> u32 {
-    return _dims.w;
   }
 
   __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {

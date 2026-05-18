@@ -4,22 +4,19 @@
 #include "sfc/math/complex.h"
 #include "sfc/math/ndslice.h"
 
+struct fftwf_plan_s;
+
 namespace sfc::math {
 
 template <class I, class O>
-struct FFTPlan {
-  FFTPlan() {}
-  virtual ~FFTPlan() {}
+struct FFT;
 
-  virtual auto len() const -> u32 = 0;
-  virtual auto batch() const -> u32 = 0;
-  virtual void exec(const I X[], O Y[], int DIR) = 0;
-};
-
-template <class I, class O>
-class FFT {
-  using Inn = FFTPlan<I, O>;
-  Inn* _inn;
+template <>
+struct FFT<f32, c32> {
+  using plan_t = struct fftwf_plan_s*;
+  u32 _len{0};
+  u32 _batch{0};
+  plan_t _plan{nullptr};
 
  public:
   FFT();
@@ -27,18 +24,66 @@ class FFT {
   FFT(FFT&& other) noexcept;
   FFT& operator=(FFT&& other) noexcept;
 
-  static auto create(u32 len, u32 batch, cuda::MemType mtype) -> FFT;
+  static auto create(u32 len, u32 batch) -> FFT;
 
-  void forward(const I in[], O out[]);
-  void inverse(const I in[], O out[]);
-  void operator()(math::NdSlice<I, 2> in, math::NdSlice<O, 2> out);
+ public:
+  void exec(f32 X[], c32 Y[]);
+
+  void operator()(NdSlice<f32, 2> in, NdSlice<c32, 2> out) {
+    this->exec(in._data, out._data);
+  }
 };
 
-void fft_c2c(u32 N, const c32 X[], c32 Y[], int direction);
-void fft_r2c(u32 N, const f32 X[], c32 Y[]);
-void fft_c2r(u32 N, const c32 X[], f32 Y[]);
+template <>
+struct FFT<c32, f32> {
+  using plan_t = struct fftwf_plan_s*;
+  u32 _len{0};
+  u32 _batch{0};
+  plan_t _plan{nullptr};
 
-void fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out);
-void ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out);
+ public:
+  FFT();
+  ~FFT();
+  FFT(FFT&& other) noexcept;
+  FFT& operator=(FFT&& other) noexcept;
+
+  static auto create(u32 len, u32 batch) -> FFT;
+
+ public:
+  void exec(c32 X[], f32 Y[]);
+
+  void operator()(NdSlice<c32, 2> in, NdSlice<f32, 2> out) {
+    this->exec(in._data, out._data);
+  }
+};
+
+template <>
+struct FFT<c32, c32> {
+  using plan_t = struct fftwf_plan_s*;
+  u32 _len{0};
+  u32 _batch{0};
+  plan_t _inplace_fwd = nullptr;
+  plan_t _inplace_inv = nullptr;
+  plan_t _outplace_fwd = nullptr;
+  plan_t _outplace_inv = nullptr;
+
+ public:
+  FFT();
+  ~FFT();
+  FFT(FFT&& other) noexcept;
+  FFT& operator=(FFT&& other) noexcept;
+
+  static auto create(u32 len, u32 batch) -> FFT;
+
+ public:
+  void exec(c32 X[], c32 Y[], int DIR);
+
+  void operator()(NdSlice<c32, 2> in, NdSlice<c32, 2> out, int DIR) {
+    this->exec(in._data, out._data, DIR);
+  }
+};
+
+void fft(NdSlice<c32, 1> in, NdSlice<c32, 1> out);
+void ifft(NdSlice<c32, 1> in, NdSlice<c32, 1> out);
 
 }  // namespace sfc::math
