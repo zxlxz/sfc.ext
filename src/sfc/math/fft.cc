@@ -115,44 +115,51 @@ auto FFT<I, O>::create(u32 len, u32 batch) -> FFT {
 }
 
 template <class I, class O>
+auto FFT<I, O>::ilen() const -> u32 {
+  const auto len = trait::same_<O, c32> ? _len : _len / 2 + 1;
+  return len;
+}
+
+template <class I, class O>
+auto FFT<I, O>::olen() const -> u32 {
+  const auto len = trait::same_<I, c32> ? _len : _len / 2 + 1;
+  return len;
+}
+
+template <class I, class O>
 void FFT<I, O>::exec(const I in[], O out[], int DIR) {
   panic::expect(_inn, "FFT not initialized");
-
   const auto SIGN = DIR <= 0 ? -1 : +1;
-  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
-  const auto olen = trait::same_<O, c32> ? _len : _len / 2 + 1;
 
-  auto pi = in;
-  auto po = out;
+  const auto ilen = this->ilen();
+  const auto olen = this->olen();
+
+  auto idata = in;
+  auto odata = out;
   for (auto k = 0U; k < _batch; ++k) {
-    _inn->exec(pi, po, SIGN);
-    pi += _len;
-    po += _len / 2 + 1;
+    _inn->exec(idata, odata, SIGN);
+    idata += ilen;
+    odata += olen;
   }
 }
 
 template <class I, class O>
-void FFT<I, O>::operator()(math::NdSlice<I, 1> i, math::NdSlice<O, 1> o, int DIR) {
+void FFT<I, O>::operator()(math::NdSlice<I, 1> in, math::NdSlice<O, 1> out, int DIR) {
   panic::expect(_batch == 1, "batch size must be 1 for 1D slice");
-
-  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
-  const auto olen = trait::same_<I, c32> ? _len : _len / 2 + 1;
-  panic::expect(i._dims.x == ilen, "in.shape(=`{}`) not match plan(=`{}`)", i._dims, ilen);
-  panic::expect(o._dims.x == olen, "out.shape(=`{}`) not match plan(=`{}`)", o._dims, olen);
-  return this->exec(i._data, o._data, DIR);
+  const auto ilen = this->ilen();
+  const auto olen = this->olen();
+  panic::expect(in._dims.x == ilen, "in.shape(=`{}`) not match plan(=`{}`)", in._dims, ilen);
+  panic::expect(out._dims.x == olen, "out.shape(=`{}`) not match plan(=`{}`)", out._dims, olen);
+  return this->exec(in._data, out._data, DIR);
 }
 
 template <class I, class O>
-void FFT<I, O>::operator()(math::NdSlice<I, 2> i, math::NdSlice<O, 2> o, int DIR) {
-  using math::vec2u;
-
-  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
-  const auto olen = trait::same_<I, c32> ? _len : _len / 2 + 1;
-  const auto idim = vec2u{ilen, _batch};
-  const auto odim = vec2u{olen, _batch};
-  panic::expect(i._dims == idim, "in.shape(=`{}`) not match plan(=`{}`)", i._dims, idim);
-  panic::expect(o._dims == odim, "out.shape(=`{}`) not match plan(=`{}`)", o._dims, odim);
-  return this->exec(i._data, o._data, DIR);
+void FFT<I, O>::operator()(math::NdSlice<I, 2> in, math::NdSlice<O, 2> out, int DIR) {
+  const auto idim = vec2u{this->ilen(), _batch};
+  const auto odim = vec2u{this->olen(), _batch};
+  panic::expect(in._dims == idim, "in.shape(=`{}`) not match plan(=`{}`)", in._dims, idim);
+  panic::expect(out._dims == odim, "out.shape(=`{}`) not match plan(=`{}`)", out._dims, odim);
+  return this->exec(in._data, out._data, DIR);
 }
 
 template class FFT<f32, c32>;

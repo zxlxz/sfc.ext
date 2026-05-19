@@ -118,18 +118,19 @@ class [[nodiscard]] NdArray {
   }
 
  public:
-  void zero() {
-    _buf.zero();
+  void bzero() {
+    _buf.bzero();
   }
 
-  void copy_from(const NdArray& src) {
-    _buf.copy_from(src._buf);
-  }
-
-  auto clone(MemType mtype = {}) const -> NdArray {
-    auto res = NdArray::with_shape(_inn._dims, mtype);
-    res.copy_from(*this);
+  auto clone(MemType mtype) const -> NdArray {
+    auto res = NdArray::with_shape(this->shape(), mtype);
+    res._buf.copy_from(_buf);
     return res;
+  }
+
+  void sync(MemType mtype = {}) {
+    _buf.sync(mtype);
+    _inn._data = _buf.ptr();
   }
 
   void fmt(auto& f) const {

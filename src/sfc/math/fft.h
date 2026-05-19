@@ -21,6 +21,8 @@ class FFT {
   static auto create(u32 len, u32 batch = 1) -> FFT;
 
  public:
+  auto ilen() const -> u32;
+  auto olen() const -> u32;
   void exec(const I in[], O out[], int DIR = +1);
 
   void operator()(math::NdSlice<I, 1> in, math::NdSlice<O, 1> out, int DIR = +1);

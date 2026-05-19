@@ -7,4 +7,3 @@
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/memory.h"
 #include "sfc/cuda/texture.h"
-#include "sfc/cuda/fft.h"

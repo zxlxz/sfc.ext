@@ -230,7 +230,7 @@ void copy_bytes(MemBlock src, MemBlock dst) {
 auto Alloc::alloc(usize size) -> void* {
   if (size == 0) return nullptr;
 
-  switch (type) {
+  switch (mtype) {
     default:
     case MemType::Heap:   return cuda::heap_alloc(size);
     case MemType::Host:   return cuda::host_alloc(size);
@@ -242,7 +242,7 @@ auto Alloc::alloc(usize size) -> void* {
 void Alloc::dealloc(void* ptr) {
   if (ptr == nullptr) return;
 
-  switch (type) {
+  switch (mtype) {
     default:
     case MemType::Heap:   return cuda::heap_free(ptr);
     case MemType::Host:   return cuda::host_free(ptr);

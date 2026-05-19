@@ -36,7 +36,7 @@ void copy_bytes(MemBlock src, MemBlock dst);
 void fill_bytes(MemBlock block, u8 val);
 
 struct Alloc {
-  MemType type = MemType::Heap;
+  MemType mtype = MemType::Heap;
 
  public:
   auto alloc(usize size) -> void*;

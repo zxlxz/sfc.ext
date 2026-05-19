@@ -61,9 +61,11 @@ class RawBuf {
   }
 
   auto mtype() const -> cuda::MemType {
-    return _a.type;
+    return _a.mtype;
   }
 
+ public:
+#ifndef __CUDACC__
   auto as_slice() const -> slice::Slice<const T> {
     return {_ptr, _cap};
   }
@@ -72,7 +74,6 @@ class RawBuf {
     return {_ptr, _cap};
   }
 
-#ifndef __CUDACC__
   auto as_bytes() const -> slice::Slice<const u8> {
     return this->as_slice().as_bytes();
   }
@@ -83,15 +84,29 @@ class RawBuf {
 #endif
 
  public:
-  void zero() {
-    const auto blk = cuda::MemBlock{_ptr, _cap * sizeof(T), _a.type};
+  void bzero() {
+    const auto blk = cuda::MemBlock{_ptr, _cap * sizeof(T), _a.mtype};
     cuda::fill_bytes(blk, 0);
   }
 
   void copy_from(const RawBuf& src) {
-    const auto dst_blk = cuda::MemBlock{_ptr, _cap * sizeof(T), _a.type};
-    const auto src_blk = cuda::MemBlock{src._ptr, src._cap * sizeof(T), src._a.type};
-    cuda::copy_bytes(dst_blk, src_blk);
+    const auto dst_blk = cuda::MemBlock{_ptr, _cap * sizeof(T), _a.mtype};
+    const auto src_blk = cuda::MemBlock{src._ptr, src._cap * sizeof(T), src._a.mtype};
+    cuda::copy_bytes(src_blk, dst_blk);
+  }
+
+  auto clone(cuda::MemType mtype) const -> RawBuf {
+    auto res = RawBuf::with_capacity(_cap, mtype);
+    res.copy_from(*this);
+    return res;
+  }
+
+  void sync(cuda::MemType mtype) {
+    if (_a.mtype == mtype) {
+      return;
+    }
+    auto new_buf = this->clone(mtype);
+    this->swap(new_buf);
   }
 };
 
