@@ -1,13 +1,8 @@
 #pragma once
 
-#include "sfc/math/vec.h"
 #include "sfc/cuda/tex.h"
 #include "sfc/cuda/buffer.h"
-
-namespace sfc::math {
-template <class T, int N>
-struct NdSlice;
-}
+#include "sfc/math/ndslice.h"
 
 namespace sfc::cuda {
 
@@ -28,90 +23,56 @@ enum class TexAddr {
 auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t;
 void texture_del(tex_t obj);
 
-template <class T, int N>
+template <class T, int N = 3>
 class Texture {
   using Buf = cuda::Buffer<T>;
-  using Inn = cuda::Tex<T, N>;
-
-  Buf _buf = {};
-  Inn _tex = {};
-
- public:
-  Texture() noexcept {}
-
-  ~Texture() noexcept {
-    cuda::texture_del(_tex._tex);
-  }
-
-  Texture(Texture&& other) noexcept : _buf{static_cast<Buf&&>(other._buf)}, _tex{other._tex} {
-    other._tex = {};
-  }
-
-  static auto with_shape(math::vec<u32, N> dims,
-                         TexFilt filt_mode = TexFilt::Point,
-                         TexAddr addr_mode = TexAddr::Clamp) -> Texture {
-    auto res = Texture{};
-    res._buf = Buf::xnew(BufExt::from(dims));
-    res._tex = {cuda::texture_new(res._buf.as_ptr(), filt_mode, addr_mode)};
-    return res;
-  }
-
- public:
-  operator Inn() const {
-    return _tex;
-  }
-
-  auto operator*() const -> Inn {
-    return _tex;
-  }
-
- public:
-  void set_data(const math::NdSlice<T, N>& src) {
-    _buf.set_data(src._data);
-  }
-};
-
-template <class T, int N>
-class LTexture {
-  using Buf = cuda::Buffer<T>;
-  using Tex = cuda::LTex<T, N>;
+  using Tex = cuda::Tex<T, N>;
+  using Dim = math::vec<u32, N>;
 
   Buf _buf = {};
   Tex _tex = {};
 
  public:
-  LTexture() noexcept : _buf{}, _tex{} {}
+  Texture() noexcept;
+  ~Texture() noexcept;
+  Texture(Texture&& other) noexcept;
+  Texture& operator=(Texture&& other) noexcept;
 
-  ~LTexture() noexcept {
-    cuda::texture_del(_tex._tex);
-  }
-
-  LTexture(LTexture&& other) noexcept : _buf{static_cast<Buf&&>(other._buf)}, _tex{other._tex} {
-    other._tex = {};
-  }
-
-  static auto with_shape(math::vec<u32, N> dims,
+  static auto with_shape(Dim dims,
                          TexFilt filt_mode = TexFilt::Point,
-                         TexAddr addr_mode = TexAddr::Clamp) -> LTexture {
-    auto res = LTexture{};
-    res._buf = Buf::xnew(BufExt::from(dims));
-    res._tex = {cuda::texture_new(res._buf.as_ptr(), filt_mode, addr_mode)};
-    return res;
-  }
+                         TexAddr addr_mode = TexAddr::Clamp) -> Texture;
 
  public:
-  operator Tex() const {
-    return _tex;
-  }
+  operator Tex() const;
+  auto operator*() const -> Tex;
 
-  auto operator*() const -> Tex {
-    return _tex;
-  }
+  void set_data(math::NdSlice<T, N> src);
+};
+
+template <class T, int N = 3>
+class LTexture {
+  using Buf = cuda::Buffer<T>;
+  using Tex = cuda::LTex<T, N>;
+  using Dim = math::vec<u32, N>;
+
+  Buf _buf = {};
+  Tex _tex = {};
 
  public:
-  void set_data(const math::NdSlice<T, N>& src) {
-    _buf.set_data(src._data);
-  }
+  LTexture() noexcept;
+  ~LTexture() noexcept;
+  LTexture(LTexture&& other) noexcept;
+  LTexture& operator=(LTexture&& other) noexcept;
+
+  static auto with_shape(Dim dims,
+                         TexFilt filt_mode = TexFilt::Point,
+                         TexAddr addr_mode = TexAddr::Clamp) -> LTexture;
+
+ public:
+  operator Tex() const;
+  auto operator*() const -> Tex;
+
+  void set_data(math::NdSlice<T, N> src);
 };
 
 }  // namespace sfc::cuda

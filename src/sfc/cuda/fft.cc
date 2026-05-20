@@ -137,25 +137,27 @@ void FFT<I, O>::exec(const I idata[], O odata[], int DIR) {
 }
 
 template <class I, class O>
-void FFT<I, O>::operator()(math::NdSlice<I, 1> i, math::NdSlice<O, 1> o, int DIR) {
-  panic::expect(_batch == 1, "batch size must be 1 for 1D slice");
+void FFT<I, O>::check_size(const u32 (&idim)[2], const u32 (&odim)[2]) const {
+  const auto full_len = _len;
+  const auto half_len = _len / 2 + 1;
+  const auto ilen = trait::same_<O, c32> ? full_len : half_len;
+  const auto olen = trait::same_<I, c32> ? full_len : half_len;
 
-  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
-  const auto olen = trait::same_<I, c32> ? _len : _len / 2 + 1;
-  panic::expect(i._dims.x == ilen, "in.shape(=`{}`) not match plan(=`{}`)", i._dims, ilen);
-  panic::expect(o._dims.x == olen, "out.shape(=`{}`) not match plan(=`{}`)", o._dims, olen);
+  panic::expect(idim[1] == _batch, "batch(={}) not match plan(batch={})", idim[1], _batch);
+  panic::expect(odim[1] == _batch, "batch(={}) not match plan(batch={})", odim[1], _batch);
+  panic::expect(idim[0] == ilen, "in_len(={}) not match plan(in_len={})", idim[0], ilen);
+  panic::expect(odim[0] == olen, "out_len(={}) not match plan(out_len={})", odim[0], olen);
+}
+
+template <class I, class O>
+void FFT<I, O>::operator()(math::NdSlice<I, 1> i, math::NdSlice<O, 1> o, int DIR) {
+  this->check_size({i._dims.x, 1}, {o._dims.x, 1});
   return cuda::fft_exec(_plan, i._data, o._data, DIR);
 }
 
 template <class I, class O>
 void FFT<I, O>::operator()(math::NdSlice<I, 2> i, math::NdSlice<O, 2> o, int DIR) {
-  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
-  const auto olen = trait::same_<I, c32> ? _len : _len / 2 + 1;
-  const auto idim = math::vec2u{ilen, _batch};
-  const auto odim = math::vec2u{olen, _batch};
-
-  panic::expect(i._dims == idim, "in.shape(=`{}`) not match plan(=`{}`)", i._dims, idim);
-  panic::expect(o._dims == odim, "out.shape(=`{}`) not match plan(=`{}`)", o._dims, odim);
+  this->check_size({i._dims.x, i._dims.y}, {o._dims.x, o._dims.y});
   return cuda::fft_exec(_plan, i._data, o._data, DIR);
 }
 

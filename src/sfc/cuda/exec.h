@@ -1,23 +1,31 @@
 #pragma once
 
-#include "sfc/cuda/mod.h"
-#include "sfc/math/vec.h"
+#include "sfc/core/mod.h"
 
 struct CUstream_st;
+
+namespace sfc::math {
+template <class T, int N>
+struct vec;
+}
 
 namespace sfc::cuda {
 
 struct dim3_t {
-  unsigned x = 1;
-  unsigned y = 1;
-  unsigned z = 1;
+  unsigned x;
+  unsigned y;
+  unsigned z;
 
  public:
   dim3_t(unsigned x, unsigned y, unsigned z = 1) : x{x}, y{y}, z{z} {}
 
-  dim3_t(const math::vec<unsigned, 1>& v) : x{v.x} {}
-  dim3_t(const math::vec<unsigned, 2>& v) : x{v.x}, y{v.y} {}
-  dim3_t(const math::vec<unsigned, 3>& v) : x{v.x}, y{v.y}, z{v.z} {}
+  template <int N>
+  dim3_t(const math::vec<unsigned, N>& v) : x{1}, y{1}, z{1} {
+    static_assert(N >= 1 && N <= 3, "invalid dimension");
+    if constexpr (N >= 1) x = v.x;
+    if constexpr (N >= 2) y = v.y;
+    if constexpr (N >= 3) z = v.z;
+  }
 
 #ifdef __CUDACC__
   operator ::dim3() const {

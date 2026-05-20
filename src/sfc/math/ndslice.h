@@ -169,14 +169,20 @@ struct NdSlice<T, 2> {
   void imap(auto&& f) const {
     for (auto j = 0U; j < _dims.y; ++j) {
       const auto col = (*this)[j];
-      col.imap([&](u32 i, const T& e) { f(i, j, e); });
+      for (auto i = 0U; i < _dims.x; ++i) {
+        const auto& e = col[i];
+        f(i, j, e);
+      }
     }
   }
 
   void imap_mut(auto&& f) {
     for (auto j = 0U; j < _dims.y; ++j) {
       auto col = (*this)[j];
-      col.imap_mut([&](u32 i, T& e) { f(i, j, e); });
+      for (auto i = 0U; i < _dims.x; ++i) {
+        auto& e = col[i];
+        f(i, j, e);
+      }
     }
   }
 
@@ -239,15 +245,27 @@ struct NdSlice<T, 3> {
  public:
   void imap(auto&& f) const {
     for (auto k = 0U; k < _dims.z; ++k) {
-      const auto img = (*this)[k];
-      img.imap([&](u32 i, u32 j, const T& e) { f(i, j, k, e); });
+      const auto mat = (*this)[k];
+      for (auto j = 0U; j < _dims.y; ++j) {
+        const auto row = mat[j];
+        for (auto i = 0U; i < _dims.x; ++i) {
+          const auto& e = row[i];
+          f(i, j, k, e);
+        }
+      }
     }
   }
 
   void imap_mut(auto&& f) {
     for (auto k = 0U; k < _dims.z; ++k) {
-      auto img = (*this)[k];
-      img.imap_mut([&](u32 i, u32 j, T& e) { f(i, j, k, e); });
+      auto mat = (*this)[k];
+      for (auto j = 0U; j < _dims.y; ++j) {
+        auto row = mat[j];
+        for (auto i = 0U; i < _dims.x; ++i) {
+          auto& e = row[i];
+          f(i, j, k, e);
+        }
+      }
     }
   }
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sfc/cuda/mod.h"
+#include "sfc/core/mod.h"
 
 namespace sfc::cuda {
 

@@ -6,48 +6,29 @@
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/error.h"
 
-
 namespace sfc::cuda {
 
 using array_fmt_t = CUarray_format;
 
-template <>
-auto BufExt::from(const math::vec<u32, 1>& dims) -> BufExt {
-  return {dims.x, 0, 0};
-}
-
-template <>
-auto BufExt::from(const math::vec<u32, 2>& dims) -> BufExt {
-  return {dims.x, dims.y, 0};
-}
-
-template <>
-auto BufExt::from(const math::vec<u32, 3>& dims) -> BufExt {
-  return {dims.x, dims.y, dims.z};
-}
-
-static auto array_fmt_cast(BufFmt fmt) -> array_fmt_t {
-  switch (fmt.kind) {
-    case BufFmt::UInt:
-      if (fmt.size == 1) return CU_AD_FORMAT_UNSIGNED_INT8;
-      if (fmt.size == 2) return CU_AD_FORMAT_UNSIGNED_INT16;
-      if (fmt.size == 4) return CU_AD_FORMAT_UNSIGNED_INT32;
-      break;
-    case BufFmt::SInt:
-      if (fmt.size == 1) return CU_AD_FORMAT_SIGNED_INT8;
-      if (fmt.size == 2) return CU_AD_FORMAT_SIGNED_INT16;
-      if (fmt.size == 4) return CU_AD_FORMAT_SIGNED_INT32;
-      break;
-    case BufFmt::Float:
-      if (fmt.size == 2) return CU_AD_FORMAT_HALF;
-      if (fmt.size == 4) return CU_AD_FORMAT_FLOAT;
-      break;
-    default: break;
+template <class T>
+static auto array_format() -> array_fmt_t {
+  if constexpr (trait::uint_<T>) {
+    if constexpr (sizeof(T) == 1) return CU_AD_FORMAT_UNSIGNED_INT8;
+    if constexpr (sizeof(T) == 2) return CU_AD_FORMAT_UNSIGNED_INT16;
+    if constexpr (sizeof(T) == 4) return CU_AD_FORMAT_UNSIGNED_INT32;
+  } else if constexpr (trait::sint_<T>) {
+    if constexpr (sizeof(T) == 1) return CU_AD_FORMAT_SIGNED_INT8;
+    if constexpr (sizeof(T) == 2) return CU_AD_FORMAT_SIGNED_INT16;
+    if constexpr (sizeof(T) == 4) return CU_AD_FORMAT_SIGNED_INT32;
+  } else if constexpr (trait::float_<T>) {
+    if constexpr (sizeof(T) == 2) return CU_AD_FORMAT_HALF;
+    if constexpr (sizeof(T) == 4) return CU_AD_FORMAT_FLOAT;
+  } else {
+    static_assert(false, "unsupported type");
   }
-  return CU_AD_FORMAT_MAX;
 }
 
-static auto array_fmt_size(array_fmt_t fmt) -> unsigned {
+static auto array_format_size(array_fmt_t fmt) -> unsigned {
   switch (fmt) {
     case CU_AD_FORMAT_UNSIGNED_INT8:  return 1;
     case CU_AD_FORMAT_UNSIGNED_INT16: return 2;
@@ -62,10 +43,8 @@ static auto array_fmt_size(array_fmt_t fmt) -> unsigned {
   }
 }
 
-auto buffer_new(BufFmt fmt, BufExt ext, bool is_layered) -> buf_t {
+auto buffer_new_imp(array_fmt_t format, Extent ext, bool is_layered) -> buf_t {
   const auto flags = is_layered ? CUDA_ARRAY3D_LAYERED : 0U;
-  const auto format = cuda::array_fmt_cast(fmt);
-
   const auto desc = CUDA_ARRAY3D_DESCRIPTOR_st{
       .Width = ext.width,
       .Height = ext.height,
@@ -80,6 +59,12 @@ auto buffer_new(BufFmt fmt, BufExt ext, bool is_layered) -> buf_t {
     panic::panic_fmt("cuArray3DCreate failed, err={}", Error{err});
   }
   return res;
+}
+
+template <class T>
+auto buffer_new(Extent ext, bool is_layered) -> buf_t {
+  const auto format = cuda::array_format<T>();
+  return buffer_new_imp(format, ext, is_layered);
 }
 
 void buffer_del(buf_t arr) {
@@ -99,7 +84,7 @@ void buffer_set(buf_t arr, const void* src) {
     panic::panic_fmt("cuArray3DGetDescriptor failed, err={}", Error{err});
   }
 
-  const auto fmt_size = cuda::array_fmt_size(desc.Format);  // in bytes
+  const auto fmt_size = cuda::array_format_size(desc.Format);  // in bytes
 
   auto copy_params = CUDA_MEMCPY3D_st{
       .srcXInBytes = 0,
@@ -134,25 +119,49 @@ void buffer_set(buf_t arr, const void* src) {
 }
 
 template <class T>
-auto BufFmt::of() -> BufFmt {
-  return {Unknown, sizeof(T)};
+Buffer<T>::Buffer() noexcept : _arr{nullptr} {}
+
+template <class T>
+Buffer<T>::~Buffer() {
+  cuda::buffer_del(_arr);
 }
 
-#define IMPL_BUF_FMT(T, Kind)       \
-  template <>                       \
-  auto BufFmt::of<T>() -> BufFmt {  \
-    return BufFmt{Kind, sizeof(T)}; \
-  }
+template <class T>
+Buffer<T>::Buffer(Buffer&& other) noexcept : _arr{other._arr} {
+  other._arr = nullptr;
+}
 
-IMPL_BUF_FMT(u8, BufFmt::UInt)
-IMPL_BUF_FMT(u16, BufFmt::UInt)
-IMPL_BUF_FMT(u32, BufFmt::UInt)
-IMPL_BUF_FMT(i8, BufFmt::SInt)
-IMPL_BUF_FMT(i16, BufFmt::SInt)
-IMPL_BUF_FMT(i32, BufFmt::SInt)
+template <class T>
+auto Buffer<T>::operator=(Buffer&& other) noexcept -> Buffer& {
+  if (this == &other) return *this;
+  mem::swap(_arr, other._arr);
+  return *this;
+}
 
-IMPL_BUF_FMT(float, BufFmt::Float)
+template <class T>
+auto Buffer<T>::xnew(Extent ext) -> Buffer {
+  auto res = Buffer{};
+  res._arr = cuda::buffer_new<T>(ext, false);
+  return res;
+}
 
-#undef IMPL_BUF_FMT
+template <class T>
+auto Buffer<T>::as_ptr() const -> buf_t {
+  return _arr;
+}
 
+template <class T>
+void Buffer<T>::set_data(const T* src) {
+  cuda::buffer_set(_arr, src);
+}
+
+template class Buffer<u8>;
+template class Buffer<u16>;
+template class Buffer<u32>;
+
+template class Buffer<i8>;
+template class Buffer<i16>;
+template class Buffer<i32>;
+
+template class Buffer<f32>;
 }  // namespace sfc::cuda

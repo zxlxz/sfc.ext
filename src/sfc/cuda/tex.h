@@ -1,6 +1,12 @@
 #pragma once
 
-#include "sfc/cuda/mod.h"
+#include "sfc/core/mod.h"
+
+#ifdef __device__
+#define __dev __device__
+#else
+#define __dev
+#endif
 
 namespace sfc::cuda {
 

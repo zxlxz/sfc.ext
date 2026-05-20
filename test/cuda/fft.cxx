@@ -31,7 +31,7 @@ SFC_TEST(fft_c2c_perf) {
     for (const auto N : lens) {
       auto X = NdArray<c32, 2>::with_shape({N, BATCH}, MemType::Device);
       auto Y = NdArray<c32, 2>::with_shape({N, BATCH}, MemType::Device);
-      X.buf().zero();
+      X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
       auto fft_c2c = cuda::FFT<c32, c32>::create(N, BATCH);
@@ -77,7 +77,7 @@ SFC_TEST(fft_r2c_perf) {
     for (const auto N : lens) {
       auto X = NdArray<f32, 2>::with_shape({N, BATCH}, MemType::Device);
       auto Y = NdArray<c32, 2>::with_shape({N / 2 + 1, BATCH}, MemType::Device);
-      X.buf().zero();
+      X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
       auto fft_r2c = cuda::FFT<f32, c32>::create(N, BATCH);

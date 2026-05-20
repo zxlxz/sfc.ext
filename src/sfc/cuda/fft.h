@@ -1,6 +1,5 @@
 #pragma once
 
-#include "sfc/cuda/mod.h"
 #include "sfc/math/complex.h"
 #include "sfc/math/ndslice.h"
 
@@ -21,6 +20,7 @@ class FFT {
   static auto create(u32 len, u32 batch = 1) -> FFT;
 
  public:
+  void check_size(const u32 (&idim)[2], const u32 (&odim)[2]) const;
   void exec(const I in[], O out[], int DIR = +1);
 
   void operator()(math::NdSlice<I, 1> in, math::NdSlice<O, 1> out, int DIR = +1);
