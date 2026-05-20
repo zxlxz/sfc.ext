@@ -1,43 +1,71 @@
 #include <cuda.h>
 
+#include "sfc/math/vec.h"
 #include "sfc/cuda/exec.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/error.h"
 
 namespace sfc::cuda {
 
-struct ExecConfig {
+struct ExecConf {
   dim3_t work_size = {1, 1, 1};
-  dim3_t block_dim = {1, 1, 1};
-  dim3_t grid_dim = {1, 1, 1};
+  dim3_t grid_size = {1, 1, 1};
+  dim3_t block_size = {1, 1, 1};
+
+ public:
+  static auto instance() -> ExecConf& {
+    static thread_local auto cfg = ExecConf{};
+    return cfg;
+  }
+
+  void set_worksize(dim3_t ws, dim3_t bs) {
+    // fix ws
+    const auto wx = ws.x == 0 ? 1 : ws.x;
+    const auto wy = ws.y == 0 ? 1 : ws.y;
+    const auto wz = ws.z == 0 ? 1 : ws.z;
+
+    // fix bs
+    const auto bx = bs.x == 0 ? 1 : bs.x;
+    const auto by = bs.y == 0 ? 1 : bs.y;
+    const auto bz = bs.z == 0 ? 1 : bs.z;
+
+    // cacl grid size
+    const auto gx = (wx + bx - 1) / bx;
+    const auto gy = (wy + by - 1) / by;
+    const auto gz = (wz + bz - 1) / bz;
+
+    // set config
+    this->work_size = {wx, wy, wz};
+    this->grid_size = {gx, gy, gz};
+    this->block_size = {bx, by, bz};
+  }
 };
 
-static thread_local auto _tls_exec_conf = ExecConfig{};
-
 auto get_trds() -> dim3_t {
-  return _tls_exec_conf.block_dim;
+  return ExecConf::instance().block_size;
 }
 
 auto get_blks() -> dim3_t {
-  return _tls_exec_conf.grid_dim;
+  return ExecConf::instance().grid_size;
 }
 
-void config(dim3_t work_size, dim3_t block_size) {
-  const auto nx = work_size.x ? work_size.x : 1U;
-  const auto ny = work_size.y ? work_size.y : 1U;
-  const auto nz = work_size.z ? work_size.z : 1U;
+void set_worksize(dim3_t ws, dim3_t bs) {
+  ExecConf::instance().set_worksize(ws, bs);
+}
 
-  const auto tx = block_size.x ? block_size.x : 1U;
-  const auto ty = block_size.y ? block_size.y : 1U;
-  const auto tz = block_size.z ? block_size.z : 1U;
+template <>
+void config(math::vec<unsigned, 1> ws, math::vec<unsigned, 1> bs) {
+  cuda::set_worksize({ws.x, 1, 1}, {bs.x, 1, 1});
+}
 
-  const auto bx = (nx + tx - 1) / tx;
-  const auto by = (ny + ty - 1) / ty;
-  const auto bz = (nz + tz - 1) / tz;
+template <>
+void config(math::vec<unsigned, 2> ws, math::vec<unsigned, 2> bs) {
+  cuda::set_worksize({ws.x, ws.y, 1}, {bs.x, bs.y, 1});
+}
 
-  _tls_exec_conf.work_size = {nx, ny, nz};
-  _tls_exec_conf.block_dim = {tx, ty, tz};
-  _tls_exec_conf.grid_dim = {bx, by, bz};
+template <>
+void config(math::vec<unsigned, 3> ws, math::vec<unsigned, 3> bs) {
+  cuda::set_worksize({ws.x, ws.y, ws.z}, {bs.x, bs.y, bs.z});
 }
 
 }  // namespace sfc::cuda

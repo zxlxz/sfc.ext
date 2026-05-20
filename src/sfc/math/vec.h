@@ -147,12 +147,6 @@ __hd inline auto operator/(T s, const vec<T, N>& v) -> vec<T, N> {
   if constexpr (N == 4) return {s / v.x, s / v.y, s / v.z, s / v.w};
 }
 
-template <class T, int N>
-__hd inline auto operator,(const vec<T, N>& v, T t) -> vec<T, N + 1> {
-  if constexpr (N == 1) return {v.x, t};
-  if constexpr (N == 2) return {v.x, v.y, t};
-  if constexpr (N == 3) return {v.x, v.y, v.z, t};
-}
 
 template <class T, class F, int N>
 __hd inline auto cast(const vec<F, N>& v) -> vec<T, N> {

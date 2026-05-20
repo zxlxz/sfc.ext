@@ -1,7 +1,11 @@
 #pragma once
 
-#include "sfc/core.h"
+#include "sfc/core/mem.h"
 #include "sfc/cuda/memory.h"
+
+#ifndef __CUDACC__
+#include "sfc/core/slice.h"
+#endif
 
 namespace sfc::math {
 
@@ -12,7 +16,7 @@ template <class T>
 class RawBuf {
   T* _ptr;
   usize _cap;
-  cuda::Alloc _a;
+  Alloc _a;
 
  public:
   RawBuf() : _ptr{nullptr}, _cap{0}, _a{} {}
@@ -30,8 +34,6 @@ class RawBuf {
 
   RawBuf& operator=(RawBuf&& other) noexcept {
     if (this == &other) return *this;
-    // to keep this operator noexcept
-    // we just swap, and let the destructor of other to do the cleanup
     this->swap(other);
     return *this;
   }
@@ -42,9 +44,9 @@ class RawBuf {
     mem::swap(_a, other._a);
   }
 
-  static auto with_capacity(usize cap, cuda::MemType type = {}) -> RawBuf {
+  static auto with_capacity(usize cap, MemType type = {}) -> RawBuf {
     auto buf = RawBuf{};
-    buf._a = cuda::Alloc{type};
+    buf._a = Alloc{type};
     buf._ptr = static_cast<T*>(buf._a.alloc(cap * sizeof(T)));
     buf._cap = cap;
 
@@ -60,48 +62,52 @@ class RawBuf {
     return _cap;
   }
 
-  auto mtype() const -> cuda::MemType {
+  auto mtype() const -> MemType {
     return _a.mtype;
   }
 
  public:
 #ifndef __CUDACC__
-  auto as_slice() const -> slice::Slice<const T> {
-    return {_ptr, _cap};
+  auto as_slice() const -> Slice<const T> {
+    return Slice{_ptr, _cap};
   }
 
-  auto as_mut_slice() -> slice::Slice<T> {
-    return {_ptr, _cap};
+  auto as_mut_slice() -> Slice<T> {
+    return Slice{_ptr, _cap};
   }
 
-  auto as_bytes() const -> slice::Slice<const u8> {
+  auto as_bytes() const -> Slice<const u8> {
     return this->as_slice().as_bytes();
   }
 
-  auto as_mut_bytes() -> slice::Slice<u8> {
+  auto as_mut_bytes() -> Slice<u8> {
     return this->as_mut_slice().as_mut_bytes();
   }
 #endif
 
  public:
+  auto mblk() -> cuda::MemBlock {
+    return cuda::MemBlock{_ptr, _cap * sizeof(T), _a.mtype};
+  }
+
   void bzero() {
-    const auto blk = cuda::MemBlock{_ptr, _cap * sizeof(T), _a.mtype};
+    const auto blk = this->mblk();
     cuda::fill_bytes(blk, 0);
   }
 
   void copy_from(const RawBuf& src) {
-    const auto dst_blk = cuda::MemBlock{_ptr, _cap * sizeof(T), _a.mtype};
-    const auto src_blk = cuda::MemBlock{src._ptr, src._cap * sizeof(T), src._a.mtype};
+    const auto src_blk = src.mblk();
+    const auto dst_blk = this->mblk();
     cuda::copy_bytes(src_blk, dst_blk);
   }
 
-  auto clone(cuda::MemType mtype) const -> RawBuf {
+  auto clone(MemType mtype) const -> RawBuf {
     auto res = RawBuf::with_capacity(_cap, mtype);
     res.copy_from(*this);
     return res;
   }
 
-  void sync(cuda::MemType mtype) {
+  void sync(MemType mtype) {
     if (_a.mtype == mtype) {
       return;
     }
