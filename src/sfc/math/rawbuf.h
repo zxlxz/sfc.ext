@@ -66,6 +66,10 @@ class RawBuf {
     return _a.mtype;
   }
 
+  auto mblk() const -> cuda::MemBlock {
+    return cuda::MemBlock{_ptr, _cap * sizeof(T), _a.mtype};
+  }
+
  public:
 #ifndef __CUDACC__
   auto as_slice() const -> Slice<const T> {
@@ -86,10 +90,6 @@ class RawBuf {
 #endif
 
  public:
-  auto mblk() -> cuda::MemBlock {
-    return cuda::MemBlock{_ptr, _cap * sizeof(T), _a.mtype};
-  }
-
   void bzero() {
     const auto blk = this->mblk();
     cuda::fill_bytes(blk, 0);

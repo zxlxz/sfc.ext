@@ -143,10 +143,11 @@ void FFT<I, O>::check_size(const u32 (&idim)[2], const u32 (&odim)[2]) const {
   const auto ilen = trait::same_<O, c32> ? full_len : half_len;
   const auto olen = trait::same_<I, c32> ? full_len : half_len;
 
-  panic::expect(idim[1] == _batch, "batch(={}) not match plan(batch={})", idim[1], _batch);
-  panic::expect(odim[1] == _batch, "batch(={}) not match plan(batch={})", odim[1], _batch);
-  panic::expect(idim[0] == ilen, "in_len(={}) not match plan(in_len={})", idim[0], ilen);
-  panic::expect(odim[0] == olen, "out_len(={}) not match plan(out_len={})", odim[0], olen);
+  panic::expect(idim[0] == ilen, "idim(={}) not match plan(ilen={})", idim, ilen);
+  panic::expect(odim[0] == olen, "odim(={}) not match plan(olen={})", odim, olen);
+
+  panic::expect(idim[1] == _batch, "idim(={}) not match plan(batch={})", idim, _batch);
+  panic::expect(odim[1] == _batch, "odim(={}) not match plan(batch={})", odim, _batch);
 }
 
 template <class I, class O>

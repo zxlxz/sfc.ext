@@ -1,6 +1,5 @@
 #pragma once
 
-#include "sfc/cuda/mod.h"
 #include "sfc/cuda/tex.h"
 #include "sfc/cuda/exec.h"
 #include "sfc/cuda/device.h"

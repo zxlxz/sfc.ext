@@ -21,8 +21,7 @@ class FFT {
   static auto create(u32 len, u32 batch = 1) -> FFT;
 
  public:
-  auto ilen() const -> u32;
-  auto olen() const -> u32;
+  void check_size(const u32 (&idim)[2], const u32 (&odim)[2]) const;
   void exec(const I in[], O out[], int DIR = +1);
 
   void operator()(math::NdSlice<I, 1> in, math::NdSlice<O, 1> out, int DIR = +1);
@@ -31,5 +30,8 @@ class FFT {
 
 void fft(NdSlice<c32, 1> in, NdSlice<c32, 1> out);
 void ifft(NdSlice<c32, 1> in, NdSlice<c32, 1> out);
+
+void fft_r2c(NdSlice<f32, 1> in, NdSlice<c32, 1> out);
+void fft_c2r(NdSlice<c32, 1> in, NdSlice<f32, 1> out);
 
 }  // namespace sfc::math

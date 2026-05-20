@@ -59,6 +59,14 @@ struct NdSlice<T, 1> {
   }
 
  public:
+  __hd auto load(f32 fx) const -> T {
+    const auto ix = static_cast<u32>(fx + 0.5f);
+    if (ix >= _dims.x) {
+      return 0;
+    }
+    return _data[ix];
+  }
+
   // [0 ... shape]
   __hd auto load_interp(f32 x) const -> T {
     if (x < 0 || x >= _dims.x) return 0;
@@ -146,6 +154,15 @@ struct NdSlice<T, 2> {
   }
 
  public:
+  __hd auto load(vec2f p) const -> T {
+    const auto ix = static_cast<u32>(p.x + 0.5f);
+    const auto iy = static_cast<u32>(p.y + 0.5f);
+    if (ix >= _dims.x || iy >= _dims.y) {
+      return 0;
+    }
+    return (*this)[{ix, iy}];
+  }
+
   __hd auto load_interp_2d(vec2f p) const -> T {
     const auto [x, y] = p;
     if (y < 0 || y >= _dims.y) return 0;
@@ -160,10 +177,17 @@ struct NdSlice<T, 2> {
       return (*this)[_dims.y - 1].load_interp(x);
     }
 
+    const auto col0 = (*this)[y0];
+    const auto col1 = (*this)[y1];
+    const auto val0 = col0.load_interp(x);
+    const auto val1 = col1.load_interp(x);
+    if (val0 == 0.0f && val1 == 0.0f) {
+      return 0;
+    }
+
     const auto p1 = fy - static_cast<f32>(y0);
-    const auto t0 = (*this)[y0].load_interp(x);
-    const auto t1 = (*this)[y1].load_interp(x);
-    return t0 * (1.0f - p1) + t1 * p1;
+    const auto p0 = 1.0f - p1;
+    return val0 * p0 + val1 * p1;
   }
 
   void imap(auto&& f) const {
@@ -188,8 +212,8 @@ struct NdSlice<T, 2> {
 
   void fmt(auto& f) const {
     for (auto j = 0U; j < _dims.y; ++j) {
-      const auto row = (*this)[j];
-      f.write_fmt("{}\n", row);
+      const auto col = (*this)[j];
+      f.write_fmt("{}\n", col);
     }
   }
 };

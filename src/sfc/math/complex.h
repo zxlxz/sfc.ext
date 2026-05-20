@@ -13,6 +13,25 @@ struct c32 {
     return c32{real, -imag};
   }
 
+  __hd auto operator+=(c32 b) -> c32& {
+    real += b.real;
+    imag += b.imag;
+    return *this;
+  }
+
+  __hd auto operator-=(c32 b) -> c32& {
+    real -= b.real;
+    imag -= b.imag;
+    return *this;
+  }
+
+  __hd auto operator*=(f32 k) -> c32& {
+    real *= k;
+    imag *= k;
+    return *this;
+  }
+
+ public:
   void fmt(auto& f) const {
     f.write_val(real);
     auto spec = f._spec;
