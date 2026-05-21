@@ -45,16 +45,19 @@ void fft_drop(fft_plan_t plan) {
 }
 
 template <class I, class O>
-auto fft_plan(i32 N, I in[], O out[], i32 batch) -> fft_plan_t {
+auto fft_plan(u32 N, u32 batch) -> fft_plan_t {
+  const auto nx = static_cast<int>(N);
+  const auto ny = static_cast<int>(batch);
+
   auto plan = fft_plan_t{CUFFT_PLAN_NULL};
 
   auto err = CUFFT_SUCCESS;
   if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
-    err = ::cufftPlan1d(&plan, N, CUFFT_C2C, batch);
+    err = ::cufftPlan1d(&plan, nx, CUFFT_C2C, ny);
   } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
-    err = ::cufftPlan1d(&plan, N, CUFFT_R2C, batch);
+    err = ::cufftPlan1d(&plan, nx, CUFFT_R2C, ny);
   } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
-    err = ::cufftPlan1d(&plan, N, CUFFT_C2R, batch);
+    err = ::cufftPlan1d(&plan, nx, CUFFT_C2R, ny);
   } else {
     static_assert(false, "unsupported type combination");
   }
@@ -112,7 +115,7 @@ auto FFT<I, O>::create(u32 len, u32 batch) -> FFT {
   auto res = FFT{};
   res._len = len;
   res._batch = batch;
-  res._plan = cuda::fft_plan(len, (I*)nullptr, (O*)nullptr, batch);
+  res._plan = cuda::fft_plan<I, O>(len, batch);
   return res;
 }
 
@@ -147,8 +150,8 @@ void FFT<I, O>::operator()(math::NdSlice<I, 2> i, math::NdSlice<O, 2> o, int DIR
   return cuda::fft_exec(_plan, i._data, o._data, DIR);
 }
 
-template struct FFT<c32, c32>;
-template struct FFT<f32, c32>;
-template struct FFT<c32, f32>;
+template class FFT<c32, c32>;
+template class FFT<f32, c32>;
+template class FFT<c32, f32>;
 
 }  // namespace sfc::cuda

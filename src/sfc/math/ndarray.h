@@ -34,12 +34,12 @@ class [[nodiscard]] NdArray {
   Inn _inn = {};
 
  public:
-  NdArray() noexcept : _inn{}, _buf{} {}
+  NdArray() noexcept : _buf{}, _inn{} {}
 
   ~NdArray() {}
 
   NdArray(NdArray&& other) noexcept
-      : _inn{static_cast<Inn&&>(other._inn)}, _buf{static_cast<Buf&&>(other._buf)} {}
+      : _buf{static_cast<Buf&&>(other._buf)}, _inn{static_cast<Inn&&>(other._inn)} {}
 
   NdArray& operator=(NdArray&& other) noexcept {
     if (this == &other) return *this;

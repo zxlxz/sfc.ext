@@ -9,7 +9,7 @@ using fft_plan_t = int;
 void fft_drop(fft_plan_t plan);
 
 template <class I, class O>
-auto fft_plan(i32 N, I in[], O out[], i32 batch) -> fft_plan_t;
+auto fft_plan(u32 N, u32 batch) -> fft_plan_t;
 
 template <class I, class O>
 void fft_exec(fft_plan_t plan, I in[], O out[], int SIGN);

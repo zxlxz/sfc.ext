@@ -90,7 +90,7 @@ FFT<I, O>::~FFT() {
 }
 
 template <class I, class O>
-FFT<I, O>::FFT(FFT&& other) noexcept : _inn{other._inn}, _len{other._len}, _batch{other._batch} {
+FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len}, _batch{other._batch}, _inn{other._inn} {
   other._inn = nullptr;
   other._len = 0;
   other._batch = 0;

@@ -14,44 +14,26 @@ struct LTex;
 
 template <class T>
 struct Tex<T, 2> {
-  tex_t _tex = 0;
+  tex_t _tex;
 
  public:
-  __dev auto get(auto pos) const -> T {
-    auto res = T{0};
-#ifdef __CUDACC__
-    ::tex2D(&res, _tex, pos.x, pos.y);
-#endif
-    return res;
-  }
+  __dev auto get(auto pos) const -> T;
 };
 
 template <class T>
 struct Tex<T, 3> {
-  tex_t _tex = 0;
+  tex_t _tex;
 
  public:
-  __dev auto get(auto pos) const -> T {
-    auto res = T{0};
-#ifdef __CUDACC__
-    ::tex3D(&res, _tex, pos.x, pos.y, pos.z);
-#endif
-    return res;
-  }
+  __dev auto get(auto pos) const -> T;
 };
 
 template <class T>
 struct LTex<T, 3> {
-  tex_t _tex = 0;
+  tex_t _tex;
 
  public:
-  __dev auto get(auto pos, int k) const -> T {
-    auto res = T{0};
-#ifdef __CUDACC__
-    ::tex2DLayered(&res, _tex, pos.x, pos.y, k);
-#endif
-    return res;
-  }
+  __dev auto get(auto pos, int k) const -> T;
 
  public:
   struct Item {
@@ -59,11 +41,7 @@ struct LTex<T, 3> {
     int _layer;
 
     __dev auto get(auto pos) const -> T {
-      auto res = T{0};
-#ifdef __CUDACC__
-      ::tex2DLayered(&res, _tex, pos.x, pos.y, _layer);
-#endif
-      return res;
+      return LTex{_tex}.get(pos, _layer);
     }
   };
 
@@ -71,5 +49,28 @@ struct LTex<T, 3> {
     return {_tex, k};
   }
 };
+
+#ifdef __CUDACC__
+template <class T>
+__dev auto Tex<T, 2>::get(auto pos) const -> T {
+  auto res = T{0};
+  ::tex2D(&res, _tex, pos.x, pos.y);
+  return res;
+}
+
+template <class T>
+__dev auto Tex<T, 3>::get(auto pos) const -> T {
+  auto res = T{0};
+  ::tex3D(&res, _tex, pos.x, pos.y, pos.z);
+  return res;
+}
+
+template <class T>
+__dev auto LTex<T, 3>::get(auto pos, int k) const -> T {
+  auto res = T{0};
+  ::tex2DLayered(&res, _tex, pos.x, pos.y, k);
+  return res;
+}
+#endif
 
 }  // namespace sfc::cuda

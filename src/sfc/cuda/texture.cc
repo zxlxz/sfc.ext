@@ -6,6 +6,8 @@
 
 namespace sfc::cuda {
 
+static constexpr auto kInvalidTex = num::max_value<tex_t>();
+
 auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
   sfc::expect(arr != nullptr, "texture_new: arr is null");
 
@@ -34,7 +36,7 @@ auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
 }
 
 void texture_del(tex_t obj) {
-  if (obj == -1) return;
+  if (obj == kInvalidTex) return;
 
   if (auto e = ::cuTexObjectDestroy(obj)) {
     panic::panic_fmt("cuTexObjectDestroy failed, err={}", Error{e});
@@ -52,7 +54,7 @@ Texture<T, N>::~Texture() noexcept {
 template <class T, int N>
 Texture<T, N>::Texture(Texture&& other) noexcept
     : _buf{static_cast<Buf&&>(other._buf)}, _tex{other._tex} {
-  other._tex = {};
+  other._tex = Tex{kInvalidTex};
 }
 
 template <class T, int N>
@@ -88,7 +90,7 @@ LTexture<T, N>::~LTexture() noexcept {
 template <class T, int N>
 LTexture<T, N>::LTexture(LTexture&& other) noexcept
     : _buf{static_cast<Buf&&>(other._buf)}, _tex{other._tex} {
-  other._tex = {};
+  other._tex = Tex{kInvalidTex};
 }
 
 template <class T, int N>
@@ -113,10 +115,9 @@ void LTexture<T, N>::set_data(math::NdSlice<T, N> src) {
   _buf.set_data(src._data);
 }
 
-
-#define IMPL_TEXTURE(T)          \
-  template class Texture<T, 2>;  \
-  template class Texture<T, 3>;  \
+#define IMPL_TEXTURE(T)         \
+  template class Texture<T, 2>; \
+  template class Texture<T, 3>; \
   template class LTexture<T, 3>
 IMPL_TEXTURE(u8);
 IMPL_TEXTURE(u16);
