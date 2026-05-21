@@ -78,16 +78,6 @@ void Texture<T, N>::set_data(math::NdSlice<T, N> src) {
 }
 
 template <class T, int N>
-Texture<T, N>::operator Tex() const {
-  return _tex;
-}
-
-template <class T, int N>
-auto Texture<T, N>::operator*() const -> Tex {
-  return _tex;
-}
-
-template <class T, int N>
 LTexture<T, N>::LTexture() noexcept {}
 
 template <class T, int N>
@@ -123,15 +113,6 @@ void LTexture<T, N>::set_data(math::NdSlice<T, N> src) {
   _buf.set_data(src._data);
 }
 
-template <class T, int N>
-LTexture<T, N>::operator Tex() const {
-  return _tex;
-}
-
-template <class T, int N>
-auto LTexture<T, N>::operator*() const -> Tex {
-  return _tex;
-}
 
 #define IMPL_TEXTURE(T)          \
   template class Texture<T, 2>;  \

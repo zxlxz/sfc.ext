@@ -1,7 +1,7 @@
 #pragma once
 
 #include <math.h>
-#include "sfc/core.h"
+#include "sfc/core/tuple.h"
 
 #ifdef __CUDACC__
 #define __hd __host__ __device__
@@ -11,7 +11,7 @@
 
 namespace sfc::math {
 
-static constexpr float PI = 3.1415927F;
+static constexpr float PI = 3.14159265358979323846f;
 
 using ::fabsf;
 using ::sqrtf;

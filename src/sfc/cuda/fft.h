@@ -5,6 +5,27 @@
 
 namespace sfc::cuda {
 
+using fft_plan_t = int;
+void fft_drop(fft_plan_t plan);
+
+template <class I, class O>
+auto fft_plan(i32 N, I in[], O out[], i32 batch) -> fft_plan_t;
+
+template <class I, class O>
+void fft_exec(fft_plan_t plan, I in[], O out[], int SIGN);
+
+struct FFTError {
+  int _code;
+
+ public:
+  auto to_str() const -> cstr_t;
+
+  void fmt(auto& f) const {
+    const auto s = this->to_str();
+    f.write_str(s);
+  }
+};
+
 template <class I, class O>
 class FFT {
   using plan_t = int;

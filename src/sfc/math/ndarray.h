@@ -84,6 +84,10 @@ class [[nodiscard]] NdArray {
     return _inn;
   }
 
+  auto operator*() const -> const Inn& {
+    return _inn;
+  }
+
   auto operator->() const -> const Inn* {
     return &_inn;
   }

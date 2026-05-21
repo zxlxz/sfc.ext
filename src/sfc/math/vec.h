@@ -19,7 +19,7 @@ struct vec<T, 1> {
 
  public:
   void fmt(auto& f) const {
-    f.write_fmt("({-})", x);
+    Tuple{x}.fmt(f);
   }
 };
 
@@ -34,7 +34,7 @@ struct vec<T, 2> {
   }
 
   void fmt(auto& f) const {
-    f.write_fmt("({-},{-})", x, y);
+    Tuple{x, y}.fmt(f);
   }
 };
 
@@ -49,7 +49,7 @@ struct vec<T, 3> {
   }
 
   void fmt(auto& f) const {
-    f.write_fmt("({-},{-},{-})", x, y, z);
+    Tuple{x, y, z}.fmt(f);
   }
 };
 
@@ -64,7 +64,7 @@ struct vec<T, 4> {
   }
 
   void fmt(auto& f) const {
-    f.write_fmt("({-},{-},{-},{-})", x, y, z, w);
+    Tuple{x, y, z, w}.fmt(f);
   }
 };
 

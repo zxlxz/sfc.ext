@@ -10,39 +10,29 @@ namespace sfc::cuda {
 
 using fft_plan_t = int;
 
-struct FFTError {
-  cufftResult _code;
-
- public:
-  auto to_str() const -> const char* {
-    switch (_code) {
-      case CUFFT_SUCCESS:            return "CUFFT_SUCCESS";
-      case CUFFT_INVALID_PLAN:       return "CUFFT_INVALID_PLAN";
-      case CUFFT_ALLOC_FAILED:       return "CUFFT_ALLOC_FAILED";
-      case CUFFT_INVALID_TYPE:       return "CUFFT_INVALID_TYPE";
-      case CUFFT_INVALID_VALUE:      return "CUFFT_INVALID_VALUE";
-      case CUFFT_INTERNAL_ERROR:     return "CUFFT_INTERNAL_ERROR";
-      case CUFFT_EXEC_FAILED:        return "CUFFT_EXEC_FAILED";
-      case CUFFT_SETUP_FAILED:       return "CUFFT_SETUP_FAILED";
-      case CUFFT_INVALID_SIZE:       return "CUFFT_INVALID_SIZE";
-      case CUFFT_UNALIGNED_DATA:     return "CUFFT_UNALIGNED_DATA";
-      case CUFFT_INVALID_DEVICE:     return "CUFFT_INVALID_DEVICE";
-      case CUFFT_NO_WORKSPACE:       return "CUFFT_NO_WORKSPACE";
-      case CUFFT_NOT_IMPLEMENTED:    return "CUFFT_NOT_IMPLEMENTED";
-      case CUFFT_NOT_SUPPORTED:      return "CUFFT_NOT_SUPPORTED";
-      case CUFFT_MISSING_DEPENDENCY: return "CUFFT_MISSING_DEPENDENCY";
-      case CUFFT_NVRTC_FAILURE:      return "CUFFT_NVRTC_FAILURE";
-      case CUFFT_NVJITLINK_FAILURE:  return "CUFFT_NVJITLINK_FAILURE";
-      case CUFFT_NVSHMEM_FAILURE:    return "CUFFT_NVSHMEM_FAILURE";
-      default:                       return "CUFFT_ERROR_UNKNOWN";
-    }
+auto FFTError::to_str() const -> cstr_t {
+  switch (_code) {
+    case CUFFT_SUCCESS:            return "CUFFT_SUCCESS";
+    case CUFFT_INVALID_PLAN:       return "CUFFT_INVALID_PLAN";
+    case CUFFT_ALLOC_FAILED:       return "CUFFT_ALLOC_FAILED";
+    case CUFFT_INVALID_TYPE:       return "CUFFT_INVALID_TYPE";
+    case CUFFT_INVALID_VALUE:      return "CUFFT_INVALID_VALUE";
+    case CUFFT_INTERNAL_ERROR:     return "CUFFT_INTERNAL_ERROR";
+    case CUFFT_EXEC_FAILED:        return "CUFFT_EXEC_FAILED";
+    case CUFFT_SETUP_FAILED:       return "CUFFT_SETUP_FAILED";
+    case CUFFT_INVALID_SIZE:       return "CUFFT_INVALID_SIZE";
+    case CUFFT_UNALIGNED_DATA:     return "CUFFT_UNALIGNED_DATA";
+    case CUFFT_INVALID_DEVICE:     return "CUFFT_INVALID_DEVICE";
+    case CUFFT_NO_WORKSPACE:       return "CUFFT_NO_WORKSPACE";
+    case CUFFT_NOT_IMPLEMENTED:    return "CUFFT_NOT_IMPLEMENTED";
+    case CUFFT_NOT_SUPPORTED:      return "CUFFT_NOT_SUPPORTED";
+    case CUFFT_MISSING_DEPENDENCY: return "CUFFT_MISSING_DEPENDENCY";
+    case CUFFT_NVRTC_FAILURE:      return "CUFFT_NVRTC_FAILURE";
+    case CUFFT_NVJITLINK_FAILURE:  return "CUFFT_NVJITLINK_FAILURE";
+    case CUFFT_NVSHMEM_FAILURE:    return "CUFFT_NVSHMEM_FAILURE";
+    default:                       return "CUFFT_ERROR_UNKNOWN";
   }
-
-  void fmt(auto& f) const {
-    const auto s = this->to_str();
-    f.write_str(s);
-  }
-};
+}
 
 void fft_drop(fft_plan_t plan) {
   if (plan == CUFFT_PLAN_NULL) {
@@ -54,51 +44,46 @@ void fft_drop(fft_plan_t plan) {
   }
 }
 
-auto fft_plan(i32 N, c32 I[], c32 O[], i32 batch) -> fft_plan_t {
-  auto plan = CUFFT_PLAN_NULL;
-  if (auto err = ::cufftPlan1d(&plan, N, CUFFT_C2C, batch)) {
+template <class I, class O>
+auto fft_plan(i32 N, I in[], O out[], i32 batch) -> fft_plan_t {
+  auto plan = fft_plan_t{CUFFT_PLAN_NULL};
+
+  auto err = CUFFT_SUCCESS;
+  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
+    err = ::cufftPlan1d(&plan, N, CUFFT_C2C, batch);
+  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
+    err = ::cufftPlan1d(&plan, N, CUFFT_R2C, batch);
+  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
+    err = ::cufftPlan1d(&plan, N, CUFFT_C2R, batch);
+  } else {
+    static_assert(false, "unsupported type combination");
+  }
+
+  if (err != CUFFT_SUCCESS) {
     panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
   }
   return plan;
 }
 
-auto fft_plan(i32 N, f32 I[], c32 O[], i32 batch) -> fft_plan_t {
-  auto plan = CUFFT_PLAN_NULL;
-  if (auto err = ::cufftPlan1d(&plan, N, CUFFT_R2C, batch)) {
-    panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
-  }
-  return plan;
-}
+template <class I, class O>
+void fft_exec(fft_plan_t plan, I in[], O out[], int SIGN) {
+  using R = cufftReal;
+  using C = cufftComplex;
 
-auto fft_plan(i32 N, c32 I[], f32 O[], i32 batch) -> fft_plan_t {
-  auto plan = CUFFT_PLAN_NULL;
-  if (auto err = ::cufftPlan1d(&plan, N, CUFFT_C2R, batch)) {
-    panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
-  }
-  return plan;
-}
+  auto err = CUFFT_SUCCESS;
 
-void fft_exec(fft_plan_t plan, c32 Ic[], c32 Oc[], int SIGN) {
-  const auto idata = reinterpret_cast<cufftComplex*>(Ic);
-  const auto odata = reinterpret_cast<cufftComplex*>(Oc);
-  if (auto err = ::cufftExecC2C(plan, idata, odata, SIGN)) {
+  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
+    err = ::cufftExecC2C(plan, reinterpret_cast<C*>(in), reinterpret_cast<C*>(out), SIGN);
+  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
+    err = ::cufftExecR2C(plan, reinterpret_cast<R*>(in), reinterpret_cast<C*>(out));
+  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
+    err = ::cufftExecC2R(plan, reinterpret_cast<C*>(in), reinterpret_cast<R*>(out));
+  } else {
+    static_assert(false, "unsupported type combination");
+  }
+
+  if (err != CUFFT_SUCCESS) {
     panic::panic_fmt("cufftExecC2C failed, err={}", FFTError{err});
-  }
-}
-
-void fft_exec(fft_plan_t plan, f32 Ir[], c32 Oc[], [[maybe_unused]] int SIGN) {
-  const auto idata = reinterpret_cast<cufftReal*>(Ir);
-  const auto odata = reinterpret_cast<cufftComplex*>(Oc);
-  if (auto err = ::cufftExecR2C(plan, idata, odata)) {
-    panic::panic_fmt("cufftExecR2C failed, err={}", FFTError{err});
-  }
-}
-
-void fft_exec(fft_plan_t plan, c32 Ic[], f32 Or[], [[maybe_unused]] int SIGN) {
-  const auto idata = reinterpret_cast<cufftComplex*>(Ic);
-  const auto odata = reinterpret_cast<cufftReal*>(Or);
-  if (auto err = ::cufftExecC2R(plan, idata, odata)) {
-    panic::panic_fmt("cufftExecC2R failed, err={}", FFTError{err});
   }
 }
 

@@ -60,27 +60,31 @@ struct NdSlice<T, 1> {
 
  public:
   __hd auto load(f32 fx) const -> T {
-    const auto ix = static_cast<u32>(fx + 0.5f);
-    if (ix >= _dims.x) {
+    const auto check_x = fx >= 0 && fx < static_cast<f32>(_dims.x);
+    if (!check_x) {
       return 0;
     }
-    return _data[ix];
+
+    const auto ux = static_cast<u32>(fx);
+    return _data[ux];
   }
 
   // [0 ... shape]
   __hd auto load_interp(f32 x) const -> T {
-    if (x < 0 || x >= _dims.x) return 0;
-
-    const auto fx = x - 0.5f;
-    const auto x0 = static_cast<i32>(fx);
+    const auto nx = static_cast<i32>(_dims.x);
+    const auto x0 = static_cast<i32>(x);
     const auto x1 = x0 + 1;
-    if (x0 < 0) return _data[0];
-    if (x1 >= _dims.x) return _data[_dims.x - 1];
+    if (x0 < 0) {
+      return x1 == 0 ? _data[x1] : 0;
+    }
+    if (x1 >= nx) {
+      return x0 == nx - 1 ? _data[x0] : 0;
+    }
 
-    const auto p1 = fx - static_cast<f32>(x0);
-    const auto t0 = _data[x0];
-    const auto t1 = _data[x1];
-    return t0 * (1.0f - p1) + t1 * p1;
+    const auto cx = static_cast<f32>(x0) + 0.5f;
+    const auto t0 = _data[static_cast<u32>(x0)];
+    const auto t1 = _data[static_cast<u32>(x1)];
+    return (x1 - cx) * t0 + (cx - x0) * t1;
   }
 
   void imap(auto&& f) const {
@@ -155,39 +159,42 @@ struct NdSlice<T, 2> {
 
  public:
   __hd auto load(vec2f p) const -> T {
-    const auto ix = static_cast<u32>(p.x + 0.5f);
-    const auto iy = static_cast<u32>(p.y + 0.5f);
-    if (ix >= _dims.x || iy >= _dims.y) {
+    const auto nx = static_cast<i32>(_dims.x);
+    const auto ny = static_cast<i32>(_dims.y);
+    const auto ix = static_cast<i32>(p.x);
+    const auto iy = static_cast<i32>(p.y);
+    if (ix < 0 || ix >= nx || iy < 0 || iy >= ny) {
       return 0;
     }
-    return (*this)[{ix, iy}];
+
+    const auto idx = vec2u{static_cast<u32>(p.x), static_cast<u32>(p.y)};
+    const auto val = (*this)[idx];
+    return val;
   }
 
   __hd auto load_interp_2d(vec2f p) const -> T {
-    const auto [x, y] = p;
-    if (y < 0 || y >= _dims.y) return 0;
-
-    const auto fy = y - 0.5f;
-    const auto y0 = static_cast<i32>(y);
+    const auto ny = static_cast<i32>(_dims.y);
+    const auto y0 = static_cast<i32>(p.y);
     const auto y1 = y0 + 1;
+
     if (y0 < 0) {
-      return (*this)[0].load_interp(x);
-    }
-    if (y1 >= _dims.y) {
-      return (*this)[_dims.y - 1].load_interp(x);
-    }
-
-    const auto col0 = (*this)[y0];
-    const auto col1 = (*this)[y1];
-    const auto val0 = col0.load_interp(x);
-    const auto val1 = col1.load_interp(x);
-    if (val0 == 0.0f && val1 == 0.0f) {
-      return 0;
+      if (y1 != 0) return 0;
+      const auto col = (*this)[0];
+      return col.load_interp(p.x);
     }
 
-    const auto p1 = fy - static_cast<f32>(y0);
-    const auto p0 = 1.0f - p1;
-    return val0 * p0 + val1 * p1;
+    if (y1 >= ny) {
+      if (y0 != ny - 1) return 0;
+      const auto col = (*this)[ny - 1];
+      return col.load_interp(p.x);
+    }
+
+    const auto cy = static_cast<f32>(y0) + 0.5f;
+    const auto col0 = (*this)[static_cast<u32>(y0)];
+    const auto col1 = (*this)[static_cast<u32>(y1)];
+    const auto val0 = col0.load_interp(p.x);
+    const auto val1 = col1.load_interp(p.x);
+    return (y1 - cy) * val0 + (cy - y0) * val1;
   }
 
   void imap(auto&& f) const {

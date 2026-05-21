@@ -1,7 +1,6 @@
 #include <cuda.h>
 
-#include "sfc/core/panic.h"
-#include "sfc/math/vec.h"
+#include "sfc/core.h"
 #include "sfc/cuda/buffer.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/error.h"

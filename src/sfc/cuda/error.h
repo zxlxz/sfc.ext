@@ -8,10 +8,10 @@ struct Error {
   int _code = 0;
 
  public:
-  auto name() const noexcept -> const char*;
+  auto to_str() const -> cstr_t;
 
   void fmt(auto& f) const {
-    const auto s = this->name();
+    const auto s = this->to_str();
     f.write_str(s);
   }
 };

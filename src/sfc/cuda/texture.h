@@ -43,9 +43,15 @@ class Texture {
                          TexAddr addr_mode = TexAddr::Clamp) -> Texture;
 
  public:
-  operator Tex() const;
-  auto operator*() const -> Tex;
+  operator Tex() const {
+    return _tex;
+  }
 
+  auto operator*() const -> Tex {
+    return _tex;
+  }
+
+ public:
   void set_data(math::NdSlice<T, N> src);
 };
 
@@ -69,9 +75,15 @@ class LTexture {
                          TexAddr addr_mode = TexAddr::Clamp) -> LTexture;
 
  public:
-  operator Tex() const;
-  auto operator*() const -> Tex;
+  operator Tex() const {
+    return _tex;
+  }
 
+  auto operator*() const -> Tex {
+    return _tex;
+  }
+
+ public:
   void set_data(math::NdSlice<T, N> src);
 };
 

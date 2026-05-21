@@ -33,9 +33,10 @@ struct c32 {
 
  public:
   void fmt(auto& f) const {
-    f.write_val(real);
     auto spec = f._spec;
     spec._sign = '+';
+
+    f.write_val(real);
     f.write_arg(spec, imag);
     f.write_str("j");
   }
