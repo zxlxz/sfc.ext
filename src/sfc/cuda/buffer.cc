@@ -5,6 +5,10 @@
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/error.h"
 
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmissing-designated-field-initializers"
+#endif
+
 namespace sfc::cuda {
 
 using array_fmt_t = CUarray_format;

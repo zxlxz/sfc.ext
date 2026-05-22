@@ -85,7 +85,7 @@ void prefetch_cpu(void* ptr, usize size) {
   if (ptr == nullptr || size == 0) return;
 
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
-  const auto mloc = CUmemLocation{CU_MEM_LOCATION_TYPE_HOST, 0};
+  const auto mloc = CUmemLocation{CU_MEM_LOCATION_TYPE_HOST, {0}};
   const auto stream = cuda::stream_get();
   if (auto e = ::cuMemPrefetchAsync_v2(dptr, size, mloc, 0, stream)) {
     panic::panic_fmt("cuMemPrefetchAsync_v2 failed, err={}", Error{e});
@@ -97,7 +97,7 @@ void prefetch_gpu(void* ptr, usize size) {
 
   const auto dev = Device::current();
   const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
-  const auto mloc = CUmemLocation{CU_MEM_LOCATION_TYPE_DEVICE, dev.id};
+  const auto mloc = CUmemLocation{CU_MEM_LOCATION_TYPE_DEVICE, {dev.id}};
   const auto stream = cuda::stream_get();
   if (auto e = ::cuMemPrefetchAsync_v2(dptr, size, mloc, 0, stream)) {
     panic::panic_fmt("cuMemPrefetchAsync_v2 failed, err={}", Error{e});

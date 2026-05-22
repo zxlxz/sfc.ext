@@ -4,6 +4,10 @@
 #include "sfc/cuda/texture.h"
 #include "sfc/cuda/error.h"
 
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmissing-designated-field-initializers"
+#endif
+
 namespace sfc::cuda {
 
 static constexpr auto kInvalidTex = num::max_value<tex_t>();
@@ -17,6 +21,7 @@ auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
   const auto res_desc = CUDA_RESOURCE_DESC_st{
       .resType = CU_RESOURCE_TYPE_ARRAY,
       .res = {.array = {.hArray = arr}},
+      .flags = 0,
   };
 
   const auto tex_desc = CUDA_TEXTURE_DESC_st{
