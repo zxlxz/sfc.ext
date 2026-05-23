@@ -10,7 +10,7 @@
 
 namespace sfc::cuda {
 
-static constexpr auto kInvalidTex = num::max_value<tex_t>();
+static constexpr auto kInvalidTex = num::Int<tex_t>::MAX;
 
 auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
   sfc::expect(arr != nullptr, "texture_new: arr is null");
