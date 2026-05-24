@@ -19,7 +19,7 @@ struct vec<T, 1> {
 
  public:
   void fmt(auto& f) const {
-    Tuple{x}.fmt(f);
+    f.debug_tuple().entry(x);
   }
 };
 
@@ -34,7 +34,7 @@ struct vec<T, 2> {
   }
 
   void fmt(auto& f) const {
-    Tuple{x, y}.fmt(f);
+    f.debug_tuple().entry(x).entry(y);
   }
 };
 
@@ -49,7 +49,7 @@ struct vec<T, 3> {
   }
 
   void fmt(auto& f) const {
-    Tuple{x, y, z}.fmt(f);
+    f.debug_tuple().entry(x).entry(y).entry(z);
   }
 };
 
@@ -64,7 +64,7 @@ struct vec<T, 4> {
   }
 
   void fmt(auto& f) const {
-    Tuple{x, y, z, w}.fmt(f);
+    f.debug_tuple().entry(x).entry(y).entry(z).entry(w);
   }
 };
 
@@ -146,7 +146,6 @@ __hd inline auto operator/(T s, const vec<T, N>& v) -> vec<T, N> {
   if constexpr (N == 3) return {s / v.x, s / v.y, s / v.z};
   if constexpr (N == 4) return {s / v.x, s / v.y, s / v.z, s / v.w};
 }
-
 
 template <class T, class F, int N>
 __hd inline auto cast(const vec<F, N>& v) -> vec<T, N> {

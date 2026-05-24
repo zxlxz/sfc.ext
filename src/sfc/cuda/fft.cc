@@ -10,28 +10,47 @@ namespace sfc::cuda {
 
 using fft_plan_t = int;
 
-auto FFTError::to_str() const -> cstr_t {
-  switch (_code) {
-    case CUFFT_SUCCESS:            return "CUFFT_SUCCESS";
-    case CUFFT_INVALID_PLAN:       return "CUFFT_INVALID_PLAN";
-    case CUFFT_ALLOC_FAILED:       return "CUFFT_ALLOC_FAILED";
-    case CUFFT_INVALID_TYPE:       return "CUFFT_INVALID_TYPE";
-    case CUFFT_INVALID_VALUE:      return "CUFFT_INVALID_VALUE";
-    case CUFFT_INTERNAL_ERROR:     return "CUFFT_INTERNAL_ERROR";
-    case CUFFT_EXEC_FAILED:        return "CUFFT_EXEC_FAILED";
-    case CUFFT_SETUP_FAILED:       return "CUFFT_SETUP_FAILED";
-    case CUFFT_INVALID_SIZE:       return "CUFFT_INVALID_SIZE";
-    case CUFFT_UNALIGNED_DATA:     return "CUFFT_UNALIGNED_DATA";
-    case CUFFT_INVALID_DEVICE:     return "CUFFT_INVALID_DEVICE";
-    case CUFFT_NO_WORKSPACE:       return "CUFFT_NO_WORKSPACE";
-    case CUFFT_NOT_IMPLEMENTED:    return "CUFFT_NOT_IMPLEMENTED";
-    case CUFFT_NOT_SUPPORTED:      return "CUFFT_NOT_SUPPORTED";
-    case CUFFT_MISSING_DEPENDENCY: return "CUFFT_MISSING_DEPENDENCY";
-    case CUFFT_NVRTC_FAILURE:      return "CUFFT_NVRTC_FAILURE";
-    case CUFFT_NVJITLINK_FAILURE:  return "CUFFT_NVJITLINK_FAILURE";
-    case CUFFT_NVSHMEM_FAILURE:    return "CUFFT_NVSHMEM_FAILURE";
-    default:                       return "CUFFT_ERROR_UNKNOWN";
+struct FFTError {
+  int _code;
+
+ public:
+  auto to_str() const -> cstr_t {
+    switch (_code) {
+      case CUFFT_SUCCESS:            return "CUFFT_SUCCESS";
+      case CUFFT_INVALID_PLAN:       return "CUFFT_INVALID_PLAN";
+      case CUFFT_ALLOC_FAILED:       return "CUFFT_ALLOC_FAILED";
+      case CUFFT_INVALID_TYPE:       return "CUFFT_INVALID_TYPE";
+      case CUFFT_INVALID_VALUE:      return "CUFFT_INVALID_VALUE";
+      case CUFFT_INTERNAL_ERROR:     return "CUFFT_INTERNAL_ERROR";
+      case CUFFT_EXEC_FAILED:        return "CUFFT_EXEC_FAILED";
+      case CUFFT_SETUP_FAILED:       return "CUFFT_SETUP_FAILED";
+      case CUFFT_INVALID_SIZE:       return "CUFFT_INVALID_SIZE";
+      case CUFFT_UNALIGNED_DATA:     return "CUFFT_UNALIGNED_DATA";
+      case CUFFT_INVALID_DEVICE:     return "CUFFT_INVALID_DEVICE";
+      case CUFFT_NO_WORKSPACE:       return "CUFFT_NO_WORKSPACE";
+      case CUFFT_NOT_IMPLEMENTED:    return "CUFFT_NOT_IMPLEMENTED";
+      case CUFFT_NOT_SUPPORTED:      return "CUFFT_NOT_SUPPORTED";
+      case CUFFT_MISSING_DEPENDENCY: return "CUFFT_MISSING_DEPENDENCY";
+      case CUFFT_NVRTC_FAILURE:      return "CUFFT_NVRTC_FAILURE";
+      case CUFFT_NVJITLINK_FAILURE:  return "CUFFT_NVJITLINK_FAILURE";
+      case CUFFT_NVSHMEM_FAILURE:    return "CUFFT_NVSHMEM_FAILURE";
+      default:                       return "CUFFT_ERROR_UNKNOWN";
+    }
   }
+
+  void fmt(auto& f) const {
+    const auto s = this->to_str();
+    f.write_str(s);
+  }
+};
+
+template <class T>
+auto fft_cast(T* p) -> T* {
+  return p;
+}
+
+auto fft_cast(c32* p) -> cufftComplex* {
+  return ptr::cast<cufftComplex>(p);
 }
 
 void fft_drop(fft_plan_t plan) {
@@ -69,18 +88,17 @@ auto fft_plan(u32 N, u32 batch) -> fft_plan_t {
 }
 
 template <class I, class O>
-void fft_exec(fft_plan_t plan, I in[], O out[], int SIGN) {
-  using R = cufftReal;
-  using C = cufftComplex;
+void fft_exec(fft_plan_t plan, const I in[], O out[], int SIGN) {
+  const auto idata = cuda::fft_cast(const_cast<I*>(in));
+  const auto odata = cuda::fft_cast(out);
 
   auto err = CUFFT_SUCCESS;
-
-  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
-    err = ::cufftExecC2C(plan, reinterpret_cast<C*>(in), reinterpret_cast<C*>(out), SIGN);
-  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
-    err = ::cufftExecR2C(plan, reinterpret_cast<R*>(in), reinterpret_cast<C*>(out));
-  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
-    err = ::cufftExecC2R(plan, reinterpret_cast<C*>(in), reinterpret_cast<R*>(out));
+  if constexpr (sizeof(I) == sizeof(O)) {
+    err = ::cufftExecC2C(plan, idata, odata, SIGN);
+  } else if constexpr (sizeof(I) < sizeof(O)) {
+    err = ::cufftExecR2C(plan, idata, odata);
+  } else if constexpr (sizeof(I) > sizeof(O)) {
+    err = ::cufftExecC2R(plan, idata, odata);
   } else {
     static_assert(false, "unsupported type combination");
   }
@@ -94,19 +112,23 @@ template <class I, class O>
 FFT<I, O>::FFT() noexcept : _plan{-1} {}
 
 template <class I, class O>
-FFT<I, O>::FFT(FFT&& other) noexcept : _plan{other._plan} {
-  other._plan = -1;
-}
-
-template <class I, class O>
 FFT<I, O>::~FFT() {
   cuda::fft_drop(_plan);
 }
 
 template <class I, class O>
+FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len}, _batch{other._batch}, _plan{other._plan} {
+  other._len = 0;
+  other._batch = 0;
+  other._plan = -1;
+}
+
+template <class I, class O>
 auto FFT<I, O>::operator=(FFT&& other) noexcept -> FFT& {
   if (this == &other) return *this;
+  mem::swap(_len, other._len);
   mem::swap(_plan, other._plan);
+  mem::swap(_batch, other._batch);
   return *this;
 }
 
@@ -120,38 +142,12 @@ auto FFT<I, O>::create(u32 len, u32 batch) -> FFT {
 }
 
 template <class I, class O>
-void FFT<I, O>::exec(const I idata[], O odata[], int DIR) {
-  return cuda::fft_exec(_plan, const_cast<I*>(idata), odata, DIR);
+void FFT<I, O>::exec(const I in[], O out[], int DIR) {
+  cuda::fft_exec(_plan, in, out, DIR);
 }
 
-template <class I, class O>
-void FFT<I, O>::check_size(const u32 (&idim)[2], const u32 (&odim)[2]) const {
-  const auto full_len = _len;
-  const auto half_len = _len / 2 + 1;
-  const auto ilen = trait::same_<O, c32> ? full_len : half_len;
-  const auto olen = trait::same_<I, c32> ? full_len : half_len;
-
-  panic::expect(idim[0] == ilen, "idim(={}) not match plan(ilen={})", idim, ilen);
-  panic::expect(odim[0] == olen, "odim(={}) not match plan(olen={})", odim, olen);
-
-  panic::expect(idim[1] == _batch, "idim(={}) not match plan(batch={})", idim, _batch);
-  panic::expect(odim[1] == _batch, "odim(={}) not match plan(batch={})", odim, _batch);
-}
-
-template <class I, class O>
-void FFT<I, O>::operator()(math::NdSlice<I, 1> i, math::NdSlice<O, 1> o, int DIR) {
-  this->check_size({i._dims.x, 1}, {o._dims.x, 1});
-  return cuda::fft_exec(_plan, i._data, o._data, DIR);
-}
-
-template <class I, class O>
-void FFT<I, O>::operator()(math::NdSlice<I, 2> i, math::NdSlice<O, 2> o, int DIR) {
-  this->check_size({i._dims.x, i._dims.y}, {o._dims.x, o._dims.y});
-  return cuda::fft_exec(_plan, i._data, o._data, DIR);
-}
-
-template class FFT<c32, c32>;
 template class FFT<f32, c32>;
 template class FFT<c32, f32>;
+template class FFT<c32, c32>;
 
 }  // namespace sfc::cuda

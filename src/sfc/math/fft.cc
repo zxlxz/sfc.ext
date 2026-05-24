@@ -7,154 +7,122 @@ namespace sfc::math {
 
 using fft_plan_t = fftwf_plan_s*;
 
+template <class T>
+auto fft_cast(T* p) -> T* {
+  return p;
+}
+
+auto fft_cast(c32* p) -> fftwf_complex* {
+  return ptr::cast<fftwf_complex>(p);
+}
+
 static void fft_drop(fft_plan_t p) {
   if (p == nullptr) return;
   ::fftwf_destroy_plan(p);
 }
 
-static auto fft_plan(int N, c32* I, c32* O, int SIGN) -> fft_plan_t {
-  return ::fftwf_plan_dft_1d(N, (fftwf_complex*)I, (fftwf_complex*)O, SIGN, FFTW_ESTIMATE);
-}
+template <class I, class O>
+static auto fft_plan(u32 N, const I in[], O out[], int SIGN) -> fft_plan_t {
+  const auto len = static_cast<int>(N);
+  const auto idata = math::fft_cast(const_cast<I*>(in));
+  const auto odata = math::fft_cast(out);
 
-static auto fft_plan(int N, f32* I, c32* O, [[maybe_unused]] int SIGN = 0) -> fft_plan_t {
-  return ::fftwf_plan_dft_r2c_1d(N, I, (fftwf_complex*)O, FFTW_ESTIMATE);
-}
-
-static auto fft_plan(int N, c32* I, f32* O, [[maybe_unused]] int SIGN = 0) -> fft_plan_t {
-  return ::fftwf_plan_dft_c2r_1d(N, (fftwf_complex*)I, (f32*)O, FFTW_ESTIMATE);
-}
-
-static void fft_exec(fft_plan_t plan, c32 I[], c32 O[]) {
-  ::fftwf_execute_dft(plan, (fftwf_complex*)I, (fftwf_complex*)O);
-}
-
-static void fft_exec(fft_plan_t plan, f32 I[], c32 O[]) {
-  ::fftwf_execute_dft_r2c(plan, (f32*)I, (fftwf_complex*)O);
-}
-
-static void fft_exec(fft_plan_t plan, c32 I[], f32 O[]) {
-  ::fftwf_execute_dft_c2r(plan, (fftwf_complex*)I, (f32*)O);
+  if constexpr (sizeof(I) == sizeof(O)) {
+    return ::fftwf_plan_dft_1d(len, idata, odata, SIGN, FFTW_ESTIMATE);
+  } else if constexpr (sizeof(I) < sizeof(O)) {
+    return ::fftwf_plan_dft_r2c_1d(len, idata, odata, FFTW_ESTIMATE);
+  } else if constexpr (sizeof(I) > sizeof(O)) {
+    return ::fftwf_plan_dft_c2r_1d(len, idata, odata, FFTW_ESTIMATE);
+  } else {
+    static_assert(false, "unsupported type combination");
+  }
 }
 
 template <class I, class O>
-struct FFT<I, O>::Inn {
-  fft_plan_t _plan{nullptr};
+static void fft_exec(fft_plan_t plan, const I in[], O out[]) {
+  const auto idata = math::fft_cast(const_cast<I*>(in));
+  const auto odata = math::fft_cast(out);
 
- public:
-  explicit Inn(u32 N) {
-    _plan = fft_plan(static_cast<int>(N), (I*)nullptr, (O*)nullptr, 0);
+  if constexpr (sizeof(I) == sizeof(O)) {
+    ::fftwf_execute_dft(plan, idata, odata);
+  } else if constexpr (sizeof(I) < sizeof(O)) {
+    ::fftwf_execute_dft_r2c(plan, idata, odata);
+  } else if constexpr (sizeof(I) > sizeof(O)) {
+    ::fftwf_execute_dft_c2r(plan, idata, odata);
+  } else {
+    static_assert(false, "unsupported type combination");
   }
-
-  ~Inn() {
-    fft_drop(_plan);
-  }
-
-  void exec(const I in[], O out[], [[maybe_unused]] int SIGN = 0) {
-    fft_exec(_plan, const_cast<I*>(in), out);
-  }
-};
-
-template <>
-struct FFT<c32, c32>::Inn {
-  int _len;
-  fft_plan_t _inplace[2] = {nullptr, nullptr};
-  fft_plan_t _outplace[2] = {nullptr, nullptr};
-
- public:
-  Inn(u32 len) : _len{static_cast<int>(len)} {}
-
-  ~Inn() {
-    fft_drop(_inplace[0]);
-    fft_drop(_inplace[1]);
-    fft_drop(_outplace[0]);
-    fft_drop(_outplace[1]);
-  }
-
-  void exec(const c32 Ic[], c32 Oc[], int SIGN) {
-    const auto id = SIGN < 0 ? 0 : 1;
-    auto& p = Ic == Oc ? _inplace[id] : _outplace[id];
-    if (p == nullptr) {
-      p = fft_plan(_len, const_cast<c32*>(Ic), Oc, SIGN);
-    }
-    fft_exec(p, const_cast<c32*>(Ic), Oc);
-  }
-};
+}
 
 template <class I, class O>
-FFT<I, O>::FFT() noexcept : _inn{nullptr} {}
+FFT<I, O>::FFT() noexcept {}
 
 template <class I, class O>
 FFT<I, O>::~FFT() {
-  if (!_inn) return;
-  delete _inn;
+  math::fft_drop(_r2c);
+  math::fft_drop(_c2r);
+  math::fft_drop(_c2c_fwd_inplace);
+  math::fft_drop(_c2c_rev_inplace);
+  math::fft_drop(_c2c_fwd_outplace);
+  math::fft_drop(_c2c_rev_outplace);
 }
 
 template <class I, class O>
-FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len}, _batch{other._batch}, _inn{other._inn} {
-  other._inn = nullptr;
-  other._len = 0;
-  other._batch = 0;
+FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len} {
+  _r2c = mem::take(other._r2c);
+  _c2r = mem::take(other._c2r);
+  _c2c_fwd_inplace = mem::take(other._c2c_fwd_inplace);
+  _c2c_rev_inplace = mem::take(other._c2c_rev_inplace);
+  _c2c_fwd_outplace = mem::take(other._c2c_fwd_outplace);
+  _c2c_rev_outplace = mem::take(other._c2c_rev_outplace);
 }
 
 template <class I, class O>
 FFT<I, O>& FFT<I, O>::operator=(FFT&& other) noexcept {
   if (this == &other) return *this;
-  mem::swap(_inn, other._inn);
-  mem::swap(_len, other._len);
-  mem::swap(_batch, other._batch);
+  mem::swap(_r2c, other._r2c);
+  mem::swap(_c2r, other._c2r);
+  mem::swap(_c2c_fwd_inplace, other._c2c_fwd_inplace);
+  mem::swap(_c2c_rev_inplace, other._c2c_rev_inplace);
+  mem::swap(_c2c_fwd_outplace, other._c2c_fwd_outplace);
+  mem::swap(_c2c_rev_outplace, other._c2c_rev_outplace);
   return *this;
 }
 
 template <class I, class O>
-auto FFT<I, O>::create(u32 len, u32 batch) -> FFT {
+auto FFT<I, O>::create(u32 len) -> FFT {
   auto res = FFT{};
   res._len = len;
-  res._batch = batch;
-  res._inn = new Inn{len};
+
+  if constexpr (sizeof(I) < sizeof(O)) {
+    res._r2c = math::fft_plan<I, O>(len, nullptr, nullptr, 0);
+  } else if constexpr (sizeof(I) > sizeof(O)) {
+    res._c2r = math::fft_plan<I, O>(len, nullptr, nullptr, 0);
+  }
   return res;
 }
 
 template <class I, class O>
-void FFT<I, O>::check_size(const u32 (&idim)[2], const u32 (&odim)[2]) const {
-  const auto full_len = _len;
-  const auto half_len = full_len / 2 + 1;
-  const auto ilen = trait::same_<O, c32> ? full_len : half_len;
-  const auto olen = trait::same_<I, c32> ? full_len : half_len;
-
-  panic::expect(idim[0] == ilen, "idim(={}) not match plan(in_len={})", idim, ilen);
-  panic::expect(odim[0] == olen, "odim(={}) not match plan(out_len={})", odim, olen);
-
-  panic::expect(idim[1] == _batch, "idim(={}) not match plan(batch={})", idim, _batch);
-  panic::expect(odim[1] == _batch, "odim(={}) not match plan(batch={})", odim, _batch);
-}
-
-template <class I, class O>
-void FFT<I, O>::exec(const I in[], O out[], int DIR) {
-  panic::expect(_inn, "FFT not initialized");
-  const auto SIGN = DIR <= 0 ? -1 : +1;
-
-  const auto ilen = trait::same_<O, c32> ? _len : _len / 2 + 1;
-  const auto olen = trait::same_<I, c32> ? _len : _len / 2 + 1;
-
-  auto idata = in;
-  auto odata = out;
-  for (auto k = 0U; k < _batch; ++k) {
-    _inn->exec(idata, odata, SIGN);
-    idata += ilen;
-    odata += olen;
+auto FFT<I, O>::plan(const I in[], O out[], int DIR) -> plan_t {
+  if constexpr (sizeof(I) < sizeof(O)) {
+    return _r2c;
+  } else if constexpr (sizeof(I) > sizeof(O)) {
+    return _c2r;
+  } else {
+    auto& fwd_plan = in == out ? _c2c_fwd_inplace : _c2c_fwd_outplace;
+    auto& rev_plan = in == out ? _c2c_rev_inplace : _c2c_rev_outplace;
+    auto& plan = DIR < 0 ? fwd_plan : rev_plan;
+    if (plan == nullptr) {
+      plan = math::fft_plan(_len, in, out, DIR);
+    }
+    return plan;
   }
 }
 
 template <class I, class O>
-void FFT<I, O>::operator()(NdSlice<I, 1> in, NdSlice<O, 1> out, int DIR) {
-  this->check_size({in._dims.x, 1}, {out._dims.x, 1});
-  return this->exec(in._data, out._data, DIR);
-}
-
-template <class I, class O>
-void FFT<I, O>::operator()(NdSlice<I, 2> in, NdSlice<O, 2> out, int DIR) {
-  this->check_size({in._dims.x, in._dims.y}, {out._dims.x, out._dims.y});
-  return this->exec(in._data, out._data, DIR);
+void FFT<I, O>::exec(const I in[], O out[], int DIR) {
+  const auto plan = this->plan(in, out, DIR);
+  math::fft_exec(plan, in, out);
 }
 
 template class FFT<f32, c32>;

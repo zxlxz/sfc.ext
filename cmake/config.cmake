@@ -8,12 +8,7 @@ if(WIN32)
   set(CMAKE_PROGRAM_PATH "${_LOCAL_PREFIX}/bin")
 endif()
 
-if (APPLE)
-  set(_HOMEBREW_PREFIX "/opt/homebrew")
-  set(CMAKE_INCLUDE_PATH "${_HOMEBREW_PREFIX}/include")
-  set(CMAKE_LIBRARY_PATH "${_HOMEBREW_PREFIX}/lib")
-endif()
-
+# fake cuda toolkit for Apple Silicon
 if(APPLE)
   set(CUDAToolkit_TARGET_DIR "/opt/cuda")
   set(CMAKE_CUDA_COMPILER_TOOLKIT_ROOT ${CUDAToolkit_TARGET_DIR})

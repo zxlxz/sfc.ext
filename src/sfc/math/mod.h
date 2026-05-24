@@ -1,7 +1,7 @@
 #pragma once
 
 #include <math.h>
-#include "sfc/core/tuple.h"
+#include "sfc/core/mod.h"
 
 #ifdef __CUDACC__
 #define __hd __host__ __device__

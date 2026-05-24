@@ -4,28 +4,43 @@
 #include "sfc/math/complex.h"
 #include "sfc/math/ndslice.h"
 
+struct fftwf_plan_s;
+
 namespace sfc::math {
 
 template <class I, class O>
 class FFT {
-  struct Inn;
+  using plan_t = ::fftwf_plan_s*;
   u32 _len{0};
-  u32 _batch{0};
-  Inn* _inn;
+  plan_t _r2c{nullptr};
+  plan_t _c2r{nullptr};
+  plan_t _c2c_fwd_inplace{nullptr};
+  plan_t _c2c_rev_inplace{nullptr};
+  plan_t _c2c_fwd_outplace{nullptr};
+  plan_t _c2c_rev_outplace{nullptr};
 
  public:
   FFT() noexcept;
   ~FFT();
   FFT(FFT&& other) noexcept;
   auto operator=(FFT&& other) noexcept -> FFT&;
-  static auto create(u32 len, u32 batch = 1) -> FFT;
+  static auto create(u32 len) -> FFT;
 
  public:
-  void check_size(const u32 (&idim)[2], const u32 (&odim)[2]) const;
-  void exec(const I in[], O out[], int DIR = +1);
+  auto plan(const I in[], O out[], int DIR) -> plan_t;
+  void exec(const I in[], O out[], int DIR = -1);
 
-  void operator()(math::NdSlice<I, 1> in, math::NdSlice<O, 1> out, int DIR = +1);
-  void operator()(math::NdSlice<I, 2> in, math::NdSlice<O, 2> out, int DIR = +1);
+  template <int N>
+  void operator()(math::NdSlice<I, N> in, math::NdSlice<O, N> out, int DIR = -1) {
+    static_assert(N == 1 || N == 2);
+    if constexpr (N == 1) {
+      this->exec(in._data, out._data, DIR);
+    } else if constexpr (N == 2) {
+      for (auto i = 0U; i < in._dims.y; ++i) {
+        this->exec(in[i]._data, out[i]._data, DIR);
+      }
+    }
+  }
 };
 
 void fft(NdSlice<c32, 1> in, NdSlice<c32, 1> out);
