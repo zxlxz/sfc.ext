@@ -59,33 +59,18 @@ FFT<I, O>::FFT() noexcept {}
 
 template <class I, class O>
 FFT<I, O>::~FFT() {
-  math::fft_drop(_r2c);
-  math::fft_drop(_c2r);
-  math::fft_drop(_c2c_fwd_inplace);
-  math::fft_drop(_c2c_rev_inplace);
-  math::fft_drop(_c2c_fwd_outplace);
-  math::fft_drop(_c2c_rev_outplace);
+  math::fft_drop(_fwd);
+  math::fft_drop(_inv);
 }
 
 template <class I, class O>
-FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len} {
-  _r2c = mem::take(other._r2c);
-  _c2r = mem::take(other._c2r);
-  _c2c_fwd_inplace = mem::take(other._c2c_fwd_inplace);
-  _c2c_rev_inplace = mem::take(other._c2c_rev_inplace);
-  _c2c_fwd_outplace = mem::take(other._c2c_fwd_outplace);
-  _c2c_rev_outplace = mem::take(other._c2c_rev_outplace);
-}
+FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len}, _fwd{mem::take(other._fwd)}, _inv{mem::take(other._inv)} {}
 
 template <class I, class O>
 FFT<I, O>& FFT<I, O>::operator=(FFT&& other) noexcept {
   if (this == &other) return *this;
-  mem::swap(_r2c, other._r2c);
-  mem::swap(_c2r, other._c2r);
-  mem::swap(_c2c_fwd_inplace, other._c2c_fwd_inplace);
-  mem::swap(_c2c_rev_inplace, other._c2c_rev_inplace);
-  mem::swap(_c2c_fwd_outplace, other._c2c_fwd_outplace);
-  mem::swap(_c2c_rev_outplace, other._c2c_rev_outplace);
+  mem::swap(_fwd, other._fwd);
+  mem::swap(_inv, other._inv);
   return *this;
 }
 
@@ -95,9 +80,9 @@ auto FFT<I, O>::create(u32 len) -> FFT {
   res._len = len;
 
   if constexpr (sizeof(I) < sizeof(O)) {
-    res._r2c = math::fft_plan<I, O>(len, nullptr, nullptr, 0);
+    res._fwd = math::fft_plan<I, O>(len, nullptr, nullptr, 0);
   } else if constexpr (sizeof(I) > sizeof(O)) {
-    res._c2r = math::fft_plan<I, O>(len, nullptr, nullptr, 0);
+    res._inv = math::fft_plan<I, O>(len, nullptr, nullptr, 0);
   }
   return res;
 }
@@ -105,13 +90,11 @@ auto FFT<I, O>::create(u32 len) -> FFT {
 template <class I, class O>
 auto FFT<I, O>::plan(const I in[], O out[], int DIR) -> plan_t {
   if constexpr (sizeof(I) < sizeof(O)) {
-    return _r2c;
+    return _fwd;
   } else if constexpr (sizeof(I) > sizeof(O)) {
-    return _c2r;
+    return _inv;
   } else {
-    auto& fwd_plan = in == out ? _c2c_fwd_inplace : _c2c_fwd_outplace;
-    auto& rev_plan = in == out ? _c2c_rev_inplace : _c2c_rev_outplace;
-    auto& plan = DIR < 0 ? fwd_plan : rev_plan;
+    auto& plan = DIR < 0 ? _fwd : _inv;
     if (plan == nullptr) {
       plan = math::fft_plan(_len, in, out, DIR);
     }

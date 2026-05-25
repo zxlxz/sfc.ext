@@ -12,12 +12,8 @@ template <class I, class O>
 class FFT {
   using plan_t = ::fftwf_plan_s*;
   u32 _len{0};
-  plan_t _r2c{nullptr};
-  plan_t _c2r{nullptr};
-  plan_t _c2c_fwd_inplace{nullptr};
-  plan_t _c2c_rev_inplace{nullptr};
-  plan_t _c2c_fwd_outplace{nullptr};
-  plan_t _c2c_rev_outplace{nullptr};
+  plan_t _fwd{nullptr};
+  plan_t _inv{nullptr};
 
  public:
   FFT() noexcept;
