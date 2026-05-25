@@ -5,3 +5,4 @@
 #include "sfc/math/complex.h"
 #include "sfc/math/ndslice.h"
 #include "sfc/math/ndarray.h"
+#include "sfc/math/sampler.h"

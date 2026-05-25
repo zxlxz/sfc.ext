@@ -13,7 +13,7 @@ auto fft_cast(T* p) -> T* {
 }
 
 auto fft_cast(c32* p) -> fftwf_complex* {
-  return ptr::cast<fftwf_complex>(p);
+  return ptr::cast_mut<fftwf_complex>(p);
 }
 
 static void fft_drop(fft_plan_t p) {

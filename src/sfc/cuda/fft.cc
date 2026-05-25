@@ -50,7 +50,7 @@ auto fft_cast(T* p) -> T* {
 }
 
 auto fft_cast(c32* p) -> cufftComplex* {
-  return ptr::cast<cufftComplex>(p);
+  return ptr::cast_mut<cufftComplex>(p);
 }
 
 void fft_drop(fft_plan_t plan) {
