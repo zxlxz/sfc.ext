@@ -35,18 +35,10 @@ class [[nodiscard]] NdArray {
 
  public:
   NdArray() noexcept : _buf{}, _inn{} {}
-
   ~NdArray() {}
 
-  NdArray(NdArray&& other) noexcept
-      : _buf{static_cast<Buf&&>(other._buf)}, _inn{static_cast<Inn&&>(other._inn)} {}
-
-  NdArray& operator=(NdArray&& other) noexcept {
-    if (this == &other) return *this;
-    _inn = static_cast<Inn&&>(other._inn);
-    _buf = static_cast<Buf&&>(other._buf);
-    return *this;
-  }
+  NdArray(NdArray&& other) noexcept = default;
+  NdArray& operator=(NdArray&& other) noexcept = default;
 
   static auto with_shape(dims_t dims, cuda::MemType mtype = {}) -> NdArray {
     auto res = NdArray{};

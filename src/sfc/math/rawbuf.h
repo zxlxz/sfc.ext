@@ -26,11 +26,7 @@ class RawBuf {
     _a.dealloc(_ptr);
   }
 
-  RawBuf(RawBuf&& other) noexcept : _ptr{other._ptr}, _cap{other._cap}, _a{other._a} {
-    other._ptr = nullptr;
-    other._cap = 0;
-    other._a = {};
-  }
+  RawBuf(RawBuf&& other) noexcept : _ptr{mem::take(other._ptr)}, _cap{mem::take(other._cap)}, _a{mem::move(other._a)} {}
 
   RawBuf& operator=(RawBuf&& other) noexcept {
     if (this == &other) return *this;
@@ -39,6 +35,7 @@ class RawBuf {
   }
 
   void swap(RawBuf& other) noexcept {
+    if (this == &other) return;
     mem::swap(_ptr, other._ptr);
     mem::swap(_cap, other._cap);
     mem::swap(_a, other._a);
@@ -47,7 +44,7 @@ class RawBuf {
   static auto with_capacity(usize cap, MemType type = {}) -> RawBuf {
     auto buf = RawBuf{};
     buf._a = Alloc{type};
-    buf._ptr = static_cast<T*>(buf._a.alloc(cap * sizeof(T)));
+    buf._ptr = ptr::cast_mut<T>(buf._a.alloc(cap * sizeof(T)));
     buf._cap = cap;
 
     return buf;

@@ -1,7 +1,11 @@
 #pragma once
 
-#include "sfc/math/complex.h"
-#include "sfc/math/ndslice.h"
+#include "sfc/core/mod.h"
+
+namespace sfc::math {
+template<class T, int N>
+struct NdSlice;
+}
 
 namespace sfc::cuda {
 

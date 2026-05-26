@@ -19,19 +19,45 @@ struct NdSlice<T, 1> {
   step_t _step;
 
  public:
-  __hd auto len() const -> u32 { return _dims.x; }
-  __hd auto data() const -> const T* { return _data; }
-  __hd auto shape() const -> const dims_t& { return _dims; }
-  __hd auto strides() const -> const step_t& { return _step; }
-  __hd auto numel() const -> u32 { return _dims.x; }
+  __hd auto len() const -> u32 {
+    return _dims.x;
+  }
 
-  __hd auto operator[](u32 idx) const -> const T& { return _data[idx * _step.x]; }
-  __hd auto operator[](u32 idx) -> T& { return _data[idx * _step.x]; }
+  __hd auto data() const -> const T* {
+    return _data;
+  }
 
-  __hd auto operator[](idxs_t idxs) const -> const T& { return _data[idxs.x * _step.x]; }
-  __hd auto operator[](idxs_t idxs) -> T& { return _data[idxs.x * _step.x]; }
+  __hd auto shape() const -> const dims_t& {
+    return _dims;
+  }
 
-  __hd auto is_contiguous() const -> bool { return _step.x == 1; }
+  __hd auto strides() const -> const step_t& {
+    return _step;
+  }
+
+  __hd auto numel() const -> u32 {
+    return _dims.x;
+  }
+
+  __hd auto operator[](u32 idx) const -> const T& {
+    return _data[idx * _step.x];
+  }
+
+  __hd auto operator[](u32 idx) -> T& {
+    return _data[idx * _step.x];
+  }
+
+  __hd auto operator[](idxs_t idxs) const -> const T& {
+    return _data[idxs.x * _step.x];
+  }
+
+  __hd auto operator[](idxs_t idxs) -> T& {
+    return _data[idxs.x * _step.x];
+  }
+
+  __hd auto is_contiguous() const -> bool {
+    return _step.x == 1;
+  }
 
  public:
   void imap(auto&& f) const {
@@ -68,19 +94,38 @@ struct NdSlice<T, 2> {
   step_t _step;
 
  public:
-  __hd auto len() const -> u32 { return _dims.y; }
-  __hd auto data() const -> const T* { return _data; }
-  __hd auto shape() const -> const dims_t& { return _dims; }
-  __hd auto strides() const -> const step_t& { return _step; }
-  __hd auto numel() const -> u32 { return _dims.x * _dims.y; }
+  __hd auto len() const -> u32 {
+    return _dims.y;
+  }
+
+  __hd auto data() const -> const T* {
+    return _data;
+  }
+
+  __hd auto shape() const -> const dims_t& {
+    return _dims;
+  }
+
+  __hd auto strides() const -> const step_t& {
+    return _step;
+  }
+
+  __hd auto numel() const -> u32 {
+    return _dims.x * _dims.y;
+  }
 
   __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
     const auto p = _data + idx * _step.y;
     return NdSlice<T, NDIM - 1>{p, {_dims.x}, {_step.x}};
   }
 
-  __hd auto operator[](idxs_t idx) const -> const T& { return _data[idx.x * _step.x + idx.y * _step.y]; }
-  __hd auto operator[](idxs_t idx) -> T& { return _data[idx.x * _step.x + idx.y * _step.y]; }
+  __hd auto operator[](idxs_t idx) const -> const T& {
+    return _data[idx.x * _step.x + idx.y * _step.y];
+  }
+
+  __hd auto operator[](idxs_t idx) -> T& {
+    return _data[idx.x * _step.x + idx.y * _step.y];
+  }
 
  public:
   void imap(auto&& f) const {
@@ -123,19 +168,38 @@ struct NdSlice<T, 3> {
   step_t _step;
 
  public:
-  __hd auto len() const -> u32 { return _dims.z; }
-  __hd auto data() const -> const T* { return _data; }
-  __hd auto shape() const -> const dims_t& { return _dims; }
-  __hd auto strides() const -> const step_t& { return _step; }
-  __hd auto numel() const -> u32 { return _dims.x * _dims.y * _dims.z; }
+  __hd auto len() const -> u32 {
+    return _dims.z;
+  }
+
+  __hd auto data() const -> const T* {
+    return _data;
+  }
+
+  __hd auto shape() const -> const dims_t& {
+    return _dims;
+  }
+
+  __hd auto strides() const -> const step_t& {
+    return _step;
+  }
+
+  __hd auto numel() const -> u32 {
+    return _dims.x * _dims.y * _dims.z;
+  }
 
   __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
     const auto p = _data + idx * _step.z;
     return {p, {_dims.x, _dims.y}, {_step.x, _step.y}};
   }
 
-  __hd auto operator[](idxs_t idxs) const -> const T& { return _data[idxs.x * _step.x + idxs.y * _step.y + idxs.z * _step.z]; }
-  __hd auto operator[](idxs_t idxs) -> T& { return _data[idxs.x * _step.x + idxs.y * _step.y + idxs.z * _step.z]; }
+  __hd auto operator[](idxs_t idxs) const -> const T& {
+    return _data[idxs.x * _step.x + idxs.y * _step.y + idxs.z * _step.z];
+  }
+
+  __hd auto operator[](idxs_t idxs) -> T& {
+    return _data[idxs.x * _step.x + idxs.y * _step.y + idxs.z * _step.z];
+  }
 
  public:
   void imap(auto&& f) const {
@@ -177,11 +241,25 @@ struct NdSlice<T, 4> {
   step_t _step;
 
  public:
-  __hd auto len() const -> u32 { return _dims.w; }
-  __hd auto data() const -> const T* { return _data; }
-  __hd auto shape() const -> const dims_t& { return _dims; }
-  __hd auto strides() const -> const step_t& { return _step; }
-  __hd auto numel() const -> u32 { return _dims.x * _dims.y * _dims.z * _dims.w; }
+  __hd auto len() const -> u32 {
+    return _dims.w;
+  }
+
+  __hd auto data() const -> const T* {
+    return _data;
+  }
+
+  __hd auto shape() const -> const dims_t& {
+    return _dims;
+  }
+
+  __hd auto strides() const -> const step_t& {
+    return _step;
+  }
+
+  __hd auto numel() const -> u32 {
+    return _dims.x * _dims.y * _dims.z * _dims.w;
+  }
 
   __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
     const auto p = _data + idx * _step.w;

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "sfc/cuda/memory.h"
 #include "sfc/math/complex.h"
 #include "sfc/math/ndslice.h"
 

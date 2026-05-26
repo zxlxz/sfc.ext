@@ -2,7 +2,14 @@
 
 #include "sfc/cuda/tex.h"
 #include "sfc/cuda/buffer.h"
-#include "sfc/math/ndslice.h"
+
+namespace sfc::math {
+template <class T, int N>
+struct vec;
+
+template <class T, int N>
+struct NdSlice;
+}  // namespace sfc::math
 
 namespace sfc::cuda {
 
@@ -38,9 +45,7 @@ class Texture {
   Texture(Texture&& other) noexcept;
   Texture& operator=(Texture&& other) noexcept;
 
-  static auto with_shape(Dim dims,
-                         TexFilt filt_mode = TexFilt::Point,
-                         TexAddr addr_mode = TexAddr::Clamp) -> Texture;
+  static auto with_shape(Dim dims, TexFilt filt_mode = TexFilt::Point, TexAddr addr_mode = TexAddr::Clamp) -> Texture;
 
  public:
   operator Tex() const {
@@ -70,9 +75,7 @@ class LTexture {
   LTexture(LTexture&& other) noexcept;
   LTexture& operator=(LTexture&& other) noexcept;
 
-  static auto with_shape(Dim dims,
-                         TexFilt filt_mode = TexFilt::Point,
-                         TexAddr addr_mode = TexAddr::Clamp) -> LTexture;
+  static auto with_shape(Dim dims, TexFilt filt_mode = TexFilt::Point, TexAddr addr_mode = TexAddr::Clamp) -> LTexture;
 
  public:
   operator Tex() const {

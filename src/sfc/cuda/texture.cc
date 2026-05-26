@@ -1,6 +1,7 @@
 #include <cuda.h>
 
 #include "sfc/core.h"
+#include "sfc/math.h"
 #include "sfc/cuda/texture.h"
 #include "sfc/cuda/error.h"
 
@@ -15,8 +16,8 @@ static constexpr auto kInvalidTex = num::Int<tex_t>::MAX;
 auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
   sfc::expect(arr != nullptr, "texture_new: arr is null");
 
-  const auto cu_filt = static_cast<CUfilter_mode>(filt_mode);
-  const auto cu_addr = static_cast<CUaddress_mode>(addr_mode);
+  const auto cu_filt = CUfilter_mode(filt_mode);
+  const auto cu_addr = CUaddress_mode(addr_mode);
 
   const auto res_desc = CUDA_RESOURCE_DESC_st{
       .resType = CU_RESOURCE_TYPE_ARRAY,
@@ -58,7 +59,7 @@ Texture<T, N>::~Texture() noexcept {
 
 template <class T, int N>
 Texture<T, N>::Texture(Texture&& other) noexcept
-    : _buf{static_cast<Buf&&>(other._buf)}, _tex{other._tex} {
+    : _buf{mem::move(other._buf)}, _tex{other._tex} {
   other._tex = Tex{kInvalidTex};
 }
 
@@ -94,7 +95,7 @@ LTexture<T, N>::~LTexture() noexcept {
 
 template <class T, int N>
 LTexture<T, N>::LTexture(LTexture&& other) noexcept
-    : _buf{static_cast<Buf&&>(other._buf)}, _tex{other._tex} {
+    : _buf{mem::move(other._buf)}, _tex{other._tex} {
   other._tex = Tex{kInvalidTex};
 }
 

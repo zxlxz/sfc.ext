@@ -23,7 +23,7 @@ static void fft_drop(fft_plan_t p) {
 
 template <class I, class O>
 static auto fft_plan(u32 N, const I in[], O out[], int SIGN) -> fft_plan_t {
-  const auto len = static_cast<int>(N);
+  const auto len = num::saturating_cast<int>(N);
   const auto idata = math::fft_cast(const_cast<I*>(in));
   const auto odata = math::fft_cast(out);
 

@@ -2,6 +2,7 @@
 #include "sfc/time.h"
 #include "sfc/io.h"
 
+#include "sfc/math/complex.h"
 #include "sfc/math/ndarray.h"
 #include "sfc/cuda/device.h"
 #include "sfc/cuda/fft.h"

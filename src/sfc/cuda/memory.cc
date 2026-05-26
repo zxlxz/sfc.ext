@@ -131,7 +131,7 @@ void cuda_memset(const void* ptr, u8 byte, usize size) {
 
   if (dptr % 4 == 0 && size % 4 == 0) {
     const auto cnt = size / 4;
-    const auto s32 = static_cast<u32>(byte * 0x01010101);
+    const auto s32 = byte * 0x01010101U;
     if (stream) {
       if (auto e = ::cuMemsetD32Async(dptr, s32, cnt, stream)) {
         panic::panic_fmt("cuMemsetD32Async failed, err={}", Error{e});
@@ -145,7 +145,7 @@ void cuda_memset(const void* ptr, u8 byte, usize size) {
 
   if (dptr % 2 == 0 && size % 2 == 0) {
     const auto cnt = size / 2;
-    const auto s16 = static_cast<u16>(byte * 0x0101);
+    const auto s16 = u16(byte * 0x0101U);
     if (stream) {
       if (auto e = ::cuMemsetD16Async(dptr, s16, cnt, stream)) {
         panic::panic_fmt("cuMemsetD16Async failed, err={}", Error{e});
@@ -158,7 +158,7 @@ void cuda_memset(const void* ptr, u8 byte, usize size) {
   }
 
   const auto cnt = size;
-  const auto s8 = static_cast<u8>(byte);
+  const auto s8 = byte;
   if (stream) {
     if (auto e = ::cuMemsetD8Async(dptr, s8, cnt, stream)) {
       panic::panic_fmt("cuMemsetD8Async failed, err={}", Error{e});

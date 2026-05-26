@@ -2,6 +2,7 @@
 #include <cufft.h>
 
 #include "sfc/core.h"
+#include "sfc/math.h"
 #include "sfc/cuda/fft.h"
 #include "sfc/cuda/error.h"
 #include "sfc/cuda/stream.h"
@@ -65,8 +66,8 @@ void fft_drop(fft_plan_t plan) {
 
 template <class I, class O>
 auto fft_plan(u32 N, u32 batch) -> fft_plan_t {
-  const auto nx = static_cast<int>(N);
-  const auto ny = static_cast<int>(batch);
+  const auto nx = num::saturating_cast<int>(N);
+  const auto ny = num::saturating_cast<int>(batch);
 
   auto plan = fft_plan_t{CUFFT_PLAN_NULL};
 
