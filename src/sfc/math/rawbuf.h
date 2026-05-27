@@ -1,11 +1,6 @@
 #pragma once
 
-#include "sfc/core/mem.h"
 #include "sfc/cuda/memory.h"
-
-#ifndef __CUDACC__
-#include "sfc/core/slice.h"
-#endif
 
 namespace sfc::math {
 

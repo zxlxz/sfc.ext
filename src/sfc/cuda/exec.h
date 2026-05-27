@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sfc/core/mod.h"
+#include "sfc/core.h"
 
 #ifdef __device__
 #define __dev __device__

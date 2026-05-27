@@ -1,6 +1,5 @@
 #include <cuda.h>
 
-#include "sfc/core.h"
 #include "sfc/math.h"
 #include "sfc/cuda/texture.h"
 #include "sfc/cuda/error.h"

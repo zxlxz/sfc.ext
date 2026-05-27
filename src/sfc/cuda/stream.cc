@@ -1,6 +1,5 @@
 #include <cuda.h>
 
-#include "sfc/core.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/error.h"
 
