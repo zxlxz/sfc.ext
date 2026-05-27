@@ -29,11 +29,6 @@ struct Extent {
 };
 
 template <class T>
-auto buffer_new(Extent ext, bool is_layered = false) -> buf_t;
-void buffer_del(buf_t arr);
-void buffer_set(buf_t arr, const void* src);
-
-template <class T>
 class Buffer {
   buf_t _arr = nullptr;
 

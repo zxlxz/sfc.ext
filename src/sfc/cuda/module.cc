@@ -1,8 +1,7 @@
-#include <cuda.h>
 
+#include "sfc/cuda/mod.inl"
 #include "sfc/cuda/module.h"
 #include "sfc/cuda/stream.h"
-#include "sfc/cuda/error.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic ignored "-Wmissing-designated-field-initializers"
@@ -12,35 +11,25 @@ namespace sfc::cuda {
 
 auto mod_load(const char* path) -> mod_t {
   auto mod = mod_t{nullptr};
-  if (auto e = ::cuModuleLoad(&mod, path)) {
-    panic::panic_fmt("cuModuleLoad failed, err={}", Error{e});
-  }
+  CHECK_RET(cuModuleLoad, &mod, path);
   return mod;
 }
 
 void mod_unload(mod_t mod) {
   if (mod == nullptr) return;
-
-  if (auto e = ::cuModuleUnload(mod)) {
-    panic::panic_fmt("cuModuleUnload failed, err={}", Error{e});
-  }
+  CHECK_RET(cuModuleUnload, mod);
 }
 
 auto mod_func(mod_t mod, const char* name) -> func_t {
+  if (mod == nullptr) return nullptr;
   if (name == nullptr) return nullptr;
 
-  sfc::expect(mod != nullptr, "mod_func: mod is null");
-
   auto func = func_t{nullptr};
-  if (auto e = ::cuModuleGetFunction(&func, mod, name)) {
-    panic::panic_fmt("cuModuleGetFunction failed, err={}", Error{e});
-  }
+  CHECK_RET(cuModuleGetFunction, &func, mod, name);
   return func;
 }
 
 void func_launch(func_t f, void* args[]) {
-  sfc::expect(f != nullptr, "func_launch: func is null");
-
   const auto stream = cuda::stream_get();
   const auto blks = cuda::get_blks();
   const auto trds = cuda::get_trds();
@@ -55,9 +44,7 @@ void func_launch(func_t f, void* args[]) {
       .hStream = stream,
   };
 
-  if (auto e = ::cuLaunchKernelEx(&conf, f, args, nullptr)) {
-    panic::panic_fmt("cuLaunchKernelEx failed, err={}", Error{e});
-  }
+  CHECK_RET(cuLaunchKernelEx, &conf, f, args, nullptr);
 }
 
 Module::Module() noexcept {}

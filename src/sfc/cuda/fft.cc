@@ -1,49 +1,38 @@
-#include <cuda.h>
 #include <cufft.h>
 
-#include "sfc/core.h"
 #include "sfc/math.h"
+#include "sfc/cuda/mod.inl"
 #include "sfc/cuda/fft.h"
-#include "sfc/cuda/error.h"
 #include "sfc/cuda/stream.h"
 
 namespace sfc::cuda {
 
 using fft_plan_t = int;
 
-struct FFTError {
-  int _code;
-
- public:
-  auto to_str() const -> cstr_t {
-    switch (_code) {
-      case CUFFT_SUCCESS:            return "CUFFT_SUCCESS";
-      case CUFFT_INVALID_PLAN:       return "CUFFT_INVALID_PLAN";
-      case CUFFT_ALLOC_FAILED:       return "CUFFT_ALLOC_FAILED";
-      case CUFFT_INVALID_TYPE:       return "CUFFT_INVALID_TYPE";
-      case CUFFT_INVALID_VALUE:      return "CUFFT_INVALID_VALUE";
-      case CUFFT_INTERNAL_ERROR:     return "CUFFT_INTERNAL_ERROR";
-      case CUFFT_EXEC_FAILED:        return "CUFFT_EXEC_FAILED";
-      case CUFFT_SETUP_FAILED:       return "CUFFT_SETUP_FAILED";
-      case CUFFT_INVALID_SIZE:       return "CUFFT_INVALID_SIZE";
-      case CUFFT_UNALIGNED_DATA:     return "CUFFT_UNALIGNED_DATA";
-      case CUFFT_INVALID_DEVICE:     return "CUFFT_INVALID_DEVICE";
-      case CUFFT_NO_WORKSPACE:       return "CUFFT_NO_WORKSPACE";
-      case CUFFT_NOT_IMPLEMENTED:    return "CUFFT_NOT_IMPLEMENTED";
-      case CUFFT_NOT_SUPPORTED:      return "CUFFT_NOT_SUPPORTED";
-      case CUFFT_MISSING_DEPENDENCY: return "CUFFT_MISSING_DEPENDENCY";
-      case CUFFT_NVRTC_FAILURE:      return "CUFFT_NVRTC_FAILURE";
-      case CUFFT_NVJITLINK_FAILURE:  return "CUFFT_NVJITLINK_FAILURE";
-      case CUFFT_NVSHMEM_FAILURE:    return "CUFFT_NVSHMEM_FAILURE";
-      default:                       return "CUFFT_ERROR_UNKNOWN";
-    }
+template<>
+inline auto to_str(cufftResult code) -> cstr_t {
+  switch (code) {
+    case CUFFT_SUCCESS:            return "CUFFT_SUCCESS";
+    case CUFFT_INVALID_PLAN:       return "CUFFT_INVALID_PLAN";
+    case CUFFT_ALLOC_FAILED:       return "CUFFT_ALLOC_FAILED";
+    case CUFFT_INVALID_TYPE:       return "CUFFT_INVALID_TYPE";
+    case CUFFT_INVALID_VALUE:      return "CUFFT_INVALID_VALUE";
+    case CUFFT_INTERNAL_ERROR:     return "CUFFT_INTERNAL_ERROR";
+    case CUFFT_EXEC_FAILED:        return "CUFFT_EXEC_FAILED";
+    case CUFFT_SETUP_FAILED:       return "CUFFT_SETUP_FAILED";
+    case CUFFT_INVALID_SIZE:       return "CUFFT_INVALID_SIZE";
+    case CUFFT_UNALIGNED_DATA:     return "CUFFT_UNALIGNED_DATA";
+    case CUFFT_INVALID_DEVICE:     return "CUFFT_INVALID_DEVICE";
+    case CUFFT_NO_WORKSPACE:       return "CUFFT_NO_WORKSPACE";
+    case CUFFT_NOT_IMPLEMENTED:    return "CUFFT_NOT_IMPLEMENTED";
+    case CUFFT_NOT_SUPPORTED:      return "CUFFT_NOT_SUPPORTED";
+    case CUFFT_MISSING_DEPENDENCY: return "CUFFT_MISSING_DEPENDENCY";
+    case CUFFT_NVRTC_FAILURE:      return "CUFFT_NVRTC_FAILURE";
+    case CUFFT_NVJITLINK_FAILURE:  return "CUFFT_NVJITLINK_FAILURE";
+    case CUFFT_NVSHMEM_FAILURE:    return "CUFFT_NVSHMEM_FAILURE";
+    default:                       return "CUFFT_ERROR_UNKNOWN";
   }
-
-  void fmt(auto& f) const {
-    const auto s = this->to_str();
-    f.write_str(s);
-  }
-};
+}
 
 template <class T>
 auto fft_cast(T* p) -> T* {
@@ -59,9 +48,7 @@ void fft_drop(fft_plan_t plan) {
     return;
   }
 
-  if (auto err = ::cufftDestroy(plan)) {
-    panic::panic_fmt("cufftDestroy failed: {}", FFTError{err});
-  }
+  CHECK_RET(cufftDestroy, plan);
 }
 
 template <class I, class O>
@@ -71,20 +58,16 @@ auto fft_plan(u32 N, u32 batch) -> fft_plan_t {
 
   auto plan = fft_plan_t{CUFFT_PLAN_NULL};
 
-  auto err = CUFFT_SUCCESS;
   if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
-    err = ::cufftPlan1d(&plan, nx, CUFFT_C2C, ny);
+    CHECK_RET(cufftPlan1d, &plan, nx, CUFFT_C2C, ny);
   } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
-    err = ::cufftPlan1d(&plan, nx, CUFFT_R2C, ny);
+    CHECK_RET(cufftPlan1d, &plan, nx, CUFFT_R2C, ny);
   } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
-    err = ::cufftPlan1d(&plan, nx, CUFFT_C2R, ny);
+    CHECK_RET(cufftPlan1d, &plan, nx, CUFFT_C2R, ny);
   } else {
     static_assert(false, "unsupported type combination");
   }
 
-  if (err != CUFFT_SUCCESS) {
-    panic::panic_fmt("cufftPlan1d failed, err={}", FFTError{err});
-  }
   return plan;
 }
 
@@ -93,19 +76,14 @@ void fft_exec(fft_plan_t plan, const I in[], O out[], int SIGN) {
   const auto idata = cuda::fft_cast(const_cast<I*>(in));
   const auto odata = cuda::fft_cast(out);
 
-  auto err = CUFFT_SUCCESS;
   if constexpr (sizeof(I) == sizeof(O)) {
-    err = ::cufftExecC2C(plan, idata, odata, SIGN);
+    CHECK_RET(cufftExecC2C, plan, idata, odata, SIGN);
   } else if constexpr (sizeof(I) < sizeof(O)) {
-    err = ::cufftExecR2C(plan, idata, odata);
+    CHECK_RET(cufftExecR2C, plan, idata, odata);
   } else if constexpr (sizeof(I) > sizeof(O)) {
-    err = ::cufftExecC2R(plan, idata, odata);
+    CHECK_RET(cufftExecC2R, plan, idata, odata);
   } else {
     static_assert(false, "unsupported type combination");
-  }
-
-  if (err != CUFFT_SUCCESS) {
-    panic::panic_fmt("cufftExecC2C failed, err={}", FFTError{err});
   }
 }
 

@@ -1,9 +1,9 @@
 #include <cuda.h>
 
 #include "sfc/math/vec.h"
+#include "sfc/cuda/mod.inl"
 #include "sfc/cuda/exec.h"
 #include "sfc/cuda/stream.h"
-#include "sfc/cuda/error.h"
 
 namespace sfc::cuda {
 

@@ -1,8 +1,6 @@
-#include <cuda.h>
-
 #include "sfc/math.h"
+#include "sfc/cuda/mod.inl"
 #include "sfc/cuda/texture.h"
-#include "sfc/cuda/error.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic ignored "-Wmissing-designated-field-initializers"
@@ -13,8 +11,6 @@ namespace sfc::cuda {
 static constexpr auto kInvalidTex = num::Int<tex_t>::MAX;
 
 auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
-  sfc::expect(arr != nullptr, "texture_new: arr is null");
-
   const auto cu_filt = CUfilter_mode(filt_mode);
   const auto cu_addr = CUaddress_mode(addr_mode);
 
@@ -33,9 +29,7 @@ auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
   const auto view_desc = nullptr;
 
   auto tex_obj = tex_t{0};
-  if (auto e = ::cuTexObjectCreate(&tex_obj, &res_desc, &tex_desc, view_desc)) {
-    panic::panic_fmt("cuTexObjectCreate failed, err={}", Error{e});
-  }
+  CHECK_RET(cuTexObjectCreate, &tex_obj, &res_desc, &tex_desc, view_desc);
 
   return tex_obj;
 }
@@ -43,9 +37,7 @@ auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
 void texture_del(tex_t obj) {
   if (obj == kInvalidTex) return;
 
-  if (auto e = ::cuTexObjectDestroy(obj)) {
-    panic::panic_fmt("cuTexObjectDestroy failed, err={}", Error{e});
-  }
+  CHECK_RET(cuTexObjectDestroy, obj);
 }
 
 template <class T, int N>
@@ -57,8 +49,7 @@ Texture<T, N>::~Texture() noexcept {
 }
 
 template <class T, int N>
-Texture<T, N>::Texture(Texture&& other) noexcept
-    : _buf{mem::move(other._buf)}, _tex{other._tex} {
+Texture<T, N>::Texture(Texture&& other) noexcept : _buf{mem::move(other._buf)}, _tex{other._tex} {
   other._tex = Tex{kInvalidTex};
 }
 
@@ -93,8 +84,7 @@ LTexture<T, N>::~LTexture() noexcept {
 }
 
 template <class T, int N>
-LTexture<T, N>::LTexture(LTexture&& other) noexcept
-    : _buf{mem::move(other._buf)}, _tex{other._tex} {
+LTexture<T, N>::LTexture(LTexture&& other) noexcept : _buf{mem::move(other._buf)}, _tex{other._tex} {
   other._tex = Tex{kInvalidTex};
 }
 
