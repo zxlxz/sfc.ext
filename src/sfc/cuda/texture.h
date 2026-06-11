@@ -13,8 +13,6 @@ struct NdSlice;
 
 namespace sfc::cuda {
 
-using tex_t = unsigned long long;
-
 enum class TexFilt {
   Point = 0,
   Linear = 1,

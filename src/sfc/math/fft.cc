@@ -7,12 +7,12 @@ namespace sfc::math {
 using fft_plan_t = fftwf_plan_s*;
 
 template <class T>
-auto fft_cast(T* p) -> T* {
-  return p;
-}
-
-auto fft_cast(c32* p) -> fftwf_complex* {
-  return ptr::cast_mut<fftwf_complex>(p);
+static auto fft_cast(T* p) {
+  if constexpr (trait::same_<T, c32>) {
+    return ptr::cast<fftwf_complex>(p);
+  } else if constexpr (trait::same_<T, f32>) {
+    return p;
+  }
 }
 
 static void fft_drop(fft_plan_t p) {

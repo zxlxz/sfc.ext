@@ -9,8 +9,8 @@ namespace sfc::cuda {
 
 using fft_plan_t = int;
 
-template<>
-inline auto to_str(cufftResult code) -> cstr_t {
+template <>
+auto error_name(cufftResult code) -> cstr_t {
   switch (code) {
     case CUFFT_SUCCESS:            return "CUFFT_SUCCESS";
     case CUFFT_INVALID_PLAN:       return "CUFFT_INVALID_PLAN";
@@ -35,15 +35,15 @@ inline auto to_str(cufftResult code) -> cstr_t {
 }
 
 template <class T>
-auto fft_cast(T* p) -> T* {
-  return p;
+static auto fft_cast(T* p) {
+  if constexpr (trait::same_<T, c32>) {
+    return ptr::cast<cufftComplex>(p);
+  } else if constexpr (trait::same_<T, f32>) {
+    return p;
+  }
 }
 
-auto fft_cast(c32* p) -> cufftComplex* {
-  return ptr::cast_mut<cufftComplex>(p);
-}
-
-void fft_drop(fft_plan_t plan) {
+static void fft_drop(fft_plan_t plan) {
   if (plan == CUFFT_PLAN_NULL) {
     return;
   }
@@ -52,7 +52,7 @@ void fft_drop(fft_plan_t plan) {
 }
 
 template <class I, class O>
-auto fft_plan(u32 N, u32 batch) -> fft_plan_t {
+static auto fft_plan(u32 N, u32 batch) -> fft_plan_t {
   const auto nx = num::saturating_cast<int>(N);
   const auto ny = num::saturating_cast<int>(batch);
 
@@ -72,7 +72,7 @@ auto fft_plan(u32 N, u32 batch) -> fft_plan_t {
 }
 
 template <class I, class O>
-void fft_exec(fft_plan_t plan, const I in[], O out[], int SIGN) {
+static void fft_exec(fft_plan_t plan, const I in[], O out[], int SIGN) {
   const auto idata = cuda::fft_cast(const_cast<I*>(in));
   const auto odata = cuda::fft_cast(out);
 

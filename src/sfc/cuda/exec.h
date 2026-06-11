@@ -8,8 +8,6 @@
 #define __dev
 #endif
 
-struct CUstream_st;
-
 namespace sfc::math {
 template <class T, int N>
 struct vec;
@@ -23,15 +21,15 @@ struct dim3_t {
   unsigned z = 1;
 
  public:
-#ifdef __CUDACC__
+#ifdef __device_builtin__
   operator ::dim3() const {
     return {x, y, z};
   }
 #endif
 };
 
-auto get_blks() -> dim3_t;
-auto get_trds() -> dim3_t;
+auto grid_dim() -> dim3_t;
+auto block_dim() -> dim3_t;
 void set_worksize(dim3_t work_size, dim3_t block_size);
 
 template<int N>
@@ -47,7 +45,7 @@ extern const sfc::cuda::dim3_t threadIdx;
 #endif
 
 #ifdef __CUDACC__
-#define CUDA_EXEC(f) f<<<sfc::cuda::get_blks(), sfc::cuda::get_trds()>>>
+#define CUDA_EXEC(f) f<<<sfc::cuda::grid_dim(), sfc::cuda::block_dim()>>>
 #else
 #define CUDA_EXEC(f) f
 #endif

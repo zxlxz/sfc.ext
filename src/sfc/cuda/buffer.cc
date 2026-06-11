@@ -8,103 +8,78 @@
 
 namespace sfc::cuda {
 
-using array_fmt_t = CUarray_format;
-
 template <class T>
-static auto array_format() -> array_fmt_t {
+static auto array_format() -> cudaChannelFormatDesc {
+  static constexpr auto NBITS = sizeof(T) * 8;
   if constexpr (trait::uint_<T>) {
-    if constexpr (sizeof(T) == 1) return CU_AD_FORMAT_UNSIGNED_INT8;
-    if constexpr (sizeof(T) == 2) return CU_AD_FORMAT_UNSIGNED_INT16;
-    if constexpr (sizeof(T) == 4) return CU_AD_FORMAT_UNSIGNED_INT32;
+    return {NBITS, 0, 0, 0, cudaChannelFormatKindUnsigned};
   } else if constexpr (trait::sint_<T>) {
-    if constexpr (sizeof(T) == 1) return CU_AD_FORMAT_SIGNED_INT8;
-    if constexpr (sizeof(T) == 2) return CU_AD_FORMAT_SIGNED_INT16;
-    if constexpr (sizeof(T) == 4) return CU_AD_FORMAT_SIGNED_INT32;
+    return {NBITS, 0, 0, 0, cudaChannelFormatKindSigned};
   } else if constexpr (trait::float_<T>) {
-    if constexpr (sizeof(T) == 2) return CU_AD_FORMAT_HALF;
-    if constexpr (sizeof(T) == 4) return CU_AD_FORMAT_FLOAT;
+    return {NBITS, 0, 0, 0, cudaChannelFormatKindFloat};
   } else {
     static_assert(false, "unsupported type");
   }
 }
 
-static auto array_format_size(array_fmt_t fmt) -> unsigned {
-  switch (fmt) {
-    case CU_AD_FORMAT_UNSIGNED_INT8:  return 1;
-    case CU_AD_FORMAT_UNSIGNED_INT16: return 2;
-    case CU_AD_FORMAT_UNSIGNED_INT32: return 4;
-    case CU_AD_FORMAT_SIGNED_INT8:    return 1;
-    case CU_AD_FORMAT_SIGNED_INT16:   return 2;
-    case CU_AD_FORMAT_SIGNED_INT32:   return 4;
-    case CU_AD_FORMAT_HALF:           return 2;
-    case CU_AD_FORMAT_FLOAT:          return 4;
-    default:                          return 0;
-  }
+template <class T>
+static auto pitched_ptr(const T* p, Extent ext) -> cudaPitchedPtr {
+  const auto pitch = ext.width * sizeof(T);
+  const auto xsize = ext.width;
+  const auto ysize = ext.height ? ext.height : 1;
+  return cudaPitchedPtr{ptr::cast_mut(p), pitch, xsize, ysize};
 }
 
 template <class T>
 static auto buffer_new(Extent ext, bool is_layered) -> buf_t {
-  const auto format = cuda::array_format<T>();
-  const auto flags = is_layered ? CUDA_ARRAY3D_LAYERED : 0U;
-  const auto desc = CUDA_ARRAY3D_DESCRIPTOR_st{
-      .Width = ext.width,
-      .Height = ext.height,
-      .Depth = ext.depth,
-      .Format = format,
-      .NumChannels = 1,
-      .Flags = flags,
-  };
+  if (ext.width == 0) {
+    return nullptr;
+  }
+
+  const auto desc = cuda::array_format<T>();
+  const auto flags = is_layered ? cudaArrayLayered : 0U;
+  const auto extent = cudaExtent{ext.width, ext.height, ext.depth};
 
   auto res = buf_t{nullptr};
-  CHECK_RET(cuArray3DCreate_v2, &res, &desc);
+  CHECK_RET(cudaMalloc3DArray, &res, &desc, extent, flags);
   return res;
 }
 
 static void buffer_del(buf_t arr) {
   if (arr == nullptr) return;
-  CHECK_RET(cuArrayDestroy, arr);
+  CHECK_RET(cudaFreeArray, arr);
 }
 
-static void buffer_set(buf_t arr, const void* src) {
+template <class T>
+static void buffer_set(buf_t arr, Extent ext, const T* src) {
   if (arr == nullptr || src == nullptr) {
     return;
   }
 
-  auto desc = CUDA_ARRAY3D_DESCRIPTOR_st{};
-  CHECK_RET(cuArray3DGetDescriptor_v2, &desc, arr);
-
-  const auto fmt_size = cuda::array_format_size(desc.Format);  // in bytes
-
-  auto copy_params = CUDA_MEMCPY3D_st{
-      .srcXInBytes = 0,
-      .srcY = 0,
-      .srcZ = 0,
-      .srcLOD = 0,
-      .srcMemoryType = CU_MEMORYTYPE_HOST,
-      .srcHost = src,
-      .srcPitch = desc.Width * fmt_size,
-      .srcHeight = desc.Height,
-      .dstXInBytes = 0,
-      .dstY = 0,
-      .dstZ = 0,
-      .dstLOD = 0,
-      .dstMemoryType = CU_MEMORYTYPE_ARRAY,
-      .dstArray = arr,
-      .WidthInBytes = desc.Width * fmt_size,
-      .Height = desc.Height,
-      .Depth = desc.Depth,
+  const auto copy_ext = cudaExtent{
+      ext.width,
+      ext.height ? ext.height : 1,
+      ext.depth ? ext.depth : 1,
   };
+
+  auto copy_params = cudaMemcpy3DParms{};
+  copy_params.srcPos = cudaPos{0, 0, 0};
+  copy_params.srcPtr = cuda::pitched_ptr(src, ext);
+  copy_params.dstPos = cudaPos{0, 0, 0};
+  copy_params.dstArray = arr;
+  copy_params.extent = copy_ext;  // array element count
+  copy_params.kind = cudaMemcpyHostToDevice;
 
   const auto stream = cuda::stream_get();
   if (stream) {
-    CHECK_RET(cuMemcpy3DAsync_v2, &copy_params, stream);
+    CHECK_RET(cudaMemcpy3DAsync, &copy_params, stream);
   } else {
-    CHECK_RET(cuMemcpy3D_v2, &copy_params);
+    CHECK_RET(cudaMemcpy3D, &copy_params);
   }
 }
 
 template <class T>
-Buffer<T>::Buffer() noexcept : _arr{nullptr} {}
+Buffer<T>::Buffer() noexcept : _arr{nullptr}, _ext{} {}
 
 template <class T>
 Buffer<T>::~Buffer() {
@@ -112,14 +87,16 @@ Buffer<T>::~Buffer() {
 }
 
 template <class T>
-Buffer<T>::Buffer(Buffer&& other) noexcept : _arr{other._arr} {
+Buffer<T>::Buffer(Buffer&& other) noexcept : _arr{other._arr}, _ext{other._ext} {
   other._arr = nullptr;
+  other._ext = {};
 }
 
 template <class T>
 auto Buffer<T>::operator=(Buffer&& other) noexcept -> Buffer& {
   if (this == &other) return *this;
   mem::swap(_arr, other._arr);
+  mem::swap(_ext, other._ext);
   return *this;
 }
 
@@ -127,6 +104,7 @@ template <class T>
 auto Buffer<T>::xnew(Extent ext) -> Buffer {
   auto res = Buffer{};
   res._arr = cuda::buffer_new<T>(ext, false);
+  res._ext = ext;
   return res;
 }
 
@@ -137,7 +115,7 @@ auto Buffer<T>::as_ptr() const -> buf_t {
 
 template <class T>
 void Buffer<T>::set_data(const T* src) {
-  cuda::buffer_set(_arr, src);
+  cuda::buffer_set(_arr, _ext, src);
 }
 
 template class Buffer<u8>;

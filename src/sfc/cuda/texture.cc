@@ -11,25 +11,21 @@ namespace sfc::cuda {
 static constexpr auto kInvalidTex = num::Int<tex_t>::MAX;
 
 auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
-  const auto cu_filt = CUfilter_mode(filt_mode);
-  const auto cu_addr = CUaddress_mode(addr_mode);
+  const auto cu_filt = cudaTextureFilterMode(filt_mode);
+  const auto cu_addr = cudaTextureAddressMode(addr_mode);
 
-  const auto res_desc = CUDA_RESOURCE_DESC_st{
-      .resType = CU_RESOURCE_TYPE_ARRAY,
-      .res = {.array = {.hArray = arr}},
-      .flags = 0,
+  const auto res_desc = cudaResourceDesc{
+      .resType = cudaResourceTypeArray,
+      .res = {.array = {.array = arr}},
   };
 
-  const auto tex_desc = CUDA_TEXTURE_DESC_st{
+  const auto tex_desc = cudaTextureDesc{
       .addressMode = {cu_addr, cu_addr, cu_addr},
       .filterMode = cu_filt,
-      .flags = 0,
   };
 
-  const auto view_desc = nullptr;
-
   auto tex_obj = tex_t{0};
-  CHECK_RET(cuTexObjectCreate, &tex_obj, &res_desc, &tex_desc, view_desc);
+  CHECK_RET(cudaCreateTextureObject, &tex_obj, &res_desc, &tex_desc, nullptr);
 
   return tex_obj;
 }
@@ -37,7 +33,7 @@ auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
 void texture_del(tex_t obj) {
   if (obj == kInvalidTex) return;
 
-  CHECK_RET(cuTexObjectDestroy, obj);
+  CHECK_RET(cudaDestroyTextureObject, obj);
 }
 
 template <class T, int N>

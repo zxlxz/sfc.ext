@@ -26,128 +26,91 @@ void heap_free(void* ptr) {
 auto host_alloc(usize size) -> void* {
   if (size == 0) return nullptr;
 
+  const auto flags = cudaHostAllocDefault;
   void* ptr = nullptr;
-  CHECK_RET(cuMemAllocHost_v2, &ptr, size);
+  CHECK_RET(cudaHostAlloc, &ptr, size, flags);
   return ptr;
 }
 
 void host_free(void* ptr) {
   if (ptr == nullptr) return;
 
-  CHECK_RET(cuMemFreeHost, ptr);
+  CHECK_RET(cudaFreeHost, ptr);
 }
 
 auto device_alloc(usize size) -> void* {
   if (size == 0) return nullptr;
 
-  CUdeviceptr dptr = 0;
-  CHECK_RET(cuMemAlloc_v2, &dptr, size);
-  return reinterpret_cast<void*>(dptr);
+  void* ptr = nullptr;
+  CHECK_RET(cudaMalloc, &ptr, size);
+  return ptr;
 }
 
 void device_free(void* ptr) {
   if (ptr == nullptr) return;
 
-  const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
-  CHECK_RET(cuMemFree_v2, dptr);
+  CHECK_RET(cudaFree, ptr);
 }
 
 auto managed_alloc(usize size) -> void* {
   if (size == 0) return nullptr;
 
-  CUdeviceptr dptr = 0;
-  CHECK_RET(cuMemAllocManaged, &dptr, size, CU_MEM_ATTACH_GLOBAL);
-  return reinterpret_cast<void*>(dptr);
+  void* ptr = nullptr;
+  CHECK_RET(cudaMallocManaged, &ptr, size, cudaMemAttachGlobal);
+  return ptr;
 }
 
 void managed_free(void* ptr) {
   if (ptr == nullptr) return;
 
-  const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
-  CHECK_RET(cuMemFree_v2, dptr);
+  CHECK_RET(cudaFree, ptr);
 }
 
 void prefetch_cpu(void* ptr, usize size) {
   if (ptr == nullptr || size == 0) return;
 
-  const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
-  const auto mloc = CUmemLocation{CU_MEM_LOCATION_TYPE_HOST, {0}};
   const auto stream = cuda::stream_get();
-  CHECK_RET(cuMemPrefetchAsync_v2, dptr, size, mloc, 0, stream);
+  const auto loc = cudaMemLocation{cudaMemLocationTypeHost, 0};
+  CHECK_RET(cudaMemPrefetchAsync, ptr, size, loc, 0U, stream);
 }
 
 void prefetch_gpu(void* ptr, usize size) {
   if (ptr == nullptr || size == 0) return;
 
   const auto dev = Device::current();
-  const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
-  const auto mloc = CUmemLocation{CU_MEM_LOCATION_TYPE_DEVICE, {dev.id}};
   const auto stream = cuda::stream_get();
-  CHECK_RET(cuMemPrefetchAsync_v2, dptr, size, mloc, 0, stream);
+  const auto loc = cudaMemLocation{cudaMemLocationTypeDevice, dev.id};
+  CHECK_RET(cudaMemPrefetchAsync, ptr, size, loc, 0U, stream);
 }
 
-template <class T>
-static auto get_ptr_attr(const void* ptr, CUpointer_attribute attr_kind) -> T {
-  const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
+auto get_mem_type(const void* ptr) -> cudaMemoryType {
+  if (ptr == nullptr) return cudaMemoryTypeHost;
 
-  auto attr_val = T{};
-  CHECK_RET(cuPointerGetAttribute, &attr_val, attr_kind, dptr);
-  return attr_val;
+  auto attrs = cudaPointerAttributes{};
+  CHECK_RET(cudaPointerGetAttributes, &attrs, ptr);
+  return attrs.type;
 }
 
-auto get_mem_type(const void* ptr) -> CUmemorytype {
-  if (ptr == nullptr) return CU_MEMORYTYPE_HOST;  // Host
-
-  const auto res = cuda::get_ptr_attr<CUmemorytype>(ptr, CU_POINTER_ATTRIBUTE_MEMORY_TYPE);
-  return res;
-}
-
-void cuda_memset(const void* ptr, u8 byte, usize size) {
+void cuda_memset(void* ptr, u8 byte, usize size) {
   if (size == 0) return;
   if (ptr == nullptr) return;
 
-  const auto dptr = reinterpret_cast<CUdeviceptr>(ptr);
   const auto stream = cuda::stream_get();
-
-  if (dptr % 4 == 0 && size % 4 == 0) {
-    const auto cnt = size / 4;
-    const auto s32 = byte * 0x01010101U;
-    if (stream) {
-      CHECK_RET(cuMemsetD32Async, dptr, s32, cnt, stream);
-    } else {
-      CHECK_RET(cuMemsetD32_v2, dptr, s32, cnt);
-    }
-  }
-
-  if (dptr % 2 == 0 && size % 2 == 0) {
-    const auto cnt = size / 2;
-    const auto s16 = u16(byte * 0x0101U);
-    if (stream) {
-      CHECK_RET(cuMemsetD16Async, dptr, s16, cnt, stream);
-    } else {
-      CHECK_RET(cuMemsetD16_v2, dptr, s16, cnt);
-    }
-  }
-
-  const auto cnt = size;
-  const auto s8 = byte;
   if (stream) {
-    CHECK_RET(cuMemsetD8Async, dptr, s8, cnt, stream);
+    CHECK_RET(cudaMemsetAsync, ptr, byte, size, stream);
   } else {
-    CHECK_RET(cuMemsetD8_v2, dptr, s8, cnt);
+    CHECK_RET(cudaMemset, ptr, byte, size);
   }
 }
 
 void cuda_memcpy(void* dst, const void* src, usize size) {
   if (size == 0) return;
 
-  const auto dptr = reinterpret_cast<CUdeviceptr>(dst);
-  const auto sptr = reinterpret_cast<CUdeviceptr>(src);
   const auto stream = cuda::stream_get();
   if (stream) {
-    CHECK_RET(cuMemcpyAsync, dptr, sptr, size, stream);
+    CHECK_RET(cudaMemcpyAsync, dst, src, size, cudaMemcpyDefault, stream);
   } else {
-    CHECK_RET(cuMemcpy, dptr, sptr, size);
+    CHECK_RET(cudaMemcpy, dst, src, size, cudaMemcpyDefault);
   }
 }
 
@@ -165,7 +128,7 @@ void fill_bytes(MemBlock blk, u8 val) {
     }
     case MemType::Device:
     case MemType::UVA:    {
-      cuda::cuda_memset(ptr, val, size);
+      cuda::cuda_memset(const_cast<void*>(ptr), val, size);
       break;
     }
   }
@@ -175,7 +138,7 @@ void copy_bytes(MemBlock src, MemBlock dst) {
   if (src.size == 0) return;
   if (src.ptr == nullptr) return;
   if (dst.ptr == nullptr) return;
-  sfc::assert_fmt(src.size == dst.size, "src.size(=`{}`) not equal to dst.size(=`{}`)", src.size, dst.size);
+  sfc::assert_fmt(src.size == dst.size, fmt::Args{"src.size(=`{}`) not equal to dst.size(=`{}`)", src.size, dst.size});
 
   const auto src_host = src.mtype == MemType::Heap || src.mtype == MemType::Host;
   const auto dst_host = dst.mtype == MemType::Heap || dst.mtype == MemType::Host;

@@ -1,4 +1,4 @@
-#include <cuda.h>
+#include <cuda_runtime_api.h>
 
 #include "sfc/math/vec.h"
 #include "sfc/cuda/mod.inl"
@@ -9,8 +9,8 @@ namespace sfc::cuda {
 
 struct ExecConf {
   dim3_t work_size = {1, 1, 1};
-  dim3_t grid_size = {1, 1, 1};
-  dim3_t block_size = {1, 1, 1};
+  dim3_t grid_dim = {1, 1, 1};
+  dim3_t block_dim = {1, 1, 1};
 
  public:
   static auto instance() -> ExecConf& {
@@ -36,17 +36,17 @@ struct ExecConf {
 
     // set config
     this->work_size = {wx, wy, wz};
-    this->grid_size = {gx, gy, gz};
-    this->block_size = {bx, by, bz};
+    this->grid_dim = {gx, gy, gz};
+    this->block_dim = {bx, by, bz};
   }
 };
 
-auto get_trds() -> dim3_t {
-  return ExecConf::instance().block_size;
+auto block_dim() -> dim3_t {
+  return ExecConf::instance().block_dim;
 }
 
-auto get_blks() -> dim3_t {
-  return ExecConf::instance().grid_size;
+auto grid_dim() -> dim3_t {
+  return ExecConf::instance().grid_dim;
 }
 
 void set_worksize(dim3_t ws, dim3_t bs) {

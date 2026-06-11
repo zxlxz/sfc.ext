@@ -39,7 +39,7 @@ class RawBuf {
   static auto with_capacity(usize cap, MemType type = {}) -> RawBuf {
     auto buf = RawBuf{};
     buf._a = Alloc{type};
-    buf._ptr = ptr::cast_mut<T>(buf._a.alloc(cap * sizeof(T)));
+    buf._ptr = ptr::cast<T>(buf._a.alloc(cap * sizeof(T)));
     buf._cap = cap;
 
     return buf;

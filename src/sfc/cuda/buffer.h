@@ -1,8 +1,7 @@
 #pragma once
 
+#include <cuda_runtime_api.h>
 #include "sfc/core.h"
-
-struct CUarray_st;
 
 namespace sfc::math {
 template <class T, int N>
@@ -11,8 +10,8 @@ struct vec;
 
 namespace sfc::cuda {
 
-using buf_t = struct ::CUarray_st*;
-using tex_t = unsigned long long;
+using buf_t = cudaArray_t;
+using tex_t = cudaTextureObject_t;
 
 struct Extent {
   u32 width;
@@ -20,7 +19,7 @@ struct Extent {
   u32 depth;   //  1D/2D: depth=0
 
   template <int N>
-  static auto from(math::vec<u32, N> dims) -> Extent {
+  static auto from(const math::vec<u32, N>& dims) -> Extent {
     static_assert(N >= 1 && N <= 3, "invalid dimension");
     if constexpr (N == 1) return {dims.x, 0, 0};
     if constexpr (N == 2) return {dims.x, dims.y, 0};
@@ -31,6 +30,7 @@ struct Extent {
 template <class T>
 class Buffer {
   buf_t _arr = nullptr;
+  Extent _ext = {};
 
  public:
   Buffer() noexcept;

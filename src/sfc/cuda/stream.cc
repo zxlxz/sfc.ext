@@ -5,18 +5,18 @@ namespace sfc::cuda {
 
 auto stream_new(unsigned int flags) -> stream_t {
   auto stream = stream_t{nullptr};
-  CHECK_RET(::cuStreamCreate, &stream, flags);
+  CHECK_RET(cudaStreamCreateWithFlags, &stream, flags);
   return stream;
 }
 
 void stream_del(stream_t s) {
   if (s == nullptr) return;
-  CHECK_RET(::cuStreamDestroy_v2, s);
+  CHECK_RET(cudaStreamDestroy, s);
 }
 
 void stream_sync(stream_t s) {
   if (s == nullptr) return;
-  CHECK_RET(::cuStreamSynchronize, s);
+  CHECK_RET(cudaStreamSynchronize, s);
 }
 
 static thread_local stream_t _tls_stream = nullptr;

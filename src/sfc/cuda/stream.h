@@ -1,12 +1,11 @@
 #pragma once
 
+#include <cuda_runtime_api.h>
 #include "sfc/core.h"
-
-struct CUstream_st;
 
 namespace sfc::cuda {
 
-using stream_t = CUstream_st*;
+using stream_t = cudaStream_t;
 
 auto stream_new(unsigned int flags = 0) -> stream_t;
 void stream_del(stream_t);

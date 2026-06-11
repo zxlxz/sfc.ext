@@ -1,20 +1,27 @@
 
+#include <string.h>
 #include "sfc/cuda/mod.inl"
 #include "sfc/cuda/device.h"
 #include "sfc/cuda/stream.h"
 
 namespace sfc::cuda {
 
+template <>
+auto error_name(cudaError_t code) -> cstr_t {
+  const auto name = ::cudaGetErrorName(code);
+  return name;
+}
+
 void init() {
-  static auto err = ::cuInit(0);
-  cuda::check_ret(err, "cuInit");
+  static auto err = cudaFree(nullptr);
+  cuda::check_ret(err, "cudaFree(nullptr)");
 }
 
 auto dev_count() -> int {
   cuda::init();
 
   auto cnt = 0;
-  CHECK_RET(cuDeviceGetCount, &cnt);
+  CHECK_RET(cudaGetDeviceCount, &cnt);
   return cnt;
 }
 
@@ -22,7 +29,7 @@ auto device_get() -> int {
   cuda::init();
 
   auto dev = 0;
-  CHECK_RET(cuCtxGetDevice, &dev);
+  CHECK_RET(cudaGetDevice, &dev);
   return dev;
 }
 
@@ -34,41 +41,31 @@ void device_set(int dev) {
     return;
   }
 
-  // get primary context
-  auto context = CUcontext{nullptr};
-  CHECK_RET(cuDevicePrimaryCtxRetain, &context, dev);
-
-  // set context current
-  CHECK_RET(cuCtxSetCurrent, context);
+  CHECK_RET(cudaSetDevice, dev);
   _tls_dev = dev;
 }
 
 void device_sync() {
   cuda::init();
-  CHECK_RET(cuCtxSynchronize);
-}
-
-auto device_attribute(int dev, CUdevice_attribute attr_id) -> int {
-  cuda::init();
-
-  auto attr_val = int{0};
-  CHECK_RET(cuDeviceGetAttribute, &attr_val, attr_id, dev);
-  return attr_val;
+  CHECK_RET(cudaDeviceSynchronize);
 }
 
 auto device_total_mem(int dev) -> usize {
   cuda::init();
 
-  auto bytes = usize{0};
-  CHECK_RET(cuDeviceTotalMem_v2, &bytes, dev);
-  return bytes;
+  auto prop = cudaDeviceProp{};
+  CHECK_RET(cudaGetDeviceProperties, &prop, dev);
+  return prop.totalGlobalMem;
 }
 
 auto device_name(int dev) -> const char* {
   cuda::init();
 
-  static thread_local char buf[64] = {};
-  CHECK_RET(cuDeviceGetName, buf, sizeof(buf), dev);
+  auto prop = cudaDeviceProp{};
+  CHECK_RET(cudaGetDeviceProperties, &prop, dev);
+
+  static thread_local char buf[256] = {};
+  memcpy(buf, prop.name, sizeof(prop.name));
   return buf;
 }
 
