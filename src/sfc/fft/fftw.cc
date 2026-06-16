@@ -1,9 +1,10 @@
 #include <fftw3.h>
 
-#include "sfc/math/fft.h"
+#include "sfc/fft/fftw.h"
 
-namespace sfc::math {
+namespace sfc::fft {
 
+namespace fftw {
 using fft_plan_t = fftwf_plan_s*;
 
 template <class T>
@@ -23,8 +24,8 @@ static void fft_drop(fft_plan_t p) {
 template <class I, class O>
 static auto fft_plan(u32 N, const I in[], O out[], int SIGN) -> fft_plan_t {
   const auto len = num::saturating_cast<int>(N);
-  const auto idata = math::fft_cast(const_cast<I*>(in));
-  const auto odata = math::fft_cast(out);
+  const auto idata = fftw::fft_cast(ptr::cast_mut(in));
+  const auto odata = fftw::fft_cast(out);
 
   if constexpr (sizeof(I) == sizeof(O)) {
     return ::fftwf_plan_dft_1d(len, idata, odata, SIGN, FFTW_ESTIMATE);
@@ -39,8 +40,8 @@ static auto fft_plan(u32 N, const I in[], O out[], int SIGN) -> fft_plan_t {
 
 template <class I, class O>
 static void fft_exec(fft_plan_t plan, const I in[], O out[]) {
-  const auto idata = math::fft_cast(const_cast<I*>(in));
-  const auto odata = math::fft_cast(out);
+  const auto idata = fftw::fft_cast(ptr::cast_mut(in));
+  const auto odata = fftw::fft_cast(out);
 
   if constexpr (sizeof(I) == sizeof(O)) {
     ::fftwf_execute_dft(plan, idata, odata);
@@ -53,20 +54,22 @@ static void fft_exec(fft_plan_t plan, const I in[], O out[]) {
   }
 }
 
-template <class I, class O>
-FFT<I, O>::FFT() noexcept {}
+}  // namespace fftw
 
 template <class I, class O>
-FFT<I, O>::~FFT() {
-  math::fft_drop(_fwd);
-  math::fft_drop(_inv);
+FFTW<I, O>::FFTW() noexcept {}
+
+template <class I, class O>
+FFTW<I, O>::~FFTW() {
+  fftw::fft_drop(_fwd);
+  fftw::fft_drop(_inv);
 }
 
 template <class I, class O>
-FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len}, _fwd{mem::take(other._fwd)}, _inv{mem::take(other._inv)} {}
+FFTW<I, O>::FFTW(FFTW&& other) noexcept : _len{other._len}, _fwd{mem::take(other._fwd)}, _inv{mem::take(other._inv)} {}
 
 template <class I, class O>
-FFT<I, O>& FFT<I, O>::operator=(FFT&& other) noexcept {
+FFTW<I, O>& FFTW<I, O>::operator=(FFTW&& other) noexcept {
   if (this == &other) return *this;
   mem::swap(_fwd, other._fwd);
   mem::swap(_inv, other._inv);
@@ -74,20 +77,20 @@ FFT<I, O>& FFT<I, O>::operator=(FFT&& other) noexcept {
 }
 
 template <class I, class O>
-auto FFT<I, O>::create(u32 len) -> FFT {
-  auto res = FFT{};
+auto FFTW<I, O>::create(u32 len) -> FFTW {
+  auto res = FFTW{};
   res._len = len;
 
   if constexpr (sizeof(I) < sizeof(O)) {
-    res._fwd = math::fft_plan<I, O>(len, nullptr, nullptr, 0);
+    res._fwd = fftw::fft_plan<I, O>(len, nullptr, nullptr, 0);
   } else if constexpr (sizeof(I) > sizeof(O)) {
-    res._inv = math::fft_plan<I, O>(len, nullptr, nullptr, 0);
+    res._inv = fftw::fft_plan<I, O>(len, nullptr, nullptr, 0);
   }
   return res;
 }
 
 template <class I, class O>
-auto FFT<I, O>::plan(const I in[], O out[], int DIR) -> plan_t {
+auto FFTW<I, O>::plan(const I in[], O out[], int DIR) -> plan_t {
   if constexpr (sizeof(I) < sizeof(O)) {
     return _fwd;
   } else if constexpr (sizeof(I) > sizeof(O)) {
@@ -95,40 +98,20 @@ auto FFT<I, O>::plan(const I in[], O out[], int DIR) -> plan_t {
   } else {
     auto& plan = DIR < 0 ? _fwd : _inv;
     if (plan == nullptr) {
-      plan = math::fft_plan(_len, in, out, DIR);
+      plan = fftw::fft_plan(_len, in, out, DIR);
     }
     return plan;
   }
 }
 
 template <class I, class O>
-void FFT<I, O>::exec(const I in[], O out[], int DIR) {
+void FFTW<I, O>::exec(const I in[], O out[], int DIR) {
   const auto plan = this->plan(in, out, DIR);
-  math::fft_exec(plan, in, out);
+  fftw::fft_exec(plan, in, out);
 }
 
-template class FFT<f32, c32>;
-template class FFT<c32, f32>;
-template class FFT<c32, c32>;
+template class FFTW<f32, c32>;
+template class FFTW<c32, f32>;
+template class FFTW<c32, c32>;
 
-void fft(NdSlice<c32, 1> in, NdSlice<c32, 1> out) {
-  auto plan = FFT<c32, c32>::create(in._dims.x);
-  plan(in, out, -1);
-}
-
-void ifft(NdSlice<c32, 1> in, NdSlice<c32, 1> out) {
-  auto plan = FFT<c32, c32>::create(in._dims.x);
-  plan(in, out, +1);
-}
-
-void fft_r2c(NdSlice<f32, 1> in, NdSlice<c32, 1> out) {
-  auto plan = FFT<f32, c32>::create(in._dims.x);
-  plan(in, out, -1);
-}
-
-void fft_c2r(NdSlice<c32, 1> in, NdSlice<f32, 1> out) {
-  auto plan = FFT<c32, f32>::create(out._dims.x);
-  plan(in, out, +1);
-}
-
-}  // namespace sfc::math
+}  // namespace sfc::fft

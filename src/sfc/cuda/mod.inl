@@ -1,18 +1,15 @@
 #pragma once
 
-#include <cuda.h>
-#include <cufft.h>
 #include <cuda_runtime_api.h>
-
 #include "sfc/core.h"
 
 namespace sfc::cuda {
 
 using panic::SourceLoc;
 
-auto error_name(auto code) -> cstr_t;
+auto error_name(cudaError_t code) -> cstr_t;
 
-inline void check_ret(auto ret, const char* func, SourceLoc loc = SourceLoc::current()) {
+inline void check_ret(cudaError_t ret, const char* func, SourceLoc loc = SourceLoc::current()) {
   if (ret == 0) {
     return;
   }

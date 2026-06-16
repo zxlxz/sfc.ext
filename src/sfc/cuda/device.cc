@@ -1,85 +1,80 @@
 
-#include <string.h>
 #include "sfc/cuda/mod.inl"
 #include "sfc/cuda/device.h"
 #include "sfc/cuda/stream.h"
 
 namespace sfc::cuda {
 
-template <>
 auto error_name(cudaError_t code) -> cstr_t {
   const auto name = ::cudaGetErrorName(code);
   return name;
 }
 
-void init() {
-  static auto err = cudaFree(nullptr);
-  cuda::check_ret(err, "cudaFree(nullptr)");
-}
-
-auto dev_count() -> int {
-  cuda::init();
-
+auto dev_count() -> u32 {
   auto cnt = 0;
   CHECK_RET(cudaGetDeviceCount, &cnt);
-  return cnt;
+  return num::cast_unsigned(cnt);
 }
 
-auto device_get() -> int {
-  cuda::init();
-
+auto device_get() -> u32 {
   auto dev = 0;
   CHECK_RET(cudaGetDevice, &dev);
-  return dev;
+  return num::cast_unsigned(dev);
 }
 
-void device_set(int dev) {
-  cuda::init();
-
-  static auto _tls_dev = -1;
-  if (_tls_dev == dev) {
-    return;
-  }
-
-  CHECK_RET(cudaSetDevice, dev);
-  _tls_dev = dev;
+void device_set(u32 dev_id) {
+  const auto device = num::cast_signed(dev_id);
+  CHECK_RET(cudaSetDevice, device);
 }
 
 void device_sync() {
-  cuda::init();
   CHECK_RET(cudaDeviceSynchronize);
 }
 
-auto device_total_mem(int dev) -> usize {
-  cuda::init();
+auto device_prop(u32 dev) -> const cudaDeviceProp& {
+  static constexpr auto kMaxDevCount = 16U;
+  static cudaDeviceProp props[kMaxDevCount] = {};
+  if (dev >= kMaxDevCount) {
+    return props[kMaxDevCount - 1];
+  }
 
-  auto prop = cudaDeviceProp{};
-  CHECK_RET(cudaGetDeviceProperties, &prop, dev);
-  return prop.totalGlobalMem;
-}
+  if (props[dev].totalGlobalMem == 0) {
+    const auto device = num::cast_signed(dev);
+    CHECK_RET(cudaGetDeviceProperties, &props[dev], device);
+  }
 
-auto device_name(int dev) -> const char* {
-  cuda::init();
-
-  auto prop = cudaDeviceProp{};
-  CHECK_RET(cudaGetDeviceProperties, &prop, dev);
-
-  static thread_local char buf[256] = {};
-  memcpy(buf, prop.name, sizeof(prop.name));
-  return buf;
+  return props[dev];
 }
 
 auto Device::current() -> Device {
-  const auto dev = cuda::device_get();
-  return Device{dev};
+  const auto id = cuda::device_get();
+  return Device{id};
 }
 
-auto Device::name() const -> const char* {
-  return cuda::device_name(id);
+auto Device::name() const -> Str {
+  const auto& p = cuda::device_prop(id);
+  return Str::from_cstr(p.name);
 }
 
-auto Device::total_memory() const -> usize {
-  return cuda::device_total_mem(id);
+auto Device::compute_capability() const -> u32 {
+  const auto& p = cuda::device_prop(id);
+  return num::cast_unsigned(p.major * 10 + p.minor);
+}
+auto Device::sm_count() const -> u32 {
+  const auto& p = cuda::device_prop(id);
+  return num::cast_unsigned(p.multiProcessorCount);
+}
+auto Device::global_memory() const -> u64 {
+  const auto& p = cuda::device_prop(id);
+  return p.totalGlobalMem;
+}
+auto Device::l2_cache_size() const -> u64 {
+  const auto& p = cuda::device_prop(id);
+  return num::cast_unsigned(p.l2CacheSize);
+}
+auto Device::async_engine_count() const -> u32 {
+  const auto& p = cuda::device_prop(id);
+  return num::cast_unsigned(p.asyncEngineCount);
 }
 
 }  // namespace sfc::cuda

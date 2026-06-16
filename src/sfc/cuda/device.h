@@ -4,20 +4,23 @@
 
 namespace sfc::cuda {
 
-void init();
-
-auto dev_count() -> int;
-auto device_get() -> int;
-void device_set(int);
+auto dev_count() -> u32;
+auto device_get() -> u32;
+void device_set(u32 dev_id);
 void device_sync();
 
 struct Device {
-  int id = 0;
+  u32 id = 0;
 
  public:
   static auto current() -> Device;
-  auto name() const -> const char*;
-  auto total_memory() const -> usize;
+
+  auto name() const -> Str;
+  auto compute_capability() const -> u32;
+  auto sm_count() const -> u32;
+  auto global_memory() const -> u64;
+  auto l2_cache_size() const -> u64;
+  auto async_engine_count() const -> u32;
 };
 
 }  // namespace sfc::cuda

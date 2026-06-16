@@ -7,3 +7,4 @@ endif()
 # sub tests
 add_subdirectory(cuda)
 add_subdirectory(math)
+add_subdirectory(fft)

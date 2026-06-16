@@ -1,17 +1,12 @@
 #pragma once
 
-#include "sfc/core.h"
+#include "sfc/math/vec.h"
 
 #ifdef __device__
 #define __dev __device__
 #else
 #define __dev
 #endif
-
-namespace sfc::math {
-template <class T, int N>
-struct vec;
-}
 
 namespace sfc::cuda {
 

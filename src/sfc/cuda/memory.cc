@@ -79,7 +79,7 @@ void prefetch_gpu(void* ptr, usize size) {
 
   const auto dev = Device::current();
   const auto stream = cuda::stream_get();
-  const auto loc = cudaMemLocation{cudaMemLocationTypeDevice, dev.id};
+  const auto loc = cudaMemLocation{cudaMemLocationTypeDevice, num::cast_signed(dev.id)};
   CHECK_RET(cudaMemPrefetchAsync, ptr, size, loc, 0U, stream);
 }
 

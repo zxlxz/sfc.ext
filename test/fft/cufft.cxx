@@ -2,14 +2,14 @@
 #include "sfc/time.h"
 #include "sfc/io.h"
 
-#include "sfc/math/complex.h"
 #include "sfc/math/ndarray.h"
 #include "sfc/cuda/device.h"
-#include "sfc/cuda/fft.h"
+#include "sfc/fft/cufft.h"
 
-namespace sfc::cuda::test {
+namespace sfc::fft::test {
 
 using math::NdArray;
+using math::MemType;
 
 SFC_TEST(fft_c2c_perf) {
   cuda::device_set(0);
@@ -35,7 +35,7 @@ SFC_TEST(fft_c2c_perf) {
       X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
-      auto fft_c2c = cuda::FFT<c32, c32>::create(N, BATCH);
+      auto fft_c2c = CUFFT<c32, c32>::create(N, BATCH);
       cuda::device_sync();
       const auto t2 = time::Instant::now();
       fft_c2c(*X, *X, -1);
@@ -81,8 +81,8 @@ SFC_TEST(fft_r2c_perf) {
       X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
-      auto fft_r2c = cuda::FFT<f32, c32>::create(N, BATCH);
-      auto fft_c2r = cuda::FFT<c32, f32>::create(N, BATCH);
+      auto fft_r2c = CUFFT<f32, c32>::create(N, BATCH);
+      auto fft_c2r = CUFFT<c32, f32>::create(N, BATCH);
       cuda::device_sync();
       const auto t2 = time::Instant::now();
       fft_r2c(*X, *Y, -1);
@@ -105,4 +105,4 @@ SFC_TEST(fft_r2c_perf) {
   }
 }
 
-}  // namespace sfc::cuda::test
+}  // namespace sfc::fft::test

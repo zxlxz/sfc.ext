@@ -1,16 +1,22 @@
 #include <cufft.h>
 
 #include "sfc/math.h"
-#include "sfc/cuda/mod.inl"
-#include "sfc/cuda/fft.h"
 #include "sfc/cuda/stream.h"
+#include "sfc/fft/cufft.h"
 
-namespace sfc::cuda {
+#if !defined(__INTELLISENSE__) && !defined(__clang_analyzer__)
+#define CHECK_RET(func, ...) cufft::check_ret(func(__VA_ARGS__), #func)
+#else
+#define CHECK_RET(func, ...) func(__VA_ARGS__)
+#endif
 
-using fft_plan_t = int;
+namespace sfc::fft {
 
-template <>
-auto error_name(cufftResult code) -> cstr_t {
+using panic::SourceLoc;
+
+namespace cufft {
+
+static auto error_name(cufftResult code) -> cstr_t {
   switch (code) {
     case CUFFT_SUCCESS:            return "CUFFT_SUCCESS";
     case CUFFT_INVALID_PLAN:       return "CUFFT_INVALID_PLAN";
@@ -34,6 +40,15 @@ auto error_name(cufftResult code) -> cstr_t {
   }
 }
 
+inline void check_ret(cufftResult ret, const char* func, SourceLoc loc = SourceLoc::current()) {
+  if (ret == 0) {
+    return;
+  }
+
+  const auto err_name = cufft::error_name(ret);
+  panic::panic_fmt(fmt::Args{"cufft API(`{}`) called failed, err=`{}`", func, err_name}, loc);
+}
+
 template <class T>
 static auto fft_cast(T* p) {
   if constexpr (trait::same_<T, c32>) {
@@ -43,7 +58,7 @@ static auto fft_cast(T* p) {
   }
 }
 
-static void fft_drop(fft_plan_t plan) {
+static void fft_drop(cufftHandle plan) {
   if (plan == CUFFT_PLAN_NULL) {
     return;
   }
@@ -52,11 +67,11 @@ static void fft_drop(fft_plan_t plan) {
 }
 
 template <class I, class O>
-static auto fft_plan(u32 N, u32 batch) -> fft_plan_t {
+static auto fft_plan(u32 N, u32 batch) -> cufftHandle {
   const auto nx = num::saturating_cast<int>(N);
   const auto ny = num::saturating_cast<int>(batch);
 
-  auto plan = fft_plan_t{CUFFT_PLAN_NULL};
+  auto plan = cufftHandle{CUFFT_PLAN_NULL};
 
   if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
     CHECK_RET(cufftPlan1d, &plan, nx, CUFFT_C2C, ny);
@@ -72,9 +87,9 @@ static auto fft_plan(u32 N, u32 batch) -> fft_plan_t {
 }
 
 template <class I, class O>
-static void fft_exec(fft_plan_t plan, const I in[], O out[], int SIGN) {
-  const auto idata = cuda::fft_cast(const_cast<I*>(in));
-  const auto odata = cuda::fft_cast(out);
+static void fft_exec(cufftHandle plan, const I in[], O out[], int SIGN) {
+  const auto idata = cufft::fft_cast(const_cast<I*>(in));
+  const auto odata = cufft::fft_cast(out);
 
   if constexpr (sizeof(I) == sizeof(O)) {
     CHECK_RET(cufftExecC2C, plan, idata, odata, SIGN);
@@ -86,24 +101,25 @@ static void fft_exec(fft_plan_t plan, const I in[], O out[], int SIGN) {
     static_assert(false, "unsupported type combination");
   }
 }
+}  // namespace cufft
 
 template <class I, class O>
-FFT<I, O>::FFT() noexcept : _plan{-1} {}
+CUFFT<I, O>::CUFFT() noexcept : _plan{-1} {}
 
 template <class I, class O>
-FFT<I, O>::~FFT() {
-  cuda::fft_drop(_plan);
+CUFFT<I, O>::~CUFFT() {
+  cufft::fft_drop(_plan);
 }
 
 template <class I, class O>
-FFT<I, O>::FFT(FFT&& other) noexcept : _len{other._len}, _batch{other._batch}, _plan{other._plan} {
+CUFFT<I, O>::CUFFT(CUFFT&& other) noexcept : _len{other._len}, _batch{other._batch}, _plan{other._plan} {
   other._len = 0;
   other._batch = 0;
   other._plan = -1;
 }
 
 template <class I, class O>
-auto FFT<I, O>::operator=(FFT&& other) noexcept -> FFT& {
+auto CUFFT<I, O>::operator=(CUFFT&& other) noexcept -> CUFFT& {
   if (this == &other) return *this;
   mem::swap(_len, other._len);
   mem::swap(_plan, other._plan);
@@ -112,21 +128,21 @@ auto FFT<I, O>::operator=(FFT&& other) noexcept -> FFT& {
 }
 
 template <class I, class O>
-auto FFT<I, O>::create(u32 len, u32 batch) -> FFT {
-  auto res = FFT{};
+auto CUFFT<I, O>::create(u32 len, u32 batch) -> CUFFT {
+  auto res = CUFFT{};
   res._len = len;
   res._batch = batch;
-  res._plan = cuda::fft_plan<I, O>(len, batch);
+  res._plan = cufft::fft_plan<I, O>(len, batch);
   return res;
 }
 
 template <class I, class O>
-void FFT<I, O>::exec(const I in[], O out[], int DIR) {
-  cuda::fft_exec(_plan, in, out, DIR);
+void CUFFT<I, O>::exec(const I in[], O out[], int DIR) {
+  cufft::fft_exec(_plan, in, out, DIR);
 }
 
-template class FFT<f32, c32>;
-template class FFT<c32, f32>;
-template class FFT<c32, c32>;
+template class CUFFT<f32, c32>;
+template class CUFFT<c32, f32>;
+template class CUFFT<c32, c32>;
 
-}  // namespace sfc::cuda
+}  // namespace sfc::fft

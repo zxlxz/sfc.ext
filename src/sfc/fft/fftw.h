@@ -5,21 +5,21 @@
 
 struct fftwf_plan_s;
 
-namespace sfc::math {
+namespace sfc::fft {
 
 template <class I, class O>
-class FFT {
+class FFTW {
   using plan_t = ::fftwf_plan_s*;
   u32 _len{0};
   plan_t _fwd{nullptr};
   plan_t _inv{nullptr};
 
  public:
-  FFT() noexcept;
-  ~FFT();
-  FFT(FFT&& other) noexcept;
-  auto operator=(FFT&& other) noexcept -> FFT&;
-  static auto create(u32 len) -> FFT;
+  FFTW() noexcept;
+  ~FFTW();
+  FFTW(FFTW&& other) noexcept;
+  auto operator=(FFTW&& other) noexcept -> FFTW&;
+  static auto create(u32 len) -> FFTW;
 
  public:
   auto plan(const I in[], O out[], int DIR) -> plan_t;
@@ -38,10 +38,4 @@ class FFT {
   }
 };
 
-void fft(NdSlice<c32, 1> in, NdSlice<c32, 1> out);
-void ifft(NdSlice<c32, 1> in, NdSlice<c32, 1> out);
-
-void fft_r2c(NdSlice<f32, 1> in, NdSlice<c32, 1> out);
-void fft_c2r(NdSlice<c32, 1> in, NdSlice<f32, 1> out);
-
-}  // namespace sfc::math
+}  // namespace sfc::fft

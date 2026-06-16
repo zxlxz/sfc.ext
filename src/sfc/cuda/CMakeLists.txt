@@ -4,4 +4,5 @@ target_link_libraries(sfc_cuda PUBLIC _sfc_ext)
 
 set(CUDA_ARCHITECTURES "80")
 find_package(CUDAToolkit REQUIRED)
-target_link_libraries(sfc_cuda PUBLIC CUDA::cuda_driver CUDA::cudart CUDA::cufft)
+target_link_libraries(sfc_cuda PUBLIC CUDA::cudart)
+add_library(sfc::cuda ALIAS sfc_cuda)

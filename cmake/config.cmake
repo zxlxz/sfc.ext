@@ -14,3 +14,10 @@ if(APPLE)
   set(CMAKE_CUDA_COMPILER_TOOLKIT_ROOT ${CUDAToolkit_TARGET_DIR})
   set(CUDAToolkit_INCLUDE_DIRECTORIES  ${CUDAToolkit_TARGET_DIR}/include)
 endif()
+
+# _sfc_ext
+add_library(_sfc_ext INTERFACE)
+target_link_libraries(_sfc_ext INTERFACE sfc)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(_sfc_ext INTERFACE -Wall -Wextra -Wpedantic -Wconversion)
+endif()
