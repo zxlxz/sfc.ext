@@ -15,7 +15,10 @@ struct Device {
  public:
   static auto current() -> Device;
 
+#ifndef __CUDACC__
   auto name() const -> Str;
+#endif
+
   auto compute_capability() const -> u32;
   auto sm_count() const -> u32;
   auto global_memory() const -> u64;

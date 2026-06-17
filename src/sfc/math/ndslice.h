@@ -80,14 +80,6 @@ struct NdSlice<T, 1> {
       f.write_val(e);
     });
   }
-
-  auto as_bytes() const noexcept -> Slice<const u8> {
-    return {ptr::cast<u8>(_data), this->numel() * sizeof(T)};
-  }
-
-  auto as_mut_bytes() noexcept -> Slice<u8> {
-    return {ptr::cast<u8>(_data), this->numel() * sizeof(T)};
-  }
 };
 
 template <class T>
@@ -163,13 +155,6 @@ struct NdSlice<T, 2> {
     }
   }
 
-  auto as_bytes() const noexcept -> Slice<const u8> {
-    return {ptr::cast<u8>(_data), this->numel() * sizeof(T)};
-  }
-
-  auto as_mut_bytes() noexcept -> Slice<u8> {
-    return {ptr::cast<u8>(_data), this->numel() * sizeof(T)};
-  }
 };
 
 template <class T>
