@@ -9,8 +9,8 @@ struct Sampler;
 
 template <class T>
 struct Sampler<T, 1> {
-  NdSlice<T, 1> _inn;
-  const f32 _max = f32(_inn._dims.x);
+  NdView<T, 1> _inn;
+  const f32 _max = f32(_inn._shape[0]);
 
  public:
   auto load_nearest(f32 x) const -> T {
@@ -30,7 +30,7 @@ struct Sampler<T, 1> {
     }
 
     if (loc >= _max - 0.5f) {
-      return _inn._data[_inn._dims.x - 1];
+      return _inn._data[_inn._shape[0] - 1];
     }
 
     const auto fx = loc - 0.5f;
@@ -45,9 +45,9 @@ struct Sampler<T, 1> {
 
 template <class T>
 struct Sampler<T, 2> {
-  NdSlice<T, 2> _inn;
-  const f32 _max_x = f32(_inn._dims.x);
-  const f32 _max_y = f32(_inn._dims.y);
+  NdView<T, 2> _inn;
+  const f32 _max_x = f32(_inn._shape[0]);
+  const f32 _max_y = f32(_inn._shape[1]);
 
  public:
   auto load_nearest(vec2f p) const -> T {
@@ -78,7 +78,7 @@ struct Sampler<T, 2> {
     }
 
     if (loc.y >= _max_y - 0.5f) {
-      const auto row = _inn[_inn._dims.y - 1];
+      const auto row = _inn[_inn._shape[1] - 1];
       return Sampler<T, 1>{row}.load_linear(loc.x);
     }
 
@@ -95,6 +95,6 @@ struct Sampler<T, 2> {
 };
 
 template <class T, int N>
-Sampler(NdSlice<T, N>) -> Sampler<T, N>;
+Sampler(NdView<T, N>) -> Sampler<T, N>;
 
 }  // namespace sfc::math

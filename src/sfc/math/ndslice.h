@@ -4,72 +4,144 @@
 
 namespace sfc::math {
 
-template <class T, int N = 1>
-struct NdSlice;
+template <int N>
+struct Shape {
+  u32 _data[N];
+
+ public:
+  __hd auto operator[](int idx) const -> u32 {
+    return _data[idx];
+  }
+
+ public:
+  auto numel() const -> u32 {
+    auto f = [&](auto... I) { return ((_data[I] * ...)); };
+    return ops::fold_seq<N>(f);
+  }
+
+  auto operator==(const Shape& other) const -> bool {
+    auto f = [&](auto... I) { return (((_data[I] == other._data[I]) && ...)); };
+    return ops::fold_seq<N>(f);
+  }
+
+  void fmt(auto& f) const {
+    return f.write_fmt("{}", Slice{_data});
+  }
+};
+
+template <int N>
+struct Strides {
+  u32 _data[N];
+
+ public:
+  static auto from_shape(const Shape<N>& shape) -> Strides {
+    auto res = Strides{};
+    for (auto i = N - 1; i >= 0; --i) {
+      res._data[i] = i == N - 1 ? 1 : res[i + 1] * shape[i + 1];
+    }
+    return res;
+  }
+
+  __hd auto operator[](int idx) const -> u32 {
+    return _data[idx];
+  }
+
+  auto operator==(const Strides& other) const -> bool {
+    auto f = [&](auto... I) { return (((_data[I] == other._data[I]) && ...)); };
+    return ops::fold_seq<N>(f);
+  }
+
+  void fmt(auto& f) const {
+    return f.write_fmt("{}", Slice{_data});
+  }
+};
+
+template <int N>
+struct NdIdx {
+  u32 _data[N];
+
+ public:
+  __hd auto operator<(const Shape<N>& shape) const -> bool {
+    auto f = [&](auto... I) { return ((_data[I] < shape._data[I]) && ...); };
+    return ops::fold_seq<N>(f);
+  }
+
+  __hd auto operator*(const Strides<N>& strides) const -> u32 {
+    auto f = [&](auto... I) { return ((_data[I] * strides._data[I]) + ...); };
+    return ops::fold_seq<N>(f);
+  }
+
+  void fmt(auto& f) const {
+    return f.write_fmt("{}", Slice{_data});
+  }
+};
+
+template <class T, int Dims = 1>
+struct NdView;
 
 template <class T>
-struct NdSlice<T, 1> {
+struct NdView<T, 1> {
   static constexpr auto NDIM = 1U;
-  using item_t = T;
-  using dims_t = math::vec<u32, NDIM>;
-  using step_t = math::vec<u32, NDIM>;
-  using idxs_t = math::vec<u32, NDIM>;
+  using Shape = math::Shape<NDIM>;
+  using Strides = math::Strides<NDIM>;
+  using Index = math::NdIdx<NDIM>;
+
   T* _data;
-  dims_t _dims;
-  step_t _step;
+  Shape _shape;
+  Strides _strides;
 
  public:
   __hd auto len() const -> u32 {
-    return _dims.x;
+    return _shape._data[0];
   }
 
   __hd auto data() const -> const T* {
     return _data;
   }
 
-  __hd auto shape() const -> const dims_t& {
-    return _dims;
+  __hd auto shape() const -> const Shape& {
+    return _shape;
   }
 
-  __hd auto strides() const -> const step_t& {
-    return _step;
+  __hd auto strides() const -> const Strides& {
+    return _strides;
   }
 
   __hd auto numel() const -> u32 {
-    return _dims.x;
+    return _shape.numel();
   }
 
   __hd auto operator[](u32 idx) const -> const T& {
-    return _data[idx * _step.x];
+    return _data[idx * _strides._data[0]];
   }
 
   __hd auto operator[](u32 idx) -> T& {
-    return _data[idx * _step.x];
+    return _data[idx * _strides._data[0]];
   }
 
-  __hd auto operator[](idxs_t idxs) const -> const T& {
-    return _data[idxs.x * _step.x];
+  __hd auto operator[](Index indices) const -> const T& {
+    return _data[indices * _strides];
   }
 
-  __hd auto operator[](idxs_t idxs) -> T& {
-    return _data[idxs.x * _step.x];
+  __hd auto operator[](Index indices) -> T& {
+    return _data[indices * _strides];
   }
 
   __hd auto is_contiguous() const -> bool {
-    return _step.x == 1;
+    return _strides._data[0] == 1;
   }
 
  public:
   void imap(auto&& f) const {
-    for (auto i = 0U; i < _dims.x; ++i) {
-      const auto& e = _data[i * _step.x];
+    for (auto i = 0U; i < _shape._data[0]; ++i) {
+      const auto& e = _data[i * _strides._data[0]];
       f(i, e);
     }
   }
 
   void imap_mut(auto&& f) {
-    for (auto i = 0U; i < _dims.x; ++i) {
-      auto& e = _data[i * _step.x];
+    for (auto i = 0U; i < _shape._data[0]; ++i) {
+      auto& e = _data[i * _strides._data[0]];
       f(i, e);
     }
   }
@@ -83,210 +155,200 @@ struct NdSlice<T, 1> {
 };
 
 template <class T>
-struct NdSlice<T, 2> {
+struct NdView<T, 2> {
   static constexpr auto NDIM = 2U;
-  using item_t = T;
-  using dims_t = math::vec<u32, NDIM>;
-  using step_t = math::vec<u32, NDIM>;
-  using idxs_t = math::vec<u32, NDIM>;
+  using Shape = math::Shape<NDIM>;
+  using Strides = math::Strides<NDIM>;
+  using Index = math::NdIdx<NDIM>;
+
   T* _data;
-  dims_t _dims;
-  step_t _step;
+  Shape _shape;
+  Strides _strides;
 
  public:
   __hd auto len() const -> u32 {
-    return _dims.y;
+    return _shape._data[0];
   }
 
   __hd auto data() const -> const T* {
     return _data;
   }
 
-  __hd auto shape() const -> const dims_t& {
-    return _dims;
+  __hd auto shape() const -> const Shape& {
+    return _shape;
   }
 
-  __hd auto strides() const -> const step_t& {
-    return _step;
+  __hd auto strides() const -> const Strides& {
+    return _strides;
   }
 
   __hd auto numel() const -> u32 {
-    return _dims.x * _dims.y;
+    return _shape.numel();
   }
 
-  __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
-    const auto p = _data + idx * _step.y;
-    return NdSlice<T, NDIM - 1>{p, {_dims.x}, {_step.x}};
+  __hd auto operator[](u32 x) const -> NdView<T, NDIM - 1> {
+    const auto p = _data + x * _strides._data[0];
+    return NdView<T, NDIM - 1>{p, {_shape._data[1]}, {_strides._data[1]}};
   }
 
-  __hd auto operator[](idxs_t idx) const -> const T& {
-    return _data[idx.x * _step.x + idx.y * _step.y];
+  __hd auto operator[](Index indices) const -> const T& {
+    return _data[indices * _strides];
   }
 
-  __hd auto operator[](idxs_t idx) -> T& {
-    return _data[idx.x * _step.x + idx.y * _step.y];
+  __hd auto operator[](Index indices) -> T& {
+    return _data[indices * _strides];
   }
 
  public:
   void imap(auto&& f) const {
-    for (auto j = 0U; j < _dims.y; ++j) {
-      const auto col = (*this)[j];
-      for (auto i = 0U; i < _dims.x; ++i) {
-        const auto& e = col[i];
+    for (auto i = 0U; i < _shape._data[0]; ++i) {
+      const auto row = (*this)[i];
+      for (auto j = 0U; j < _shape._data[1]; ++j) {
+        const auto& e = row[j];
         f(i, j, e);
       }
     }
   }
 
   void imap_mut(auto&& f) {
-    for (auto j = 0U; j < _dims.y; ++j) {
-      auto col = (*this)[j];
-      for (auto i = 0U; i < _dims.x; ++i) {
-        auto& e = col[i];
+    for (auto i = 0U; i < _shape._data[0]; ++i) {
+      auto row = (*this)[i];
+      for (auto j = 0U; j < _shape._data[1]; ++j) {
+        auto& e = row[j];
         f(i, j, e);
       }
     }
   }
 
   void fmt(auto& f) const {
-    for (auto j = 0U; j < _dims.y; ++j) {
-      const auto col = (*this)[j];
-      f.write_fmt("{}\n", col);
+    for (auto i = 0U; i < _shape._data[0]; ++i) {
+      const auto row = (*this)[i];
+      f.write_fmt("{}\n", row);
     }
   }
-
 };
 
 template <class T>
-struct NdSlice<T, 3> {
+struct NdView<T, 3> {
   static constexpr auto NDIM = 3;
-  using item_t = T;
-  using dims_t = math::vec<u32, NDIM>;
-  using step_t = math::vec<u32, NDIM>;
-  using idxs_t = math::vec<u32, NDIM>;
+  using Shape = math::Shape<NDIM>;
+  using Strides = math::Strides<NDIM>;
+  using Index = math::NdIdx<NDIM>;
+
   T* _data;
-  dims_t _dims;
-  step_t _step;
+  Shape _shape;
+  Strides _strides;
 
  public:
   __hd auto len() const -> u32 {
-    return _dims.z;
+    return _shape._data[0];
   }
 
   __hd auto data() const -> const T* {
     return _data;
   }
 
-  __hd auto shape() const -> const dims_t& {
-    return _dims;
+  __hd auto shape() const -> const Shape& {
+    return _shape;
   }
 
-  __hd auto strides() const -> const step_t& {
-    return _step;
+  __hd auto strides() const -> const Strides& {
+    return _strides;
   }
 
   __hd auto numel() const -> u32 {
-    return _dims.x * _dims.y * _dims.z;
+    return _shape.numel();
   }
 
-  __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
-    const auto p = _data + idx * _step.z;
-    return {p, {_dims.x, _dims.y}, {_step.x, _step.y}};
+  __hd auto operator[](u32 x) const -> NdView<T, NDIM - 1> {
+    const auto data = _data + x * _strides._data[0];
+    const auto shape = math::Shape<NDIM - 1>{_shape._data[1], _shape._data[2]};
+    const auto strides = math::Strides<NDIM - 1>{_strides._data[1], _strides._data[2]};
+    return {data, shape, strides};
   }
 
-  __hd auto operator[](idxs_t idxs) const -> const T& {
-    return _data[idxs.x * _step.x + idxs.y * _step.y + idxs.z * _step.z];
+  __hd auto operator[](Index indices) const -> const T& {
+    return _data[indices * _strides];
   }
 
-  __hd auto operator[](idxs_t idxs) -> T& {
-    return _data[idxs.x * _step.x + idxs.y * _step.y + idxs.z * _step.z];
+  __hd auto operator[](Index indices) -> T& {
+    return _data[indices * _strides];
   }
 
  public:
   void imap(auto&& f) const {
-    for (auto k = 0U; k < _dims.z; ++k) {
-      const auto mat = (*this)[k];
-      for (auto j = 0U; j < _dims.y; ++j) {
-        const auto row = mat[j];
-        for (auto i = 0U; i < _dims.x; ++i) {
-          const auto& e = row[i];
-          f(i, j, k, e);
-        }
-      }
+    for (auto i = 0U; i < _shape._data[0]; ++i) {
+      const auto mat = (*this)[i];
+      mat.imap([&](u32 j, u32 k, const T& e) { f(i, j, k, e); });
     }
   }
 
   void imap_mut(auto&& f) {
-    for (auto k = 0U; k < _dims.z; ++k) {
-      auto mat = (*this)[k];
-      for (auto j = 0U; j < _dims.y; ++j) {
-        auto row = mat[j];
-        for (auto i = 0U; i < _dims.x; ++i) {
-          auto& e = row[i];
-          f(i, j, k, e);
-        }
-      }
+    for (auto i = 0U; i < _shape._data[0]; ++i) {
+      auto mat = (*this)[i];
+      mat.imap_mut([&](u32 j, u32 k, T& e) { f(i, j, k, e); });
     }
   }
 };
 
 template <class T>
-struct NdSlice<T, 4> {
+struct NdView<T, 4> {
   static constexpr auto NDIM = 4;
-  using item_t = T;
-  using dims_t = math::vec<u32, NDIM>;
-  using step_t = math::vec<u32, NDIM>;
-  using idxs_t = math::vec<u32, NDIM>;
+  using Shape = math::Shape<NDIM>;
+  using Strides = math::Strides<NDIM>;
+  using Index = math::NdIdx<NDIM>;
   T* _data;
-  dims_t _dims;
-  step_t _step;
+  Shape _shape;
+  Strides _strides;
 
  public:
   __hd auto len() const -> u32 {
-    return _dims.w;
+    return _shape._data[0];
   }
 
   __hd auto data() const -> const T* {
     return _data;
   }
 
-  __hd auto shape() const -> const dims_t& {
-    return _dims;
+  __hd auto shape() const -> const Shape& {
+    return _shape;
   }
 
-  __hd auto strides() const -> const step_t& {
-    return _step;
+  __hd auto strides() const -> const Strides& {
+    return _strides;
   }
 
   __hd auto numel() const -> u32 {
-    return _dims.x * _dims.y * _dims.z * _dims.w;
+    return _shape.numel();
   }
 
-  __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
-    const auto p = _data + idx * _step.w;
-    return {p, {_dims.x, _dims.y, _dims.z}, {_step.x, _step.y, _step.z}};
+  __hd auto operator[](u32 idx) const -> NdView<T, NDIM - 1> {
+    const auto data = _data + idx * _strides._data[0];
+    const auto shape = math::Shape<NDIM - 1>{_shape._data[1], _shape._data[2], _shape._data[3]};
+    const auto strides = math::Strides<NDIM - 1>{_strides._data[1], _strides._data[2], _strides._data[3]};
+    return {data, shape, strides};
   }
 
-  __hd auto operator[](idxs_t idxs) const -> const T& {
-    return _data[idxs.x * _step.x + idxs.y * _step.y + idxs.z * _step.z + idxs.w * _step.w];
+  __hd auto operator[](Index indices) const -> const T& {
+    return _data[indices * _strides];
   }
 
-  __hd auto operator[](idxs_t idxs) -> T& {
-    return _data[idxs.x * _step.x + idxs.y * _step.y + idxs.z * _step.z + idxs.w * _step.w];
+  __hd auto operator[](Index idxs) -> T& {
+    return _data[idxs * _strides];
   }
 
  public:
   void imap(auto&& f) const {
-    for (auto w = 0U; w < _dims.w; ++w) {
-      const auto img = (*this)[w];
-      img.imap([&](u32 i, u32 j, u32 k, const T& e) { f(i, j, k, w, e); });
+    for (auto w = 0U; w < _shape._data[0]; ++w) {
+      const auto cube = (*this)[w];
+      cube.imap([&](u32 i, u32 j, u32 k, const T& e) { f(i, j, k, w, e); });
     }
   }
 
   void imap_mut(auto&& f) {
-    for (auto w = 0U; w < _dims.w; ++w) {
-      auto img = (*this)[w];
-      img.imap_mut([&](u32 i, u32 j, u32 k, T& e) { f(i, j, k, w, e); });
+    for (auto w = 0U; w < _shape._data[0]; ++w) {
+      auto cube = (*this)[w];
+      cube.imap_mut([&](u32 i, u32 j, u32 k, T& e) { f(i, j, k, w, e); });
     }
   }
 };

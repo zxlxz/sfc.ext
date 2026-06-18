@@ -5,13 +5,13 @@
 namespace sfc::math::test {
 
 template <class T, int N>
-auto make_slice1d(T (&v)[N]) -> NdSlice<T, 1> {
-  return NdSlice<T, 1>{v, {N}, {1}};
+auto make_slice1d(T (&v)[N]) -> NdView<T, 1> {
+  return NdView<T, 1>{v, {N}, {1}};
 }
 
 template <class T, int NX, int NY>
-auto make_slice2d(T (&v)[NY][NX]) -> NdSlice<T, 2> {
-  return NdSlice<T, 2>{v[0], {NX, NY}, {1, NX}};
+auto make_slice2d(T (&v)[NY][NX]) -> NdView<T, 2> {
+  return NdView<T, 2>{v[0], {NX, NY}, {1, NX}};
 }
 
 SFC_TEST(nearest_sampler_1d) {

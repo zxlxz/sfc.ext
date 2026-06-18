@@ -5,30 +5,14 @@
 
 namespace sfc::math {
 
-template <int N>
-auto numel(vec<u32, N> dims) -> u32 {
-  if constexpr (N == 1) return dims.x;
-  if constexpr (N == 2) return dims.x * dims.y;
-  if constexpr (N == 3) return dims.x * dims.y * dims.z;
-  if constexpr (N == 4) return dims.x * dims.y * dims.z * dims.w;
-}
-
-template <int N>
-auto ndstep(vec<u32, N> dims) -> vec<u32, N> {
-  if constexpr (N == 1) return {1};
-  if constexpr (N == 2) return {1, dims.x};
-  if constexpr (N == 3) return {1, dims.x, dims.x * dims.y};
-  if constexpr (N == 4) return {1, dims.x, dims.x * dims.y, dims.x * dims.y * dims.z};
-}
-
 template <class T, int N = 1>
 class [[nodiscard]] NdArray {
   static constexpr auto NDIM = N;
   using Buf = math::RawBuf<T>;
-  using Inn = math::NdSlice<T, NDIM>;
-  using dims_t = typename Inn::dims_t;
-  using step_t = typename Inn::step_t;
-  using idxs_t = typename Inn::idxs_t;
+  using Inn = math::NdView<T, NDIM>;
+  using Shape = math::Shape<NDIM>;
+  using Strides = math::Strides<NDIM>;
+  using Index = math::NdIdx<NDIM>;
 
   Buf _buf = {};
   Inn _inn = {};
@@ -40,10 +24,10 @@ class [[nodiscard]] NdArray {
   NdArray(NdArray&& other) noexcept = default;
   NdArray& operator=(NdArray&& other) noexcept = default;
 
-  static auto with_shape(dims_t dims, cuda::MemType mtype = {}) -> NdArray {
+  static auto with_shape(const Shape& shape, cuda::MemType mtype = {}) -> NdArray {
     auto res = NdArray{};
-    res._buf = Buf::with_capacity(math::numel(dims), mtype);
-    res._inn = Inn{res._buf.ptr(), dims, math::ndstep(dims)};
+    res._buf = Buf::with_capacity(shape.numel(), mtype);
+    res._inn = Inn{res._buf.ptr(), shape, Strides::from_shape(shape)};
     return res;
   }
 
@@ -67,8 +51,8 @@ class [[nodiscard]] NdArray {
     return _inn.numel();
   }
 
-  auto shape() const -> dims_t {
-    return _inn._dims;
+  auto shape() const -> const Shape& {
+    return _inn._shape;
   }
 
  public:
@@ -96,12 +80,12 @@ class [[nodiscard]] NdArray {
     return _inn[idx];
   }
 
-  auto operator[](idxs_t idxs) const -> const T& {
-    return _inn[idxs];
+  auto operator[](Index indices) const -> const T& {
+    return _inn[indices];
   }
 
-  auto operator[](idxs_t idxs) -> T& {
-    return _inn[idxs];
+  auto operator[](Index indices) -> T& {
+    return _inn[indices];
   }
 
  public:

@@ -26,7 +26,7 @@ class FFTW {
   void exec(const I in[], O out[], int DIR = -1);
 
   template <int N>
-  void operator()(math::NdSlice<I, N> in, math::NdSlice<O, N> out, int DIR = -1) {
+  void operator()(math::NdView<I, N> in, math::NdView<O, N> out, int DIR = -1) {
     static_assert(N == 1 || N == 2);
     if constexpr (N == 1) {
       this->exec(in._data, out._data, DIR);
