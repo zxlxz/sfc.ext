@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sfc/math/rawbuf.h"
-#include "sfc/math/ndslice.h"
+#include "sfc/math/ndview.h"
 
 namespace sfc::math {
 
@@ -10,24 +10,29 @@ class [[nodiscard]] NdArray {
   static constexpr auto NDIM = N;
   using Buf = math::RawBuf<T>;
   using Inn = math::NdView<T, NDIM>;
-  using Shape = math::Shape<NDIM>;
-  using Strides = math::Strides<NDIM>;
-  using Index = math::NdIdx<NDIM>;
+  using Shape = typename Inn::Shape;
+  using Strides = typename Inn::Strides;
+  using Index = typename Inn::Index;
 
   Buf _buf = {};
   Inn _inn = {};
 
  public:
-  NdArray() noexcept : _buf{}, _inn{} {}
+  NdArray() noexcept : _buf{}, _inn{nullptr, {}, {}} {}
   ~NdArray() {}
 
   NdArray(NdArray&& other) noexcept = default;
   NdArray& operator=(NdArray&& other) noexcept = default;
 
-  static auto with_shape(const Shape& shape, cuda::MemType mtype = {}) -> NdArray {
+  static auto with_shape(const Shape& shape, MemType mtype = {}) -> NdArray {
+    auto inn = Inn{nullptr, {shape}, {}};
+    for (auto i = NDIM - 1; i > 0; --i) {
+      inn._strides[i] = i == NDIM - 1 ? 1 : inn._shape[i + 1] * inn._strides[i + 1];
+    }
+
     auto res = NdArray{};
-    res._buf = Buf::with_capacity(shape.numel(), mtype);
-    res._inn = Inn{res._buf.ptr(), shape, Strides::from_shape(shape)};
+    res._buf = Buf::with_capacity(inn.numel(), {mtype});
+    res._inn = inn;
     return res;
   }
 
@@ -106,11 +111,6 @@ class [[nodiscard]] NdArray {
     auto res = NdArray::with_shape(this->shape(), mtype);
     res._buf.copy_from(_buf);
     return res;
-  }
-
-  void sync(MemType mtype = {}) {
-    _buf.sync(mtype);
-    _inn._data = _buf.ptr();
   }
 
   void fmt(auto& f) const {

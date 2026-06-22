@@ -30,8 +30,8 @@ SFC_TEST(fft_c2c_perf) {
   for (auto BATCH : batchs) {
     io::println(" === Batch = {} === ", BATCH);
     for (const auto N : lens) {
-      auto X = NdArray<c32, 2>::with_shape({N, BATCH}, MemType::Device);
-      auto Y = NdArray<c32, 2>::with_shape({N, BATCH}, MemType::Device);
+      auto X = NdArray<c32, 2>::with_shape({N, BATCH}, MemType::GPU);
+      auto Y = NdArray<c32, 2>::with_shape({N, BATCH}, MemType::GPU);
       X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
@@ -76,8 +76,8 @@ SFC_TEST(fft_r2c_perf) {
   for (auto BATCH : batchs) {
     io::println(" === Batch = {} === ", BATCH);
     for (const auto N : lens) {
-      auto X = NdArray<f32, 2>::with_shape({N, BATCH}, MemType::Device);
-      auto Y = NdArray<c32, 2>::with_shape({N / 2 + 1, BATCH}, MemType::Device);
+      auto X = NdArray<f32, 2>::with_shape({N, BATCH}, MemType::GPU);
+      auto Y = NdArray<c32, 2>::with_shape({N / 2 + 1, BATCH}, MemType::GPU);
       X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();

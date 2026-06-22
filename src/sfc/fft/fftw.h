@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sfc/math/complex.h"
-#include "sfc/math/ndslice.h"
+#include "sfc/math/ndview.h"
 
 struct fftwf_plan_s;
 

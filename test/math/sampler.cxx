@@ -1,5 +1,5 @@
 #include "sfc/test.h"
-#include "sfc/math/ndslice.h"
+#include "sfc/math/ndview.h"
 #include "sfc/math/sampler.h"
 
 namespace sfc::math::test {

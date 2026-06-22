@@ -4,21 +4,40 @@
 
 namespace sfc::math {
 
-using cuda::Alloc;
-using cuda::MemType;
+enum class MemType {
+  CPU,
+  GPU,
+  UVA,
+};
 
-template <class T>
+struct Alloc {
+  MemType mtype;
+
+ public:
+  auto alloc(usize size) -> void*;
+  void dealloc(void* ptr, usize size);
+};
+
+struct PoolAlloc {
+  MemType mtype;
+
+ public:
+  auto alloc(usize size) -> void*;
+  void dealloc(void* ptr, usize size);
+};
+
+template <class T, class A = Alloc>
 class RawBuf {
   T* _ptr;
   usize _cap;
-  Alloc _a;
+  A _a;
 
  public:
   RawBuf() : _ptr{nullptr}, _cap{0}, _a{} {}
 
   ~RawBuf() {
     if (!_ptr) return;
-    _a.dealloc(_ptr);
+    _a.dealloc(_ptr, _cap * sizeof(T));
   }
 
   RawBuf(RawBuf&& other) noexcept : _ptr{mem::take(other._ptr)}, _cap{mem::take(other._cap)}, _a{mem::move(other._a)} {}
@@ -36,11 +55,11 @@ class RawBuf {
     mem::swap(_a, other._a);
   }
 
-  static auto with_capacity(usize cap, MemType type = {}) -> RawBuf {
+  static auto with_capacity(usize cap, A a = {}) -> RawBuf {
     auto buf = RawBuf{};
-    buf._a = Alloc{type};
-    buf._ptr = ptr::cast<T>(buf._a.alloc(cap * sizeof(T)));
+    buf._ptr = ptr::cast<T>(a.alloc(cap * sizeof(T)));
     buf._cap = cap;
+    buf._a = mem::move(a);
 
     return buf;
   }
@@ -56,10 +75,6 @@ class RawBuf {
 
   auto mtype() const -> MemType {
     return _a.mtype;
-  }
-
-  auto mblk() const -> cuda::MemBlock {
-    return cuda::MemBlock{_ptr, _cap * sizeof(T), _a.mtype};
   }
 
  public:
@@ -83,28 +98,13 @@ class RawBuf {
 
  public:
   void bzero() {
-    const auto blk = this->mblk();
-    cuda::fill_bytes(blk, 0);
-  }
-
-  void copy_from(const RawBuf& src) {
-    const auto src_blk = src.mblk();
-    const auto dst_blk = this->mblk();
-    cuda::copy_bytes(src_blk, dst_blk);
+    cuda::fill_bytes(_ptr, 0, _cap * sizeof(T));
   }
 
   auto clone(MemType mtype) const -> RawBuf {
     auto res = RawBuf::with_capacity(_cap, mtype);
-    res.copy_from(*this);
+    cuda::copy_bytes(_ptr, res._ptr, _cap * sizeof(T));
     return res;
-  }
-
-  void sync(MemType mtype) {
-    if (_a.mtype == mtype) {
-      return;
-    }
-    auto new_buf = this->clone(mtype);
-    this->swap(new_buf);
   }
 };
 
