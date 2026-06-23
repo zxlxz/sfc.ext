@@ -85,11 +85,11 @@ class [[nodiscard]] NdArray {
     return _inn[idx];
   }
 
-  auto operator[](Index indices) const -> const T& {
+  auto operator[](const Index& indices) const -> const T& {
     return _inn[indices];
   }
 
-  auto operator[](Index indices) -> T& {
+  auto operator[](const Index& indices) -> T& {
     return _inn[indices];
   }
 
