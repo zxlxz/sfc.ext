@@ -37,7 +37,7 @@ static auto buffer_new(Extent ext, bool is_layered) -> buf_t {
   }
 
   const auto desc = cuda::array_format<T>();
-  const auto flags = is_layered ? cudaArrayLayered : 0U;
+  const auto flags = is_layered ? cudaArrayLayered : cudaArrayDefault;
   const auto extent = cudaExtent{ext.width, ext.height, ext.depth};
 
   auto res = buf_t{nullptr};
@@ -63,9 +63,7 @@ static void buffer_set(buf_t arr, Extent ext, const T* src) {
   };
 
   auto copy_params = cudaMemcpy3DParms{};
-  copy_params.srcPos = cudaPos{0, 0, 0};
   copy_params.srcPtr = cuda::pitched_ptr(src, ext);
-  copy_params.dstPos = cudaPos{0, 0, 0};
   copy_params.dstArray = arr;
   copy_params.extent = copy_ext;  // array element count
   copy_params.kind = cudaMemcpyHostToDevice;

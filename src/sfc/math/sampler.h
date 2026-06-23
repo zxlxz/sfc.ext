@@ -72,25 +72,24 @@ struct Sampler<T, 2> {
       return T{0};
     }
 
-    if (loc.y <= 0.5f) {
+    if (loc.x <= 0.5f) {
       const auto row = _inn[0];
-      return Sampler<T, 1>{row}.load_linear(loc.x);
+      return Sampler<T, 1>{row}.load_linear(loc.y);
     }
 
-    if (loc.y >= _max_y - 0.5f) {
-      const auto row = _inn[_inn._shape[1] - 1];
-      return Sampler<T, 1>{row}.load_linear(loc.x);
+    if (loc.x >= _max_x - 0.5f) {
+      const auto row = _inn[_inn._shape[0] - 1];
+      return Sampler<T, 1>{row}.load_linear(loc.y);
     }
 
-    const auto fy = loc.y - 0.5f;
-    const auto iy = u32(fy);
-    const auto s0 = _inn[iy + 0];
-    const auto s1 = _inn[iy + 1];
-    const auto t0 = Sampler<T, 1>{s0}.load_linear(loc.x);
-    const auto t1 = Sampler<T, 1>{s1}.load_linear(loc.x);
-
-    const auto py = fy - f32(iy);
-    return (1.0f - py) * t0 + py * t1;
+    const auto fx = loc.x - 0.5f;
+    const auto ix = u32(fx);
+    const auto s0 = _inn[ix + 0];
+    const auto s1 = _inn[ix + 1];
+    const auto t0 = Sampler<T, 1>{s0}.load_linear(loc.y);
+    const auto t1 = Sampler<T, 1>{s1}.load_linear(loc.y);
+    const auto px = fx - f32(ix);
+    return (1.0f - px) * t0 + px * t1;
   }
 };
 

@@ -318,4 +318,10 @@ struct NdView<T, 4> {
   }
 };
 
+template <class T, int N0>
+NdView(T (&)[N0]) -> NdView<T, 1>;
+
+template <class T, int N0, int N1>
+NdView(T (&)[N0][N1]) -> NdView<T, 2>;
+
 }  // namespace sfc::math
