@@ -14,9 +14,9 @@ SFC_TEST(fft_c2c_outplace) {
     auto Y = NdArray<c32, 1>::with_shape({n});
     auto fft = fft::FFTW<c32, c32>::create(n);
     X.imap_mut([&](u32 i, auto& val) { val = c32{float(i), 0}; });
-    fft.exec(X->_data, Y->_data, -1);
+    fft(X, Y, -1);
     io::println("fft_c2[{}] Y={-5.2}", n, Y);
-    fft.exec(Y->_data, X->_data, +1);
+    fft(Y, X, +1);
     io::println("fft_c2[{}] Y={-5.2}", n, X);
   }
 }
@@ -27,8 +27,8 @@ SFC_TEST(fft_c2c_inplace) {
     auto X = NdArray<c32, 1>::with_shape({n});
     auto fft = FFTW<c32, c32>::create(n);
     X.imap_mut([&](u32 i, auto& val) { val = c32{float(i), 0}; });
-    fft.exec(X->_data, X->_data, -1);
-    fft.exec(X->_data, X->_data, +1);
+    fft(X, X, -1);
+    fft(X, X, +1);
     io::println("fft_c2[{}] Y={-5.2}", n, X);
   }
 }

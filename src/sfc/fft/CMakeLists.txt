@@ -1,3 +1,6 @@
+if (NOT APPLE)
+  find_package(CUDAToolkit REQUIRED)
+endif()
 find_package(FFTW REQUIRED)
 
 add_library(sfc_fft)

@@ -8,8 +8,8 @@ namespace sfc::math {
 template <class T, int N = 1>
 class [[nodiscard]] NdArray {
   static constexpr auto NDIM = N;
-  using Buf = math::RawBuf<T>;
-  using Inn = math::NdView<T, NDIM>;
+  using Buf = RawBuf<T>;
+  using Inn = NdView<T, NDIM>;
   using Shape = typename Inn::Shape;
   using Strides = typename Inn::Strides;
   using Index = typename Inn::Index;
@@ -25,14 +25,16 @@ class [[nodiscard]] NdArray {
   NdArray& operator=(NdArray&& other) noexcept = default;
 
   static auto with_shape(const Shape& shape, MemType mtype = {}) -> NdArray {
-    auto inn = Inn{nullptr, {shape}, {}};
+    usize numel = 1;
+    u32 strides[NDIM] = {};
     for (auto i = NDIM - 1; i > 0; --i) {
-      inn._strides[i] = i == NDIM - 1 ? 1 : inn._shape[i + 1] * inn._strides[i + 1];
+      numel *= shape[i];
+      strides[i] = i == NDIM - 1 ? 1 : shape[i + 1] * strides[i + 1];
     }
 
     auto res = NdArray{};
-    res._buf = Buf::with_capacity(inn.numel(), {mtype});
-    res._inn = inn;
+    res._buf = Buf::with_capacity(numel, {mtype});
+    res._inn = Inn{res._buf.ptr(), shape, strides};
     return res;
   }
 
@@ -52,6 +54,10 @@ class [[nodiscard]] NdArray {
     return _inn._data;
   }
 
+  auto data() -> T* {
+    return _inn._data;
+  }
+
   auto numel() const -> u32 {
     return _inn.numel();
   }
@@ -61,20 +67,8 @@ class [[nodiscard]] NdArray {
   }
 
  public:
-  operator Inn() const {
+  auto operator*() const -> Inn {
     return _inn;
-  }
-
-  auto operator*() const -> const Inn& {
-    return _inn;
-  }
-
-  auto operator->() const -> const Inn* {
-    return &_inn;
-  }
-
-  auto operator->() -> Inn* {
-    return &_inn;
   }
 
   auto operator[](u32 idx) const -> decltype(auto) {

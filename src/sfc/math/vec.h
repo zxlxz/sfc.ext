@@ -13,9 +13,8 @@ struct vec<T, 1> {
   T x;
 
  public:
-  static auto from(const T (&v)[1]) -> vec {
-    return vec{v[0]};
-  }
+  __hd vec(T x) : x{x} {}
+  __hd vec(const T(&v)[1]) : x{v[0]} {}
 
  public:
   void fmt(auto& f) const {
@@ -29,9 +28,8 @@ struct vec<T, 2> {
   T x, y;
 
  public:
-  static auto from(const T (&v)[2]) -> vec {
-    return vec{v[0], v[1]};
-  }
+  __hd vec(T x, T y) : x{x}, y{y} {}
+  __hd vec(const T(&v)[2]) : x{v[0]}, y{v[1]} {}
 
   void fmt(auto& f) const {
     f.debug_tuple().entry(x).entry(y);
@@ -44,9 +42,8 @@ struct vec<T, 3> {
   T x, y, z;
 
  public:
-  static auto from(const T (&v)[3]) -> vec {
-    return vec{v[0], v[1], v[2]};
-  }
+  __hd vec(T x, T y, T z) : x{x}, y{y}, z{z} {}
+  __hd vec(const T(&v)[3]) : x{v[0]}, y{v[1]}, z{v[2]} {}
 
   void fmt(auto& f) const {
     f.debug_tuple().entry(x).entry(y).entry(z);
@@ -59,9 +56,8 @@ struct vec<T, 4> {
   T x, y, z, w;
 
  public:
-  static auto from(const T (&v)[4]) -> vec {
-    return vec{v[0], v[1], v[2], v[3]};
-  }
+  __hd vec(T x, T y, T z, T w) : x{x}, y{y}, z{z}, w{w} {}
+  __hd vec(const T(&v)[4]) : x{v[0]}, y{v[1]}, z{v[2]}, w{v[3]} {}
 
   void fmt(auto& f) const {
     f.debug_tuple().entry(x).entry(y).entry(z).entry(w);

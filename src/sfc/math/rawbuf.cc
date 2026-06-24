@@ -5,30 +5,47 @@
 
 namespace sfc::math {
 
-struct Bucket {
-  MemType _mem_type;
-  usize _blk_size;
+class Bucket {
+  MemType _mtype;
+  usize _block_size;
   List<void*> _free_list;
-  time::Instant _update_time;
 
  public:
-  auto total_size() const -> usize {
-    return _blk_size * _free_list.len();
+  Bucket(MemType mtype, usize blk_size) : _mtype{mtype}, _block_size{blk_size} {}
+
+  ~Bucket() {
+    this->truncate(0);
+  }
+
+  Bucket(Bucket&&) noexcept = default;
+  Bucket& operator=(Bucket&&) noexcept = default;
+
+ public:
+  auto len() const -> usize {
+    return _free_list.len();
+  }
+
+  auto block_size() const -> usize {
+    return _block_size;
+  }
+  void truncate(usize len) {
+    auto& a = DefaultAlloc::instance();
+    while (_free_list.len() > len) {
+      const auto p = _free_list.pop().unwrap();
+      a.deallocate(p, _block_size, _mtype);
+    }
   }
 
   auto alloc() -> void* {
-    _update_time = time::Instant::now();
-    if (auto ptr = _free_list.pop().unwrap_or(nullptr)) {
-      return ptr;
-    }
-
-    return Alloc{_mem_type}.alloc(_blk_size);
+    auto& a = DefaultAlloc::instance();
+    const auto ptr = _free_list.pop().unwrap_or_else([&] { return a.allocate(_block_size, _mtype); });
+    return ptr;
   }
 
   void dealloc(void* ptr) {
-    if (ptr == nullptr) return;
-
-    _update_time = time::Instant::now();
+    if (ptr == nullptr) {
+      return;
+    }
     _free_list.push(ptr);
   }
 };
@@ -39,9 +56,12 @@ class MemPool {
   sync::Mutex _mutex;
 
  public:
-  MemPool(MemType mtype) : _mtype{mtype} {}
+  explicit MemPool(MemType mtype) : _mtype{mtype} {}
 
-  static auto get(MemType mtype) -> MemPool& {
+  ~MemPool() {}
+
+ public:
+  static auto instance(MemType mtype) -> MemPool& {
     static auto cpu_pool = MemPool{MemType::CPU};
     static auto gpu_pool = MemPool{MemType::GPU};
     static auto uva_pool = MemPool{MemType::UVA};
@@ -56,44 +76,44 @@ class MemPool {
 
   auto alloc(usize size) -> void* {
     auto guard = _mutex.lock();
-    auto& bucket = this->get_bucket(size);
+
+    auto& bucket = this->bucket(size);
     while (true) {
       if (auto ptr = bucket.alloc()) {
         return ptr;
       }
-      auto& bucket = this->get_oldest_bucket();
-      if (bucket.total_size() == 0) {
-        break;
-      }
+      this->truncate_free_list();
     }
     return nullptr;
   }
 
   void dealloc(void* ptr, usize size) {
-    if (ptr == nullptr) return;
+    if (ptr == nullptr) {
+      return;
+    }
 
     auto guard = _mutex.lock();
-    auto& bucket = this->get_bucket(size);
+    auto& bucket = this->bucket(size);
     bucket.dealloc(ptr);
   }
 
  private:
-  auto get_oldest_bucket() -> Bucket& {
-    return _buckets.as_mut_slice().iter_mut().max_by_key([](auto& bucket) { return bucket._update_time; }).unwrap();
+  auto bucket(usize size) -> Bucket& {
+    auto match = [&](auto& bucket) { return bucket.block_size() == size; };
+    auto create_new = [&] -> Bucket& { return _buckets.push(Bucket{_mtype, size}); };
+    return _buckets.iter_mut().find(match).unwrap_or_else(create_new);
   }
 
-  auto get_bucket(usize size) -> Bucket& {
+  void truncate_free_list() {
     for (auto& bucket : _buckets.as_mut_slice()) {
-      if (bucket._blk_size >= size) {
-        return bucket;
-      }
+      const auto old_len = bucket.len();
+      const auto new_len = old_len / 2;
+      bucket.truncate(new_len);
     }
-
-    return _buckets.push(Bucket{_mtype, size, {}});
   }
 };
 
-auto Alloc::alloc(usize size) -> void* {
+auto DefaultAlloc::allocate(usize size, MemType mtype) -> void* {
   switch (mtype) {
     default:
     case MemType::CPU: return cuda::host_alloc(size);
@@ -102,7 +122,7 @@ auto Alloc::alloc(usize size) -> void* {
   }
 }
 
-void Alloc::dealloc(void* ptr, usize size) {
+void DefaultAlloc::deallocate(void* ptr, usize size, MemType mtype) {
   switch (mtype) {
     default:
     case MemType::CPU: return cuda::host_free(ptr);
@@ -111,13 +131,13 @@ void Alloc::dealloc(void* ptr, usize size) {
   }
 }
 
-auto PoolAlloc::alloc(usize size) -> void* {
-  auto& pool = MemPool::get(mtype);
+auto PoolAlloc::allocate(usize size, MemType mtype) -> void* {
+  auto& pool = MemPool::instance(mtype);
   return pool.alloc(size);
 }
 
-void PoolAlloc::dealloc(void* ptr, usize size) {
-  auto& pool = MemPool::get(mtype);
+void PoolAlloc::deallocate(void* ptr, usize size, MemType mtype) {
+  auto& pool = MemPool::instance(mtype);
   pool.dealloc(ptr, size);
 }
 
