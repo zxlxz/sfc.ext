@@ -38,10 +38,10 @@ SFC_TEST(fft_c2c_perf) {
       auto fft_c2c = CUFFT<c32, c32>::create(N, BATCH);
       cuda::device_sync();
       const auto t2 = time::Instant::now();
-      fft_c2c(*X, *X, -1);
+      fft_c2c(X, X, -1);
       cuda::device_sync();
       const auto t3 = time::Instant::now();
-      fft_c2c(*X, *X, +1);
+      fft_c2c(X, X, +1);
       cuda::device_sync();
       const auto t4 = time::Instant::now();
       fft_c2c = {};
@@ -85,10 +85,10 @@ SFC_TEST(fft_r2c_perf) {
       auto fft_c2r = CUFFT<c32, f32>::create(N, BATCH);
       cuda::device_sync();
       const auto t2 = time::Instant::now();
-      fft_r2c(*X, *Y, -1);
+      fft_r2c(X, Y, -1);
       cuda::device_sync();
       const auto t3 = time::Instant::now();
-      fft_c2r(*Y, *X, +1);
+      fft_c2r(Y, X, +1);
       cuda::device_sync();
       const auto t4 = time::Instant::now();
       fft_r2c = {};

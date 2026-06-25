@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sfc/math/complex.h"
-#include "sfc/math/ndview.h"
+#include "sfc/math/ndarray.h"
 
 struct fftwf_plan_s;
 
@@ -22,20 +22,13 @@ class FFTW {
   static auto create(u32 len) -> FFTW;
 
  public:
+  auto in_len() const -> usize;
+  auto out_len() const -> usize;
   auto plan(const I in[], O out[], int DIR) -> plan_t;
   void exec(const I in[], O out[], int DIR = -1);
 
-  template <int N>
-  void operator()(math::NdView<I, N> in, math::NdView<O, N> out, int DIR = -1) {
-    static_assert(N == 1 || N == 2);
-    if constexpr (N == 1) {
-      this->exec(in._data, out._data, DIR);
-    } else if constexpr (N == 2) {
-      for (auto i = 0U; i < in._dims.y; ++i) {
-        this->exec(in[i]._data, out[i]._data, DIR);
-      }
-    }
-  }
+  void operator()(math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, int DIR = -1);
+  void operator()(math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR = -1);
 };
 
 }  // namespace sfc::fft

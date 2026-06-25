@@ -105,9 +105,48 @@ auto FFTW<I, O>::plan(const I in[], O out[], int DIR) -> plan_t {
 }
 
 template <class I, class O>
+auto FFTW<I, O>::in_len() const -> usize {
+  const auto half_len = _len / 2 + 1;
+  return sizeof(I) <= sizeof(O) ? _len : half_len;
+}
+
+template <class I, class O>
+auto FFTW<I, O>::out_len() const -> usize {
+  const auto half_len = _len / 2 + 1;
+  return sizeof(O) <= sizeof(I) ? _len : half_len;
+}
+
+template <class I, class O>
 void FFTW<I, O>::exec(const I in[], O out[], int DIR) {
   const auto plan = this->plan(in, out, DIR);
   fftw::fft_exec(plan, in, out);
+}
+
+template <class I, class O>
+void FFTW<I, O>::operator()(math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, int DIR) {
+  const auto ilen = this->in_len();
+  const auto olen = this->out_len();
+  sfc::assert_eq(in.shape()[0], ilen);
+  sfc::assert_eq(out.shape()[0], olen);
+  this->exec(in.data(), out.data(), DIR);
+}
+
+template <class I, class O>
+void FFTW<I, O>::operator()(math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR) {
+  const auto in_batch = in.shape()[0];
+  const auto out_batch = out.shape()[0];
+  sfc::assert_eq(in_batch, out_batch);
+
+  const auto ilen = this->in_len();
+  const auto olen = this->out_len();
+  sfc::assert_eq(in.shape()[1], ilen);
+  sfc::assert_eq(out.shape()[1], olen);
+
+  for (auto b = 0U; b < in_batch; ++b) {
+    auto in_col = in[b];
+    auto out_col = out[b];
+    this->exec(in_col._data, out_col._data, DIR);
+  }
 }
 
 template class FFTW<f32, c32>;

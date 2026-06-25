@@ -28,17 +28,16 @@ class Bucket {
   auto block_size() const -> usize {
     return _block_size;
   }
+
   void truncate(usize len) {
-    auto& a = DefaultAlloc::instance();
     while (_free_list.len() > len) {
       const auto p = _free_list.pop().unwrap();
-      a.deallocate(p, _block_size, _mtype);
+      this->dealloc_imp(p);
     }
   }
 
   auto alloc() -> void* {
-    auto& a = DefaultAlloc::instance();
-    const auto ptr = _free_list.pop().unwrap_or_else([&] { return a.allocate(_block_size, _mtype); });
+    const auto ptr = _free_list.pop().unwrap_or_else([&] { return this->alloc_imp(); });
     return ptr;
   }
 
@@ -48,9 +47,22 @@ class Bucket {
     }
     _free_list.push(ptr);
   }
+
+ private:
+  auto alloc_imp() -> void* {
+    auto& a = DefaultAlloc::instance();
+    return a.alloc(_block_size, _mtype);
+  }
+
+  void dealloc_imp(void* ptr) {
+    auto& a = DefaultAlloc::instance();
+    a.dealloc(ptr, _block_size, _mtype);
+  }
 };
 
 class MemPool {
+  static constexpr auto kAlign = usize{4096};
+
   MemType _mtype;
   List<Bucket> _buckets;
   sync::Mutex _mutex;
@@ -98,7 +110,9 @@ class MemPool {
   }
 
  private:
-  auto bucket(usize size) -> Bucket& {
+  auto bucket(usize min_size) -> Bucket& {
+    const auto size = num::align_up(min_size, kAlign);
+
     auto match = [&](auto& bucket) { return bucket.block_size() == size; };
     auto create_new = [&] -> Bucket& { return _buckets.push(Bucket{_mtype, size}); };
     return _buckets.iter_mut().find(match).unwrap_or_else(create_new);
@@ -113,7 +127,12 @@ class MemPool {
   }
 };
 
-auto DefaultAlloc::allocate(usize size, MemType mtype) -> void* {
+auto DefaultAlloc::instance() -> DefaultAlloc& {
+  static auto res = DefaultAlloc{};
+  return res;
+}
+
+auto DefaultAlloc::alloc(usize size, MemType mtype) -> void* {
   switch (mtype) {
     default:
     case MemType::CPU: return cuda::host_alloc(size);
@@ -122,7 +141,7 @@ auto DefaultAlloc::allocate(usize size, MemType mtype) -> void* {
   }
 }
 
-void DefaultAlloc::deallocate(void* ptr, usize size, MemType mtype) {
+void DefaultAlloc::dealloc(void* ptr, usize size, MemType mtype) {
   switch (mtype) {
     default:
     case MemType::CPU: return cuda::host_free(ptr);
@@ -131,12 +150,17 @@ void DefaultAlloc::deallocate(void* ptr, usize size, MemType mtype) {
   }
 }
 
-auto PoolAlloc::allocate(usize size, MemType mtype) -> void* {
+auto PoolAlloc::instance() -> PoolAlloc& {
+  static auto res = PoolAlloc{};
+  return res;
+}
+
+auto PoolAlloc::alloc(usize size, MemType mtype) -> void* {
   auto& pool = MemPool::instance(mtype);
   return pool.alloc(size);
 }
 
-void PoolAlloc::deallocate(void* ptr, usize size, MemType mtype) {
+void PoolAlloc::dealloc(void* ptr, usize size, MemType mtype) {
   auto& pool = MemPool::instance(mtype);
   pool.dealloc(ptr, size);
 }

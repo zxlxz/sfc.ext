@@ -4,25 +4,20 @@
 
 namespace sfc::math {
 
-template <class T, int Dims>
-struct NdView;
+template <class T, int N>
+struct NdSlice;
 
 template <class T>
-struct NdView<T, 1> {
+struct NdSlice<T, 1> {
   static constexpr u32 NDIM = 1U;
-  using Shape = u32[NDIM];
-  using Strides = u32[NDIM];
-  using Index = u32[NDIM];
-
-  T* _data;
-  Shape _shape;
-  Strides _strides;
+  T* _data = nullptr;
+  u32 _shape[NDIM] = {};
+  u32 _strides[NDIM] = {};
 
  public:
-  template <u32 NX>
-  __hd NdView(T (&v)[NX]) : _data{v}, _shape{NX}, _strides{1} {}
+  __hd NdSlice() noexcept = default;
 
-  __hd NdView(T* data, const Shape& shape, const Strides& strides)
+  __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0]}, _strides{strides[0]} {}
 
   __hd auto len() const -> u32 {
@@ -33,20 +28,8 @@ struct NdView<T, 1> {
     return _data;
   }
 
-  __hd auto shape() const -> const Shape& {
-    return _shape;
-  }
-
-  __hd auto strides() const -> const Strides& {
-    return _strides;
-  }
-
   __hd auto numel() const -> u32 {
     return _shape[0];
-  }
-
-  __hd auto contains(const Index& indices) const -> bool {
-    return indices[0] < _shape[0];
   }
 
   __hd auto operator[](u32 idx) const -> const T& {
@@ -57,12 +40,18 @@ struct NdView<T, 1> {
     return _data[idx * _strides[0]];
   }
 
-  __hd auto operator[](const Index& indices) const -> const T& {
-    return _data[indices[0] * _strides[0]];
+  __hd auto contains(const u32 (&indices)[NDIM]) const -> bool {
+    return indices[0] < _shape[0];
   }
 
-  __hd auto operator[](const Index& indices) -> T& {
-    return _data[indices[0] * _strides[0]];
+  __hd auto get(const u32 (&indices)[NDIM]) const -> const T& {
+    const auto offset = indices[0] * _strides[0];
+    return _data[offset];
+  }
+
+  __hd void set(const u32 (&indices)[NDIM], const T& value) {
+    const auto offset = indices[0] * _strides[0];
+    _data[offset] = value;
   }
 
   __hd auto is_contiguous() const -> bool {
@@ -72,15 +61,15 @@ struct NdView<T, 1> {
  public:
   void imap(auto&& f) const {
     for (auto i = 0U; i < _shape[0]; ++i) {
-      const auto& e = _data[i * _strides[0]];
-      f(i, e);
+      const auto& val = (*this)[i];
+      f({i}, val);
     }
   }
 
   void imap_mut(auto&& f) {
     for (auto i = 0U; i < _shape[0]; ++i) {
-      auto& e = _data[i * _strides[0]];
-      f(i, e);
+      auto& val = (*this)[i];
+      f({i}, val);
     }
   }
 
@@ -92,21 +81,16 @@ struct NdView<T, 1> {
 };
 
 template <class T>
-struct NdView<T, 2> {
+struct NdSlice<T, 2> {
   static constexpr u32 NDIM = 2;
-  using Shape = u32[NDIM];
-  using Strides = u32[NDIM];
-  using Index = u32[NDIM];
-
-  T* _data;
-  Shape _shape;
-  Strides _strides;
+  T* _data = nullptr;
+  u32 _shape[NDIM] = {};
+  u32 _strides[NDIM] = {};
 
  public:
-  template <u32 NY, u32 NX>
-  __hd NdView(T (&v)[NY][NX]) : _data{v[0]}, _shape{NY, NX}, _strides{NX, 1} {}
+  __hd NdSlice() noexcept = default;
 
-  __hd NdView(T* data, const Shape& shape, const Strides& strides)
+  __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0], shape[1]}, _strides{strides[0], strides[1]} {}
 
   __hd auto len() const -> u32 {
@@ -117,35 +101,27 @@ struct NdView<T, 2> {
     return _data;
   }
 
-  __hd auto shape() const -> const Shape& {
-    return _shape;
-  }
-
-  __hd auto strides() const -> const Strides& {
-    return _strides;
-  }
-
   __hd auto numel() const -> u32 {
     return _shape[0] * _shape[1];
   }
 
-  __hd auto contains(const Index& indices) const -> bool {
+  __hd auto contains(const u32 (&indices)[NDIM]) const -> bool {
     return indices[0] < _shape[0] && indices[1] < _shape[1];
   }
 
-  __hd auto operator[](u32 x) const -> NdView<T, NDIM - 1> {
-    const auto p = _data + x * _strides[0];
-    return NdView<T, NDIM - 1>{p, {_shape[1]}, {_strides[1]}};
-  }
-
-  __hd auto operator[](const Index& indices) const -> const T& {
+  __hd auto get(const u32 (&indices)[NDIM]) const -> const T& {
     const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1];
     return _data[offset];
   }
 
-  __hd auto operator[](const Index& indices) -> T& {
+  __hd void set(const u32 (&indices)[NDIM], const T& value) {
     const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1];
-    return _data[offset];
+    _data[offset] = value;
+  }
+
+  __hd auto operator[](u32 x) const -> NdSlice<T, NDIM - 1> {
+    const auto data = _data + x * _strides[0];
+    return NdSlice<T, NDIM - 1>{data, {_shape[1]}, {_strides[1]}};
   }
 
  public:
@@ -153,8 +129,8 @@ struct NdView<T, 2> {
     for (auto i = 0U; i < _shape[0]; ++i) {
       const auto row = (*this)[i];
       for (auto j = 0U; j < _shape[1]; ++j) {
-        const auto& e = row[j];
-        f(i, j, e);
+        const auto& val = row[j];
+        f({i, j}, val);
       }
     }
   }
@@ -163,8 +139,8 @@ struct NdView<T, 2> {
     for (auto i = 0U; i < _shape[0]; ++i) {
       auto row = (*this)[i];
       for (auto j = 0U; j < _shape[1]; ++j) {
-        auto& e = row[j];
-        f(i, j, e);
+        auto& val = row[j];
+        f({i, j}, val);
       }
     }
   }
@@ -180,21 +156,16 @@ struct NdView<T, 2> {
 };
 
 template <class T>
-struct NdView<T, 3> {
+struct NdSlice<T, 3> {
   static constexpr u32 NDIM = 3U;
-  using Shape = u32[NDIM];
-  using Strides = u32[NDIM];
-  using Index = u32[NDIM];
-
-  T* _data;
-  Shape _shape;
-  Strides _strides;
+  T* _data = nullptr;
+  u32 _shape[NDIM] = {};
+  u32 _strides[NDIM] = {};
 
  public:
-  template <u32 NZ, u32 NY, u32 NX>
-  __hd NdView(T (&v)[NZ][NY][NX]) : _data{v[0][0]}, _shape{NZ, NY, NX}, _strides{NY * NX, NX, 1} {}
+  __hd NdSlice() noexcept = default;
 
-  __hd NdView(T* data, const Shape& shape, const Strides& strides)
+  __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0], shape[1], shape[2]}, _strides{strides[0], strides[1], strides[2]} {}
 
   __hd auto len() const -> u32 {
@@ -205,71 +176,68 @@ struct NdView<T, 3> {
     return _data;
   }
 
-  __hd auto shape() const -> const Shape& {
-    return _shape;
-  }
-
-  __hd auto strides() const -> const Strides& {
-    return _strides;
-  }
-
   __hd auto numel() const -> u32 {
     return _shape[0] * _shape[1] * _shape[2];
   }
 
-  __hd auto contains(const Index& indices) const -> bool {
+  __hd auto contains(const u32 (&indices)[NDIM]) const -> bool {
     return indices[0] < _shape[0] && indices[1] < _shape[1] && indices[2] < _shape[2];
   }
 
-  __hd auto operator[](u32 x) const -> NdView<T, NDIM - 1> {
-    const T* data = _data + x * _strides[0];
-    const u32 shape[] = {_shape[1], _shape[2]};
-    const u32 strides[] = {_strides[1], _strides[2]};
-    return {data, shape, strides};
-  }
-
-  __hd auto operator[](const Index& indices) const -> const T& {
+  __hd auto get(const u32 (&indices)[NDIM]) const -> const T& {
     const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1] + indices[2] * _strides[2];
     return _data[offset];
   }
 
-  __hd auto operator[](const Index& indices) -> T& {
+  __hd void set(const u32 (&indices)[NDIM], const T& value) {
     const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1] + indices[2] * _strides[2];
-    return _data[offset];
+    _data[offset] = value;
+  }
+
+  __hd auto operator[](u32 x) const -> NdSlice<T, NDIM - 1> {
+    const auto data = _data + x * _strides[0];
+    return {data, {_shape[1], _shape[2]}, {_strides[1], _strides[2]}};
   }
 
  public:
   void imap(auto&& f) const {
     for (auto i = 0U; i < _shape[0]; ++i) {
       const auto mat = (*this)[i];
-      mat.imap([&](u32 j, u32 k, const T& e) { f(i, j, k, e); });
+      for (auto j = 0U; j < _shape[1]; ++j) {
+        const auto row = mat[j];
+        for (auto k = 0U; k < _shape[2]; ++k) {
+          const auto& val = row[k];
+          f({i, j, k}, val);
+        }
+      }
     }
   }
 
   void imap_mut(auto&& f) {
     for (auto i = 0U; i < _shape[0]; ++i) {
       auto mat = (*this)[i];
-      mat.imap_mut([&](u32 j, u32 k, T& e) { f(i, j, k, e); });
+      for (auto j = 0U; j < _shape[1]; ++j) {
+        auto row = mat[j];
+        for (auto k = 0U; k < _shape[2]; ++k) {
+          auto& val = row[k];
+          f({i, j, k}, val);
+        }
+      }
     }
   }
 };
 
 template <class T>
-struct NdView<T, 4> {
-  static constexpr auto NDIM = 4;
-  using Shape = u32[NDIM];
-  using Strides = u32[NDIM];
-  using Index = u32[NDIM];
-  T* _data;
-  Shape _shape;
-  Strides _strides;
+struct NdSlice<T, 4> {
+  static constexpr u32 NDIM = 4U;
+  T* _data = nullptr;
+  u32 _shape[NDIM] = {};
+  u32 _strides[NDIM] = {};
 
  public:
-  template <u32 NW, u32 NZ, u32 NY, u32 NX>
-  __hd NdView(T (&v)[NW][NZ][NY][NX])
-      : _data{v[0][0][0]}, _shape{NW, NZ, NY, NX}, _strides{NZ * NY * NX, NY * NX, NX, 1} {}
+  __hd NdSlice() noexcept = default;
 
-  __hd NdView(T* data, const Shape& shape, const Strides& strides)
+  __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}
       , _shape{shape[0], shape[1], shape[2], shape[3]}
       , _strides{strides[0], strides[1], strides[2], strides[3]} {}
@@ -282,46 +250,36 @@ struct NdView<T, 4> {
     return _data;
   }
 
-  __hd auto shape() const -> const Shape& {
-    return _shape;
-  }
-
-  __hd auto strides() const -> const Strides& {
-    return _strides;
-  }
-
   __hd auto numel() const -> u32 {
     return _shape[0] * _shape[1] * _shape[2] * _shape[3];
   }
 
-  __hd auto contains(const Index& indices) const -> bool {
+  __hd auto contains(const u32 (&indices)[NDIM]) const -> bool {
     return indices[0] < _shape[0] && indices[1] < _shape[1] && indices[2] < _shape[2] && indices[3] < _shape[3];
   }
 
-  __hd auto operator[](u32 idx) const -> NdView<T, NDIM - 1> {
-    const T* data = _data + idx * _strides[0];
-    const u32 shape[] = {_shape[1], _shape[2], _shape[3]};
-    const u32 strides[] = {_strides[1], _strides[2], _strides[3]};
-    return {data, shape, strides};
-  }
-
-  __hd auto operator[](const Index& indices) const -> const T& {
+  __hd auto get(const u32 (&indices)[NDIM]) const -> const T& {
     const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1] + indices[2] * _strides[2] +
                         indices[3] * _strides[3];
     return _data[offset];
   }
 
-  __hd auto operator[](const Index& indices) -> T& {
+  __hd void set(const u32 (&indices)[NDIM], const T& value) {
     const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1] + indices[2] * _strides[2] +
                         indices[3] * _strides[3];
-    return _data[offset];
+    _data[offset] = value;
+  }
+
+  __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
+    const auto data = _data + idx * _strides[0];
+    return {data, {_shape[1], _shape[2], _shape[3]}, {_strides[1], _strides[2], _strides[3]}};
   }
 };
 
 template <class T, int N0>
-NdView(T (&)[N0]) -> NdView<T, 1>;
+NdSlice(T (&)[N0]) -> NdSlice<T, 1>;
 
 template <class T, int N0, int N1>
-NdView(T (&)[N0][N1]) -> NdView<T, 2>;
+NdSlice(T (&)[N0][N1]) -> NdSlice<T, 2>;
 
 }  // namespace sfc::math

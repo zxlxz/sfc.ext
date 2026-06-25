@@ -137,8 +137,43 @@ auto CUFFT<I, O>::create(u32 len, u32 batch) -> CUFFT {
 }
 
 template <class I, class O>
+auto CUFFT<I, O>::in_len() const -> usize {
+  const auto half_len = _len / 2 + 1;
+  return sizeof(I) <= sizeof(O) ? _len : half_len;
+}
+
+template <class I, class O>
+auto CUFFT<I, O>::out_len() const -> usize {
+  const auto half_len = _len / 2 + 1;
+  return sizeof(O) <= sizeof(I) ? _len : half_len;
+}
+
+template <class I, class O>
 void CUFFT<I, O>::exec(const I in[], O out[], int DIR) {
   cufft::fft_exec(_plan, in, out, DIR);
+}
+
+template <class I, class O>
+void CUFFT<I, O>::operator()(math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, int DIR) {
+  const auto ilen = this->in_len();
+  const auto olen = this->out_len();
+  sfc::assert_(in.shape()[0] == ilen, "in.shape({}) != {}", in.shape(), ilen);
+  sfc::assert_(out.shape()[0] == olen, "out.shape({}) != {}", out.shape(), olen);
+
+  this->exec(in.data(), out.data(), DIR);
+}
+
+template <class I, class O>
+void CUFFT<I, O>::operator()(math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR) {
+  const auto ilen = this->in_len();
+  const auto olen = this->out_len();
+  sfc::assert_(in.shape()[0] == _batch, "in.shape({}) != batch({})", in.shape(), _batch);
+  sfc::assert_(in.shape()[1] == ilen, "in.shape({}) != {}", in.shape(), ilen);
+
+  sfc::assert_(out.shape()[0] == _batch, "out.shape({}) != batch({})", out.shape(), _batch);
+  sfc::assert_(out.shape()[1] == olen, "out.shape({}) != {}", out.shape(), olen);
+
+  this->exec(in.data(), out.data(), DIR);
 }
 
 template class CUFFT<f32, c32>;

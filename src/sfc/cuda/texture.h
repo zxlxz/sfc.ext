@@ -8,7 +8,7 @@ template <class T, int N>
 struct vec;
 
 template <class T, int N>
-struct NdView;
+struct NdSlice;
 }  // namespace sfc::math
 
 namespace sfc::cuda {
@@ -55,7 +55,7 @@ class Texture {
   }
 
  public:
-  void set_data(math::NdView<T, N> src);
+  void set_data(math::NdSlice<T, N> src);
 };
 
 template <class T, int N = 3>
@@ -85,7 +85,7 @@ class LTexture {
   }
 
  public:
-  void set_data(math::NdView<T, N> src);
+  void set_data(math::NdSlice<T, N> src);
 };
 
 }  // namespace sfc::cuda

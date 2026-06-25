@@ -67,7 +67,7 @@ auto Texture<T, N>::with_shape(Dim dims, TexFilt filt_mode, TexAddr addr_mode) -
 }
 
 template <class T, int N>
-void Texture<T, N>::set_data(math::NdView<T, N> src) {
+void Texture<T, N>::set_data(math::NdSlice<T, N> src) {
   _buf.set_data(src._data);
 }
 
@@ -102,7 +102,7 @@ auto LTexture<T, N>::with_shape(Dim dims, TexFilt filt_mode, TexAddr addr_mode) 
 }
 
 template <class T, int N>
-void LTexture<T, N>::set_data(math::NdView<T, N> src) {
+void LTexture<T, N>::set_data(math::NdSlice<T, N> src) {
   _buf.set_data(src._data);
 }
 

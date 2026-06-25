@@ -9,7 +9,7 @@ struct Sampler;
 
 template <class T>
 struct Sampler<T, 1> {
-  NdView<T, 1> _inn;
+  NdSlice<T, 1> _inn;
   const f32 _max = f32(_inn._shape[0]);
 
  public:
@@ -45,7 +45,7 @@ struct Sampler<T, 1> {
 
 template <class T>
 struct Sampler<T, 2> {
-  NdView<T, 2> _inn;
+  NdSlice<T, 2> _inn;
   const f32 _max_x = f32(_inn._shape[0]);
   const f32 _max_y = f32(_inn._shape[1]);
 
@@ -60,7 +60,7 @@ struct Sampler<T, 2> {
 
     const auto ix = static_cast<u32>(p.x);
     const auto iy = static_cast<u32>(p.y);
-    const auto val = _inn[{ix, iy}];
+    const auto val = _inn.get({ix, iy});
     return val;
   }
 
@@ -94,6 +94,6 @@ struct Sampler<T, 2> {
 };
 
 template <class T, int N>
-Sampler(NdView<T, N>) -> Sampler<T, N>;
+Sampler(NdSlice<T, N>) -> Sampler<T, N>;
 
 }  // namespace sfc::math

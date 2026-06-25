@@ -10,54 +10,60 @@ enum class MemType {
   UVA,
 };
 
-class Allocator {
- protected:
-  Allocator();
-  ~Allocator();
-
-  Allocator(const Allocator&) = delete;
-  Allocator& operator=(const Allocator&) = delete;
-
+class IBufAlloc {
  public:
-  virtual void* allocate(usize size, MemType mtype) = 0;
-  virtual void deallocate(void* ptr, usize size, MemType mtype) = 0;
+  virtual void* alloc(usize size, MemType mtype) = 0;
+  virtual void dealloc(void* ptr, usize size, MemType mtype) = 0;
 };
 
-class DefaultAlloc : public Allocator {
-  DefaultAlloc();
-  ~DefaultAlloc();
-
+class DefaultAlloc : public IBufAlloc {
  public:
   static auto instance() -> DefaultAlloc&;
 
-  void* allocate(usize size, MemType mtype) override;
-  void deallocate(void* ptr, usize size, MemType mtype) override;
+  void* alloc(usize size, MemType mtype) override;
+  void dealloc(void* ptr, usize size, MemType mtype) override;
 };
 
-class PoolAlloc : public Allocator {
-  PoolAlloc();
-  ~PoolAlloc();
+class PoolAlloc : public IBufAlloc {
+  PoolAlloc() = default;
+  ~PoolAlloc() = default;
 
  public:
   static auto instance() -> PoolAlloc&;
 
-  void* allocate(usize size, MemType mtype) override;
-  void deallocate(void* ptr, usize size, MemType mtype) override;
+  void* alloc(usize size, MemType mtype) override;
+  void dealloc(void* ptr, usize size, MemType mtype) override;
+};
+
+class BufAllocator {
+  IBufAlloc* _alloc;
+
+ public:
+  BufAllocator(IBufAlloc& alloc) : _alloc{&alloc} {}
+
+ public:
+  void* alloc(usize size, MemType mtype) {
+    return _alloc->alloc(size, mtype);
+  }
+
+  void dealloc(void* ptr, usize size, MemType mtype) {
+    return _alloc->dealloc(ptr, size, mtype);
+  }
 };
 
 template <class T>
 class RawBuf {
-  T* _ptr;
-  usize _cap;
-  MemType _mtype;
-  Allocator* _a = &DefaultAlloc::instance();
+  T* _ptr{nullptr};
+  usize _cap{0};
+  MemType _mtype{MemType::CPU};
+  BufAllocator _a{PoolAlloc::instance()};
 
  public:
-  RawBuf() : _ptr{nullptr}, _cap{0}, _a{} {}
+  explicit RawBuf() noexcept {}
 
   ~RawBuf() {
     if (!_ptr) return;
-    _a->deallocate(_ptr, _cap * sizeof(T), _mtype);
+    _a.dealloc(_ptr, _cap * sizeof(T), _mtype);
   }
 
   RawBuf(RawBuf&& other) noexcept : _ptr{mem::take(other._ptr)}, _cap{mem::take(other._cap)}, _a{mem::move(other._a)} {}
@@ -74,12 +80,12 @@ class RawBuf {
     mem::swap(_a, other._a);
   }
 
-  static auto with_capacity(usize capacity, MemType mtype, Allocator& alloc = DefaultAlloc::instance()) -> RawBuf {
+  static auto with_capacity(usize capacity, MemType mtype, BufAllocator alloc = DefaultAlloc::instance()) -> RawBuf {
     auto buf = RawBuf{};
-    buf._ptr = ptr::cast<T>(alloc.allocate(capacity * sizeof(T), mtype));
+    buf._ptr = ptr::cast<T>(alloc.alloc(capacity * sizeof(T), mtype));
     buf._cap = capacity;
     buf._mtype = mtype;
-    buf._a = &alloc;
+    buf._a = alloc;
 
     return buf;
   }
@@ -122,7 +128,7 @@ class RawBuf {
   }
 
   auto clone(MemType mtype) const -> RawBuf {
-    auto res = RawBuf::with_capacity(_cap, mtype, *_a);
+    auto res = RawBuf::with_capacity(_cap, mtype, _a);
     cuda::copy_bytes(_ptr, res._ptr, _cap * sizeof(T));
     return res;
   }
