@@ -5,6 +5,46 @@
 
 namespace sfc::math {
 
+class CPUAllocator : public alloc::IAlloc {
+ public:
+  void* alloc(mem::Layout layout) override {
+    if (layout.size == 0) return nullptr;
+    return cuda::host_alloc(layout.size);
+  }
+
+  void dealloc(void* ptr, [[maybe_unused]] mem::Layout layout) override {
+    if (ptr == nullptr) return;
+    return cuda::host_free(ptr);
+  }
+};
+
+class GPUAllocator: public alloc::IAlloc {
+ public:
+  void* alloc(mem::Layout layout) override {
+    if (layout.size == 0) return nullptr;
+    return cuda::device_alloc(layout.size);
+  }
+
+  void dealloc(void* ptr, [[maybe_unused]] mem::Layout layout) override {
+    if (ptr == nullptr) return;
+    return cuda::device_free(ptr);
+  }
+};
+
+class UVAAllocator: public alloc::IAlloc {
+ public:
+  void* alloc(mem::Layout layout) override {
+    if (layout.size == 0) return nullptr;
+    return cuda::managed_alloc(layout.size);
+  }
+
+  void dealloc(void* ptr, [[maybe_unused]] mem::Layout layout) override {
+    if (ptr == nullptr) return;
+    return cuda::managed_free(ptr);
+  }
+};
+
+
 class Bucket {
   MemType _mtype;
   usize _block_size;

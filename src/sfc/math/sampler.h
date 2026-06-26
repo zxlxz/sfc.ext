@@ -1,99 +1,103 @@
 #pragma once
 
-#include "sfc/math/ndview.h"
+#include "sfc/math/ndslice.h"
 
 namespace sfc::math {
 
-template <class T, int N>
-struct Sampler;
+struct NearestSampler {
+  using Self = NearestSampler;
 
-template <class T>
-struct Sampler<T, 1> {
-  NdSlice<T, 1> _inn;
-  const f32 _max = f32(_inn._shape[0]);
+  static __hd auto load_1d(const auto& row, vec1f p) -> f32 {
+    static_assert(row.NDIM == 1);
 
- public:
-  auto load_nearest(f32 x) const -> T {
-    if (!(x >= 0 && x < _max)) return T{0};
-
-    const auto ix = static_cast<u32>(x);
-    return _inn._data[ix];
-  }
-
-  auto load_linear(f32 loc) const -> T {
-    if (!(loc >= 0 && loc <= _max)) {
-      return T{0};
-    }
-
-    if (loc <= 0.5f) {
-      return _inn._data[0];
-    }
-
-    if (loc >= _max - 0.5f) {
-      return _inn._data[_inn._shape[0] - 1];
-    }
-
-    const auto fx = loc - 0.5f;
-    const auto ix = u32(fx);
-    const auto t0 = _inn[ix];
-    const auto t1 = _inn[ix + 1];
-
-    const auto px = fx - f32(ix);
-    return (1.0f - px) * t0 + px * t1;
-  }
-};
-
-template <class T>
-struct Sampler<T, 2> {
-  NdSlice<T, 2> _inn;
-  const f32 _max_x = f32(_inn._shape[0]);
-  const f32 _max_y = f32(_inn._shape[1]);
-
- public:
-  auto load_nearest(vec2f p) const -> T {
-    if (p.x < 0 || p.x >= _max_x) {
-      return T{0};
-    }
-    if (p.y < 0 || p.y >= _max_y) {
-      return T{0};
-    }
+    const auto nx = row._shape[0];
+    if (p.x < 0 || p.x >= f32(nx)) return 0.0f;
 
     const auto ix = static_cast<u32>(p.x);
-    const auto iy = static_cast<u32>(p.y);
-    const auto val = _inn.get({ix, iy});
+    const auto val = row.get(ix);
     return val;
   }
 
-  auto load_linear(vec2f loc) const -> T {
-    if (!(loc.x >= 0 && loc.x <= _max_x)) {
-      return T{0};
-    }
-    if (!(loc.y >= 0 && loc.y <= _max_y)) {
-      return T{0};
-    }
+  static __hd auto load_2d(const auto& mat, vec2f p) -> f32 {
+    static_assert(mat.NDIM == 2);
 
-    if (loc.x <= 0.5f) {
-      const auto row = _inn[0];
-      return Sampler<T, 1>{row}.load_linear(loc.y);
-    }
+    const auto nx = mat._shape[0];
+    const auto ny = mat._shape[1];
+    if (p.x < 0 || p.x >= f32(nx)) return 0.0f;
+    if (p.y < 0 || p.y >= f32(ny)) return 0.0f;
 
-    if (loc.x >= _max_x - 0.5f) {
-      const auto row = _inn[_inn._shape[0] - 1];
-      return Sampler<T, 1>{row}.load_linear(loc.y);
-    }
-
-    const auto fx = loc.x - 0.5f;
-    const auto ix = u32(fx);
-    const auto s0 = _inn[ix + 0];
-    const auto s1 = _inn[ix + 1];
-    const auto t0 = Sampler<T, 1>{s0}.load_linear(loc.y);
-    const auto t1 = Sampler<T, 1>{s1}.load_linear(loc.y);
-    const auto px = fx - f32(ix);
-    return (1.0f - px) * t0 + px * t1;
+    const auto ix = static_cast<u32>(p.x);
+    const auto iy = static_cast<u32>(p.y);
+    const auto val = mat.get(ix, iy);
+    return val;
   }
 };
 
-template <class T, int N>
-Sampler(NdSlice<T, N>) -> Sampler<T, N>;
+struct LinearSampler {
+  using Self = LinearSampler;
+
+  static __hd auto interp(f32 t, f32 v0, f32 v1) -> f32 {
+    return (1.0f - t) * v0 + t * v1;
+  }
+
+  static __hd auto load_1d(const auto& row, vec1f p) -> f32 {
+    static_assert(row.NDIM == 1);
+
+    const auto nx = row._shape[0];
+    if (p.x < 0 || p.x > f32(nx)) return 0.0f;
+
+    if (p.x <= 0.5f) {
+      return row.get(0);
+    }
+
+    if (p.x >= f32(nx) - 0.5f) {
+      return row.get(nx - 1);
+    }
+
+    const auto fx = p.x - 0.5f;
+    const auto ix = u32(fx);
+    const auto t0 = row.get(ix);
+    const auto t1 = row.get(ix + 1);
+
+    const auto px = fx - f32(ix);
+    return (1.0f - px) * t0 + px * t1;
+  }
+
+  static auto load_2d(const auto& mat, vec2f p) -> f32 {
+    static_assert(mat.NDIM == 2);
+
+    const auto nx = mat._shape[0];
+    const auto ny = mat._shape[1];
+    if (p.x < 0 || p.x > f32(nx)) return 0.0f;
+    if (p.y < 0 || p.y > f32(ny)) return 0.0f;
+
+    if (p.x <= 0.5f) {
+      const auto row = mat[0];
+      return Self::load_1d(row, {p.y});
+    }
+
+    if (p.x >= f32(nx) - 0.5f) {
+      const auto row = mat[nx - 1];
+      return Self::load_1d(row, {p.y});
+    }
+
+    const auto fx = p.x - 0.5f;
+    const auto fy = p.y - 0.5f;
+    const auto ix = u32(fx);
+    const auto iy = u32(fy);
+    const auto px = fx - f32(ix);
+    const auto py = fy - f32(iy);
+
+    const auto t00 = mat.get(ix + 0, iy + 0);
+    const auto t01 = mat.get(ix + 0, iy + 1);
+    const auto t10 = mat.get(ix + 1, iy + 0);
+    const auto t11 = mat.get(ix + 1, iy + 1);
+
+    const auto t0y = Self::interp(py, t00, t01);
+    const auto t1y = Self::interp(py, t10, t11);
+    const auto val = Self::interp(px, t0y, t1y);
+    return val;
+  }
+};
 
 }  // namespace sfc::math

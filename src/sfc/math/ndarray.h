@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sfc/math/rawbuf.h"
-#include "sfc/math/ndview.h"
+#include "sfc/math/ndslice.h"
 
 namespace sfc::math {
 

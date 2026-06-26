@@ -32,25 +32,25 @@ struct NdSlice<T, 1> {
     return _shape[0];
   }
 
-  __hd auto operator[](u32 idx) const -> const T& {
-    return _data[idx * _strides[0]];
+  __hd auto operator[](u32 i) const -> const T& {
+    return _data[i * _strides[0]];
   }
 
-  __hd auto operator[](u32 idx) -> T& {
-    return _data[idx * _strides[0]];
+  __hd auto operator[](u32 i) -> T& {
+    return _data[i * _strides[0]];
   }
 
-  __hd auto contains(const u32 (&indices)[NDIM]) const -> bool {
-    return indices[0] < _shape[0];
+  __hd auto contains(u32 i) const -> bool {
+    return i < _shape[0];
   }
 
-  __hd auto get(const u32 (&indices)[NDIM]) const -> const T& {
-    const auto offset = indices[0] * _strides[0];
+  __hd auto get(u32 i) const -> const T& {
+    const auto offset = i * _strides[0];
     return _data[offset];
   }
 
-  __hd void set(const u32 (&indices)[NDIM], const T& value) {
-    const auto offset = indices[0] * _strides[0];
+  __hd void set(u32 i, const T& value) {
+    const auto offset = i * _strides[0];
     _data[offset] = value;
   }
 
@@ -105,17 +105,17 @@ struct NdSlice<T, 2> {
     return _shape[0] * _shape[1];
   }
 
-  __hd auto contains(const u32 (&indices)[NDIM]) const -> bool {
-    return indices[0] < _shape[0] && indices[1] < _shape[1];
+  __hd auto contains(u32 i, u32 j) const -> bool {
+    return i < _shape[0] && j < _shape[1];
   }
 
-  __hd auto get(const u32 (&indices)[NDIM]) const -> const T& {
-    const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1];
+  __hd auto get(u32 i, u32 j) const -> const T& {
+    const auto offset = i * _strides[0] + j * _strides[1];
     return _data[offset];
   }
 
-  __hd void set(const u32 (&indices)[NDIM], const T& value) {
-    const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1];
+  __hd void set(u32 i, u32 j, const T& value) {
+    const auto offset = i * _strides[0] + j * _strides[1];
     _data[offset] = value;
   }
 
@@ -180,17 +180,17 @@ struct NdSlice<T, 3> {
     return _shape[0] * _shape[1] * _shape[2];
   }
 
-  __hd auto contains(const u32 (&indices)[NDIM]) const -> bool {
-    return indices[0] < _shape[0] && indices[1] < _shape[1] && indices[2] < _shape[2];
+  __hd auto contains(u32 i, u32 j, u32 k) const -> bool {
+    return i < _shape[0] && j < _shape[1] && k < _shape[2];
   }
 
-  __hd auto get(const u32 (&indices)[NDIM]) const -> const T& {
-    const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1] + indices[2] * _strides[2];
+  __hd auto get(u32 i, u32 j, u32 k) const -> const T& {
+    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2];
     return _data[offset];
   }
 
-  __hd void set(const u32 (&indices)[NDIM], const T& value) {
-    const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1] + indices[2] * _strides[2];
+  __hd void set(u32 i, u32 j, u32 k, const T& value) {
+    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2];
     _data[offset] = value;
   }
 
@@ -254,19 +254,17 @@ struct NdSlice<T, 4> {
     return _shape[0] * _shape[1] * _shape[2] * _shape[3];
   }
 
-  __hd auto contains(const u32 (&indices)[NDIM]) const -> bool {
-    return indices[0] < _shape[0] && indices[1] < _shape[1] && indices[2] < _shape[2] && indices[3] < _shape[3];
+  __hd auto contains(u32 i, u32 j, u32 k, u32 l) const -> bool {
+    return i < _shape[0] && j < _shape[1] && k < _shape[2] && l < _shape[3];
   }
 
-  __hd auto get(const u32 (&indices)[NDIM]) const -> const T& {
-    const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1] + indices[2] * _strides[2] +
-                        indices[3] * _strides[3];
+  __hd auto get(u32 i, u32 j, u32 k, u32 l) const -> const T& {
+    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2] + l * _strides[3];
     return _data[offset];
   }
 
-  __hd void set(const u32 (&indices)[NDIM], const T& value) {
-    const auto offset = indices[0] * _strides[0] + indices[1] * _strides[1] + indices[2] * _strides[2] +
-                        indices[3] * _strides[3];
+  __hd void set(u32 i, u32 j, u32 k, u32 l, const T& value) {
+    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2] + l * _strides[3];
     _data[offset] = value;
   }
 
@@ -275,11 +273,5 @@ struct NdSlice<T, 4> {
     return {data, {_shape[1], _shape[2], _shape[3]}, {_strides[1], _strides[2], _strides[3]}};
   }
 };
-
-template <class T, int N0>
-NdSlice(T (&)[N0]) -> NdSlice<T, 1>;
-
-template <class T, int N0, int N1>
-NdSlice(T (&)[N0][N1]) -> NdSlice<T, 2>;
 
 }  // namespace sfc::math
