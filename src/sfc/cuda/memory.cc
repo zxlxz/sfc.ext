@@ -13,14 +13,14 @@ struct alignas(256) SimdBlock {
 };
 
 auto heap_alloc(usize size) -> void* {
-  static auto& a = alloc::global();
-  const auto p = a.alloc({size, alignof(SimdBlock)});
+  using A = alloc::Global;
+  const auto p = A::allocate({size, alignof(SimdBlock)});
   return p;
 }
 
 void heap_free(void* ptr) {
-  static auto& a = alloc::global();
-  return a.dealloc(ptr, {0, alignof(SimdBlock)});
+  using A = alloc::Global;
+  A::deallocate(ptr, {0, alignof(SimdBlock)});
 }
 
 auto host_alloc(usize size) -> void* {

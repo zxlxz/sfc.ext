@@ -1,6 +1,6 @@
 #include "sfc/test.h"
 #include "sfc/io.h"
-#include "sfc/math/ndview.h"
+#include "sfc/math/ndslice.h"
 
 namespace sfc::math::test {
 

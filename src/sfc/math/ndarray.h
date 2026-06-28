@@ -8,11 +8,10 @@ namespace sfc::math {
 template <class T, u32 N>
 class [[nodiscard]] NdArray {
   static constexpr u32 NDIM = N;
-  using Buf = RawBuf<T>;
+  using Buf = RawBuf<>;
   using Inn = NdSlice<T, NDIM>;
-
-  Buf _buf = {};
-  Inn _inn = {};
+  Buf _buf{};
+  Inn _inn{};
 
  public:
   NdArray() noexcept : _buf{}, _inn{nullptr, {}, {}} {}
@@ -28,7 +27,7 @@ class [[nodiscard]] NdArray {
     }
     auto inn = Inn{nullptr, shape, strides};
     auto buf = Buf::with_capacity(inn.numel(), {mtype});
-    inn._data = buf.ptr();
+    inn._data = ptr::cast<T>(buf.ptr());
 
     auto res = NdArray{};
     res._buf = mem::move(buf);
@@ -100,10 +99,10 @@ class [[nodiscard]] NdArray {
 template <class T>
 class [[nodiscard]] NdArray<T, 1> {
   static constexpr u32 NDIM = 1;
-  using Buf = RawBuf<T>;
+  using Buf = RawBuf<>;
   using Inn = NdSlice<T, NDIM>;
-  Buf _buf = {};
-  Inn _inn = {};
+  Buf _buf{};
+  Inn _inn{};
 
  public:
   NdArray() noexcept : _buf{}, _inn{nullptr, {}, {}} {}
@@ -115,7 +114,7 @@ class [[nodiscard]] NdArray<T, 1> {
   static auto with_shape(const u32 (&shape)[NDIM], MemType mtype = MemType::CPU) -> NdArray {
     auto inn = Inn{nullptr, shape, {1}};
     auto buf = Buf::with_capacity(inn.numel(), {mtype});
-    inn._data = buf.ptr();
+    inn._data = ptr::cast<T>(buf.ptr());
 
     auto res = NdArray{};
     res._buf = mem::move(buf);
