@@ -31,4 +31,9 @@ class FFTW {
   void operator()(math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR = -1);
 };
 
+template <class I, class O>
+auto fftw(u32 len) -> FFTW<I, O> {
+  return FFTW<I, O>::create(len);
+}
+
 }  // namespace sfc::fft

@@ -10,6 +10,8 @@ struct NdSlice;
 template <class T>
 struct NdSlice<T, 1> {
   static constexpr u32 NDIM = 1U;
+  using Item = T;
+
   T* _data = nullptr;
   u32 _shape[NDIM] = {};
   u32 _strides[NDIM] = {};
@@ -83,6 +85,8 @@ struct NdSlice<T, 1> {
 template <class T>
 struct NdSlice<T, 2> {
   static constexpr u32 NDIM = 2;
+  using Item = T;
+
   T* _data = nullptr;
   u32 _shape[NDIM] = {};
   u32 _strides[NDIM] = {};
@@ -158,6 +162,8 @@ struct NdSlice<T, 2> {
 template <class T>
 struct NdSlice<T, 3> {
   static constexpr u32 NDIM = 3U;
+  using Item = T;
+
   T* _data = nullptr;
   u32 _shape[NDIM] = {};
   u32 _strides[NDIM] = {};
@@ -230,6 +236,8 @@ struct NdSlice<T, 3> {
 template <class T>
 struct NdSlice<T, 4> {
   static constexpr u32 NDIM = 4U;
+  using Item = T;
+
   T* _data = nullptr;
   u32 _shape[NDIM] = {};
   u32 _strides[NDIM] = {};

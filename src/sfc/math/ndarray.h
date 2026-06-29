@@ -1,15 +1,50 @@
 #pragma once
 
-#include "sfc/math/rawbuf.h"
 #include "sfc/math/ndslice.h"
+#include "sfc/math/alloc.h"
 
 namespace sfc::math {
+
+class RawBuf {
+  using A = PoolAllocator;
+
+  void* _ptr{nullptr};
+  usize _size{0};
+  MemType _mtype{MemType::CPU};
+  [[no_unique_address]] A _alloc{};
+
+ public:
+  explicit RawBuf() noexcept;
+  ~RawBuf();
+
+  RawBuf(RawBuf&& other) noexcept;
+  RawBuf& operator=(RawBuf&& other) noexcept;
+
+  static auto xnew(usize size, MemType mtype) -> RawBuf;
+
+ public:
+  auto ptr() const -> void* {
+    return _ptr;
+  }
+
+  auto size() const -> usize {
+    return _size;
+  }
+
+  auto mtype() const -> MemType {
+    return _mtype;
+  }
+
+  void bzero();
+};
 
 template <class T, u32 N>
 class [[nodiscard]] NdArray {
   static constexpr u32 NDIM = N;
-  using Buf = RawBuf<>;
+  using Buf = RawBuf;
   using Inn = NdSlice<T, NDIM>;
+  using Shape = u32[NDIM];
+
   Buf _buf{};
   Inn _inn{};
 
@@ -20,19 +55,23 @@ class [[nodiscard]] NdArray {
   NdArray(NdArray&& other) noexcept = default;
   NdArray& operator=(NdArray&& other) noexcept = default;
 
-  static auto with_shape(const u32 (&shape)[NDIM], MemType mtype = {}) -> NdArray {
+  static auto from_buf(Buf buf, const Shape& shape) -> NdArray {
     u32 strides[NDIM] = {};
     for (auto i = NDIM; i != 0; --i) {
       strides[i - 1] = i == NDIM ? 1 : shape[i] * strides[i];
     }
-    auto inn = Inn{nullptr, shape, strides};
-    auto buf = Buf::with_capacity(inn.numel(), {mtype});
-    inn._data = ptr::cast<T>(buf.ptr());
 
+    const auto ptr = ptr::cast<T>(buf.ptr());
     auto res = NdArray{};
     res._buf = mem::move(buf);
-    res._inn = inn;
+    res._inn = Inn{ptr, shape, strides};
     return res;
+  }
+
+  static auto xnew(const Shape& shape, MemType mtype) -> NdArray {
+    const auto numel = Inn{nullptr, shape, {}}.numel();
+    auto buf = Buf::xnew(numel * sizeof(T), mtype);
+    return NdArray::from_buf(mem::move(buf), shape);
   }
 
   auto buf() -> Buf& {
@@ -51,7 +90,7 @@ class [[nodiscard]] NdArray {
     return _inn.numel();
   }
 
-  auto shape() const -> const u32 (&)[NDIM] {
+  auto shape() const -> const Shape& {
     return _inn._shape;
   }
 
@@ -86,7 +125,7 @@ class [[nodiscard]] NdArray {
   }
 
   auto clone(MemType mtype) const -> NdArray {
-    auto res = NdArray::with_shape(this->shape(), mtype);
+    auto res = NdArray::xnew(_inn.shape, mtype);
     res._buf.copy_from(_buf);
     return res;
   }
@@ -99,8 +138,9 @@ class [[nodiscard]] NdArray {
 template <class T>
 class [[nodiscard]] NdArray<T, 1> {
   static constexpr u32 NDIM = 1;
-  using Buf = RawBuf<>;
+  using Buf = RawBuf;
   using Inn = NdSlice<T, NDIM>;
+  using Shape = u32[NDIM];
   Buf _buf{};
   Inn _inn{};
 
@@ -111,15 +151,19 @@ class [[nodiscard]] NdArray<T, 1> {
   NdArray(NdArray&& other) noexcept = default;
   NdArray& operator=(NdArray&& other) noexcept = default;
 
-  static auto with_shape(const u32 (&shape)[NDIM], MemType mtype = MemType::CPU) -> NdArray {
-    auto inn = Inn{nullptr, shape, {1}};
-    auto buf = Buf::with_capacity(inn.numel(), {mtype});
-    inn._data = ptr::cast<T>(buf.ptr());
+  static auto from_buf(Buf buf, const Shape& shape) -> NdArray {
+    const auto ptr = ptr::cast<T>(buf.ptr());
 
     auto res = NdArray{};
     res._buf = mem::move(buf);
-    res._inn = inn;
+    res._inn = Inn{ptr, shape, {1}};
     return res;
+  }
+
+  static auto xnew(const Shape& shape, MemType mtype) -> NdArray {
+    const auto size = Inn{nullptr, shape, {}}.numel();
+    auto buf = Buf::xnew(size * sizeof(T), mtype);
+    return NdArray::from_buf(mem::move(buf), shape);
   }
 
   auto buf() -> Buf& {
@@ -177,7 +221,7 @@ class [[nodiscard]] NdArray<T, 1> {
   }
 
   auto clone(MemType mtype) const -> NdArray {
-    auto res = NdArray::with_shape(this->shape(), mtype);
+    auto res = NdArray::xnew(_inn.shape, mtype);
     res._buf.copy_from(_buf);
     return res;
   }
@@ -186,5 +230,10 @@ class [[nodiscard]] NdArray<T, 1> {
     _inn.fmt(f);
   }
 };
+
+template <class T, u32 N>
+auto array(const u32 (&shape)[N], MemType mtype = MemType::CPU) -> NdArray<T, N> {
+  return NdArray<T, N>::xnew(shape, mtype);
+}
 
 }  // namespace sfc::math

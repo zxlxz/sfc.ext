@@ -37,7 +37,7 @@ static auto buffer_new(Extent ext, bool is_layered) -> buf_t {
   }
 
   const auto desc = cuda::array_format<T>();
-  const auto flags = is_layered ? cudaArrayLayered : cudaArrayDefault;
+  const auto flags = is_layered ? u32{cudaArrayLayered} : u32{cudaArrayDefault};
   const auto extent = cudaExtent{ext.width, ext.height, ext.depth};
 
   auto res = buf_t{nullptr};

@@ -29,4 +29,9 @@ class CUFFT {
   void operator()(math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR = -1);
 };
 
+template <class I, class O>
+auto cufft(u32 len, u32 batch) -> CUFFT<I, O> {
+  return CUFFT<I, O>::create(len, batch);
+}
+
 }  // namespace sfc::fft

@@ -6,10 +6,12 @@ namespace sfc::math {
 
 template <class V>
 struct NearestSampler {
-  V _view;
   using Self = NearestSampler;
+  using Item = V::Item;
 
-  __hd auto load_1d(f32 x) const -> f32 {
+  V _view;
+
+  __hd auto load_1d(f32 x) const -> Item {
     const auto nx = _view._shape[0];
     if (x < 0 || x >= f32(nx)) return 0.0f;
 
@@ -18,7 +20,7 @@ struct NearestSampler {
     return val;
   }
 
-  __hd auto load_2d(f32 x, f32 y) const -> f32 {
+  __hd auto load_2d(f32 x, f32 y) const -> Item {
     const auto nx = _view._shape[0];
     const auto ny = _view._shape[1];
     if (x < 0 || x >= f32(nx)) return 0.0f;
