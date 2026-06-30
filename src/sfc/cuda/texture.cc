@@ -58,11 +58,11 @@ auto Texture<T, N>::operator=(Texture&& other) noexcept -> Texture& {
 }
 
 template <class T, int N>
-auto Texture<T, N>::with_shape(Dim dims, TexFilt filt_mode, TexAddr addr_mode) -> Texture {
-  const auto ext = Extent::from(dims);
+auto Texture<T, N>::xnew(const Shape& shape, TexFilt filt, TexAddr addr) -> Texture {
+  const auto ext = Extent::from(shape);
   auto res = Texture{};
   res._buf = Buf::xnew(ext);
-  res._tex = {cuda::texture_new(res._buf.as_ptr(), filt_mode, addr_mode)};
+  res._tex = {cuda::texture_new(res._buf.as_ptr(), filt, addr)};
   return res;
 }
 
@@ -93,11 +93,11 @@ auto LTexture<T, N>::operator=(LTexture&& other) noexcept -> LTexture& {
 }
 
 template <class T, int N>
-auto LTexture<T, N>::with_shape(Dim dims, TexFilt filt_mode, TexAddr addr_mode) -> LTexture {
-  const auto ext = Extent::from(dims);
+auto LTexture<T, N>::xnew(const Shape& shape, TexFilt filt, TexAddr addr) -> LTexture {
+  const auto ext = Extent::from(shape);
   auto res = LTexture{};
   res._buf = Buf::xnew(ext);
-  res._tex = {cuda::texture_new(res._buf.as_ptr(), filt_mode, addr_mode)};
+  res._tex = {cuda::texture_new(res._buf.as_ptr(), filt, addr)};
   return res;
 }
 

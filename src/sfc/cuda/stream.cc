@@ -3,6 +3,8 @@
 
 namespace sfc::cuda {
 
+static thread_local stream_t _tls_stream = nullptr;
+
 auto stream_new(unsigned int flags) -> stream_t {
   auto stream = stream_t{nullptr};
   CHECK_RET(cudaStreamCreateWithFlags, &stream, flags);
@@ -10,16 +12,20 @@ auto stream_new(unsigned int flags) -> stream_t {
 }
 
 void stream_del(stream_t s) {
-  if (s == nullptr) return;
+  if (s == nullptr) {
+    return;
+  }
+
   CHECK_RET(cudaStreamDestroy, s);
 }
 
 void stream_sync(stream_t s) {
-  if (s == nullptr) return;
+  if (s == nullptr) {
+    return;
+  }
+
   CHECK_RET(cudaStreamSynchronize, s);
 }
-
-static thread_local stream_t _tls_stream = nullptr;
 
 void stream_set(stream_t s) {
   _tls_stream = s;
@@ -32,6 +38,10 @@ auto stream_get() -> stream_t {
 Stream::Stream() noexcept {}
 
 Stream::~Stream() noexcept {
+  if (_raw == nullptr) {
+    return;
+  }
+
   cuda::stream_del(_raw);
 }
 
@@ -40,13 +50,9 @@ Stream::Stream(Stream&& other) noexcept : _raw{other._raw} {
 }
 
 Stream& Stream::operator=(Stream&& other) noexcept {
-  if (this == &other) {
-    return *this;
+  if (this != &other) {
+    mem::swap(_raw, other._raw);
   }
-
-  cuda::stream_del(_raw);
-  _raw = other._raw;
-  other._raw = nullptr;
   return *this;
 }
 

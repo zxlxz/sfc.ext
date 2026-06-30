@@ -81,6 +81,10 @@ Buffer<T>::Buffer() noexcept : _arr{nullptr}, _ext{} {}
 
 template <class T>
 Buffer<T>::~Buffer() {
+  if (_arr == nullptr) {
+    return;
+  }
+
   cuda::buffer_del(_arr);
 }
 

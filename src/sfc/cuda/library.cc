@@ -35,15 +35,12 @@ void lib_unload(lib_t lib) {
   if (lib == nullptr) {
     return;
   }
+
   CHECK_RET(cudaLibraryUnload, lib);
 }
 
 auto lib_get_kernel(lib_t lib, const char* name) -> kernel_t {
-  if (lib == nullptr) {
-    return nullptr;
-  }
-
-  if (name == nullptr) {
+  if (lib == nullptr || name == nullptr) {
     return nullptr;
   }
 
