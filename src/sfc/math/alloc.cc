@@ -59,8 +59,11 @@ class MemBucket {
       return;
     }
 
-    this->try_dealloc_all(seq);
-    this->try_dealloc_one();
+    if (this->try_dealloc_all(seq)) {
+      return;
+    }
+
+    this->try_dealloc_some();
   }
 
   void deallocate(void* ptr, usize seq) {
@@ -80,11 +83,22 @@ class MemBucket {
 
  private:
   auto max_unused_age() const -> usize {
-    if (_blk_size <= 1U << 20) return 64;   // 1MB
-    if (_blk_size <= 4U << 20) return 32;   // 4MB
-    if (_blk_size <= 32U << 20) return 8;   // 32M
-    if (_blk_size <= 128U << 20) return 4;  // 128MB
-    if (_blk_size <= 512U << 20) return 2;  // 512MB
+    struct Conf {
+      usize size;
+      usize age;
+    };
+    static const Conf cfgs[] = {
+        {1U << 20, 64},   // 1MB
+        {8U << 20, 32},   // 8MB
+        {64U << 20, 8},   // 64MB
+        {256U << 20, 4},  // 256MB
+        {512U << 20, 2},  // 512MB
+    };
+    for (auto& cfg : cfgs) {
+      if (_blk_size <= cfg.size) {
+        return cfg.age;
+      }
+    }
     return 1;
   }
 
@@ -105,38 +119,54 @@ class MemBucket {
     _blk_cnt -= 1;
   }
 
-  void try_dealloc_all(usize seq) {
+  auto try_dealloc_all(usize seq) -> bool {
     if (this->used_count() != 0) {
-      return;
+      return false;
     }
 
     const auto last = _free_list.last().unwrap();
     const auto max_age = this->max_unused_age();
     if (seq - last.seq < max_age) {
-      return;
+      return false;
     }
     this->clear();
+    return true;
   }
 
-  void try_dealloc_one() {
+  auto try_dealloc_some() -> u32 {
+    if (_free_list.is_empty()) {
+      return 0;
+    }
+
+    const auto max_cnt = 1 + _free_list.len() / 4;
+    for (auto idx = 0U; idx < max_cnt; ++idx) {
+      if (!this->try_dealloc_one()) {
+        return idx;
+      }
+    }
+    return max_cnt;
+  }
+
+  auto try_dealloc_one() -> bool {
     if (this->free_count() == 0) {
-      return;
+      return false;
     }
 
     const auto max_range = this->max_hold_seq_range();
     const auto first = _free_list.first().unwrap();
     const auto last = _free_list.last().unwrap();
     if (first.seq + max_range >= last.seq) {
-      return;
+      return false;
     }
     this->slow_deallocate(first.ptr);
     _free_list.drain({0, 1});
+    return true;
   }
 };
 
 class MemPool {
   MemType _mem_type;
-  usize _dealloc_seq{0};
+  usize _seq{0};
   List<MemBucket> _free_list;
   sync::Mutex _mutex;
 
@@ -160,6 +190,10 @@ class MemPool {
 
  public:
   auto allocate(usize size) -> void* {
+    if (size == 0) {
+      return nullptr;
+    }
+
     auto lock = _mutex.lock();
 
     auto& bucket = this->bucket(size);
@@ -172,7 +206,7 @@ class MemPool {
     return ptr;
   }
 
-  auto deallocate(void* ptr, usize size) {
+  void deallocate(void* ptr, usize size) {
     if (ptr == nullptr) {
       return;
     }
@@ -180,14 +214,14 @@ class MemPool {
     auto lock = _mutex.lock();
     auto& bucket = this->bucket(size);
 
-    _dealloc_seq += 1;
-    bucket.deallocate(ptr, _dealloc_seq);
+    _seq += 1;
+    bucket.deallocate(ptr, _seq);
   }
 
   void shutdown() {
     auto lock = _mutex.lock();
     _free_list.clear();
-    _dealloc_seq = 0;
+    _seq = 0;
   }
 
  private:
@@ -203,7 +237,7 @@ class MemPool {
 
   void prepare_slow_alloc() {
     for (auto& bucket : _free_list.as_mut_slice()) {
-      bucket.prepare_slow_alloc(_dealloc_seq);
+      bucket.prepare_slow_alloc(_seq);
     }
   }
 };

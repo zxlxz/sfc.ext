@@ -2,14 +2,7 @@
 
 #include "sfc/cuda/tex.h"
 #include "sfc/cuda/buffer.h"
-
-namespace sfc::math {
-template <class T, int N>
-struct vec;
-
-template <class T, int N>
-struct NdSlice;
-}  // namespace sfc::math
+#include "sfc/math/ndslice.h"
 
 namespace sfc::cuda {
 

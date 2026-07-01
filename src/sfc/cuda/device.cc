@@ -38,7 +38,8 @@ auto device_prop(u32 dev) -> const cudaDeviceProp& {
     return props[kMaxDevCount - 1];
   }
 
-  if (props[dev].totalGlobalMem == 0) {
+  const auto is_init = props[dev].totalGlobalMem != 0;
+  if (!is_init) {
     const auto device = num::cast_signed(dev);
     CHECK_RET(cudaGetDeviceProperties, &props[dev], device);
   }
@@ -58,7 +59,8 @@ auto Device::name() const -> Str {
 
 auto Device::compute_capability() const -> u32 {
   const auto& p = cuda::device_prop(id);
-  return num::cast_unsigned(p.major * 10 + p.minor);
+  const auto ret = p.major * 10 + p.minor;
+  return num::cast_unsigned(ret);
 }
 auto Device::sm_count() const -> u32 {
   const auto& p = cuda::device_prop(id);

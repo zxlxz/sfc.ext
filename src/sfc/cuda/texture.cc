@@ -59,9 +59,8 @@ auto Texture<T, N>::operator=(Texture&& other) noexcept -> Texture& {
 
 template <class T, int N>
 auto Texture<T, N>::xnew(const Shape& shape, TexFilt filt, TexAddr addr) -> Texture {
-  const auto ext = Extent::from(shape);
   auto res = Texture{};
-  res._buf = Buf::xnew(ext);
+  res._buf = Buf::xnew(shape);
   res._tex = {cuda::texture_new(res._buf.as_ptr(), filt, addr)};
   return res;
 }
@@ -94,9 +93,8 @@ auto LTexture<T, N>::operator=(LTexture&& other) noexcept -> LTexture& {
 
 template <class T, int N>
 auto LTexture<T, N>::xnew(const Shape& shape, TexFilt filt, TexAddr addr) -> LTexture {
-  const auto ext = Extent::from(shape);
   auto res = LTexture{};
-  res._buf = Buf::xnew(ext);
+  res._buf = Buf::xnew(shape);
   res._tex = {cuda::texture_new(res._buf.as_ptr(), filt, addr)};
   return res;
 }

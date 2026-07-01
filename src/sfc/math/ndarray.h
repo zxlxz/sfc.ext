@@ -68,7 +68,7 @@ class [[nodiscard]] NdArray {
     return res;
   }
 
-  static auto xnew(const Shape& shape, MemType mtype) -> NdArray {
+  static auto xnew(const Shape& shape, MemType mtype = MemType::CPU) -> NdArray {
     const auto numel = Inn{nullptr, shape, {}}.numel();
     auto buf = Buf::xnew(numel * sizeof(T), mtype);
     return NdArray::from_buf(mem::move(buf), shape);
@@ -160,7 +160,7 @@ class [[nodiscard]] NdArray<T, 1> {
     return res;
   }
 
-  static auto xnew(const Shape& shape, MemType mtype) -> NdArray {
+  static auto xnew(const Shape& shape, MemType mtype = MemType::CPU) -> NdArray {
     const auto size = Inn{nullptr, shape, {}}.numel();
     auto buf = Buf::xnew(size * sizeof(T), mtype);
     return NdArray::from_buf(mem::move(buf), shape);

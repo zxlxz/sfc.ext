@@ -28,8 +28,9 @@ auto host_alloc(usize size) -> void* {
     return nullptr;
   }
 
-  const auto flags = u32{cudaHostAllocDefault};
+  const u32 flags = cudaHostAllocDefault;
   void* ptr = nullptr;
+
   CHECK_RET(cudaHostAlloc, &ptr, size, flags);
   return ptr;
 }
@@ -65,8 +66,9 @@ auto managed_alloc(usize size) -> void* {
     return nullptr;
   }
 
+  const u32 flags = cudaMemAttachGlobal;
   void* ptr = nullptr;
-  CHECK_RET(cudaMallocManaged, &ptr, size, u32{cudaMemAttachGlobal});
+  CHECK_RET(cudaMallocManaged, &ptr, size, flags);
   return ptr;
 }
 
@@ -106,8 +108,7 @@ void fill_bytes(void* ptr, u8 val, usize size) {
     return;
   }
 
-  const auto stream = cuda::stream_get();
-  if (stream) {
+  if (auto stream = cuda::stream_get()) {
     CHECK_RET(cudaMemsetAsync, ptr, val, size, stream);
   } else {
     CHECK_RET(cudaMemset, ptr, val, size);
@@ -123,8 +124,7 @@ void copy_bytes(const void* src, void* dst, usize size) {
     cuda::check_ret(cudaErrorInvalidValue, "cudaMemcpy");
   }
 
-  const auto stream = cuda::stream_get();
-  if (stream) {
+  if (auto stream = cuda::stream_get()) {
     CHECK_RET(cudaMemcpyAsync, dst, src, size, cudaMemcpyDefault, stream);
   } else {
     CHECK_RET(cudaMemcpy, dst, src, size, cudaMemcpyDefault);
