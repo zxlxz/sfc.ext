@@ -76,8 +76,8 @@ SFC_TEST(fft_r2c_perf) {
   for (auto BATCH : batchs) {
     io::println(" === Batch = {} === ", BATCH);
     for (const auto N : lens) {
-      auto X = math::array<f32>({N, BATCH}, MemKind::GPU);
-      auto Y = math::array<c32>({N / 2 + 1, BATCH}, MemKind::GPU);
+      auto X = math::array<f32>({N, BATCH}, {MemKind::GPU});
+      auto Y = math::array<c32>({N / 2 + 1, BATCH}, {MemKind::GPU});
       X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();

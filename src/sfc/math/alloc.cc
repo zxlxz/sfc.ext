@@ -1,6 +1,7 @@
 #include "sfc/sync.h"
 #include "sfc/math/alloc.h"
 #include "sfc/cuda/memory.h"
+#include "sfc/cuda/device.h"
 
 namespace sfc::math {
 
@@ -10,13 +11,13 @@ class MemBucket {
     usize seq;
   };
 
-  const MemKind _mem_type;
+  const MemLocation _location;
   const usize _blk_size;
   usize _blk_cnt{0};
   List<Info> _free_list{};
 
  public:
-  explicit MemBucket(MemKind type, usize size) : _mem_type{type}, _blk_size{size} {}
+  explicit MemBucket(MemLocation location, usize size) : _location{location}, _blk_size{size} {}
 
   ~MemBucket() {
     this->clear();
@@ -47,7 +48,7 @@ class MemBucket {
   }
 
   void* slow_allocate() {
-    const auto ptr = SysAllocator::allocate(_blk_size, _mem_type);
+    const auto ptr = SysAllocator::allocate(_blk_size, _location);
     if (ptr != nullptr) {
       _blk_cnt += 1;
     }
@@ -115,7 +116,7 @@ class MemBucket {
   }
 
   void slow_deallocate(void* ptr) {
-    SysAllocator::deallocate(ptr, _blk_size, _mem_type);
+    SysAllocator::deallocate(ptr, _blk_size, _location);
     _blk_cnt -= 1;
   }
 
@@ -165,28 +166,15 @@ class MemBucket {
 };
 
 class MemPool {
-  MemKind _mem_type;
-  usize _seq{0};
+  sync::Mutex _mutex{};
+  MemLocation _location;
   List<MemBucket> _free_list;
-  sync::Mutex _mutex;
+  usize _seq{0};
 
  public:
-  MemPool(MemKind mtype) : _mem_type{mtype} {}
+  MemPool(MemLocation location) : _location{location} {}
 
   ~MemPool() {}
-
-  static auto instance(MemKind mtype) -> MemPool& {
-    static MemPool cpu_pool{MemKind::CPU};
-    static MemPool gpu_pool{MemKind::GPU};
-    static MemPool uva_pool{MemKind::UVA};
-
-    switch (mtype) {
-      default:           return cpu_pool;
-      case MemKind::CPU: return cpu_pool;
-      case MemKind::GPU: return gpu_pool;
-      case MemKind::UVA: return uva_pool;
-    }
-  }
 
  public:
   auto allocate(usize size) -> void* {
@@ -231,7 +219,7 @@ class MemPool {
         return b;
       }
     }
-    auto& bucket = _free_list.push(MemBucket{_mem_type, size});
+    auto& bucket = _free_list.push(MemBucket{_location, size});
     return bucket;
   }
 
@@ -242,21 +230,33 @@ class MemPool {
   }
 };
 
-auto SysAllocator::allocate(usize size, MemKind mtype) -> void* {
+auto SysAllocator::allocate(usize size, MemLocation location) -> void* {
   if (size == 0) return nullptr;
 
-  switch (mtype) {
+  switch (location.kind) {
     default:           return nullptr;
-    case MemKind::CPU: return cuda::heap_alloc(size);
-    case MemKind::GPU: return cuda::device_alloc(size);
-    case MemKind::UVA: return cuda::managed_alloc(size);
+    case MemKind::CPU: {
+      const auto p = cuda::heap_alloc(size);
+      return p;
+    }
+    case MemKind::GPU: {
+      auto dev = cuda::device_get();
+      cuda::device_set(location.device);
+      const auto p = cuda::device_alloc(size);
+      cuda::device_set(dev);
+      return p;
+    }
+    case MemKind::UVA: {
+      const auto p = cuda::managed_alloc(size);
+      return p;
+    }
   }
 }
 
-void SysAllocator::deallocate(void* ptr, usize size, MemKind mtype) {
+void SysAllocator::deallocate(void* ptr, usize size, MemLocation location) {
   if (ptr == nullptr) return;
 
-  switch (mtype) {
+  switch (location.kind) {
     default:           return;
     case MemKind::CPU: return cuda::heap_free(ptr);
     case MemKind::GPU: return cuda::device_free(ptr);
@@ -264,13 +264,36 @@ void SysAllocator::deallocate(void* ptr, usize size, MemKind mtype) {
   }
 }
 
-auto PoolAllocator::allocate(usize size, MemKind mtype) -> void* {
-  auto& pool = MemPool::instance(mtype);
+auto PoolAllocator::pool(MemLocation location) -> MemPool& {
+  static MemPool cpu_pool{{MemKind::CPU, 0}};
+  static MemPool uva_pool{{MemKind::UVA, 0}};
+
+  static MemPool gpu_pools[] = {
+      {{MemKind::GPU, 0}},
+      {{MemKind::GPU, 1}},
+      {{MemKind::GPU, 2}},
+      {{MemKind::GPU, 3}},
+      {{MemKind::GPU, 4}},
+      {{MemKind::GPU, 5}},
+      {{MemKind::GPU, 6}},
+      {{MemKind::GPU, 7}},
+  };
+
+  switch (location.kind) {
+    default:           return cpu_pool;
+    case MemKind::CPU: return cpu_pool;
+    case MemKind::GPU: return gpu_pools[location.device];
+    case MemKind::UVA: return uva_pool;
+  }
+}
+
+auto PoolAllocator::allocate(usize size, MemLocation location) -> void* {
+  auto& pool = PoolAllocator::pool(location);
   return pool.allocate(size);
 }
 
-void PoolAllocator::deallocate(void* ptr, usize size, MemKind mtype) {
-  auto& pool = MemPool::instance(mtype);
+void PoolAllocator::deallocate(void* ptr, usize size, MemLocation location) {
+  auto& pool = PoolAllocator::pool(location);
   pool.deallocate(ptr, size);
 }
 

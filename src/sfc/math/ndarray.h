@@ -10,7 +10,7 @@ class RawBuf {
 
   u8* _ptr{nullptr};
   usize _size{0};
-  MemKind _kind{MemKind::CPU};
+  MemLocation _location{MemKind::CPU, 0};
   [[no_unique_address]] A _alloc{};
 
  public:
@@ -20,7 +20,7 @@ class RawBuf {
   RawBuf(RawBuf&& other) noexcept;
   RawBuf& operator=(RawBuf&& other) noexcept;
 
-  static auto xnew(usize size, MemKind memory) -> RawBuf;
+  static auto xnew(usize size, MemLocation location) -> RawBuf;
 
  public:
   auto ptr() const -> u8* {
@@ -31,8 +31,8 @@ class RawBuf {
     return _size;
   }
 
-  auto kind() const -> MemKind {
-    return _kind;
+  auto mem_location() const -> MemLocation {
+    return _location;
   }
 
  public:
@@ -70,14 +70,10 @@ class [[nodiscard]] NdArray {
     return res;
   }
 
-  static auto xnew(const Shape& shape, MemKind memory = MemKind::CPU) -> NdArray {
+  static auto xnew(const Shape& shape, MemLocation location = {}) -> NdArray {
     const auto numel = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::xnew(numel * sizeof(T), memory);
+    auto buf = Buf::xnew(numel * sizeof(T), location);
     return NdArray::from_buf(mem::move(buf), shape);
-  }
-
-  auto kind() const -> MemKind {
-    return _buf.kind();
   }
 
   auto data() const -> T* {
@@ -141,9 +137,13 @@ class [[nodiscard]] NdArray {
   }
 
   auto clone() const -> NdArray {
-    auto res = NdArray::xnew(_inn._shape, _buf.kind());
+    auto res = NdArray::xnew(_inn._shape, _buf.mem_location());
     res._buf.copy_from(_buf);
     return res;
+  }
+
+  auto mem_location() const -> MemLocation {
+    return _buf.mem_location();
   }
 
   void fmt(auto& f) const {
@@ -176,9 +176,9 @@ class [[nodiscard]] NdArray<T, 1> {
     return res;
   }
 
-  static auto xnew(const Shape& shape, MemKind memory = MemKind::CPU) -> NdArray {
+  static auto xnew(const Shape& shape, MemLocation location = {}) -> NdArray {
     const auto size = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::xnew(size * sizeof(T), memory);
+    auto buf = Buf::xnew(size * sizeof(T), location);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
@@ -186,8 +186,8 @@ class [[nodiscard]] NdArray<T, 1> {
     return _inn._data;
   }
 
-  auto kind() const -> MemKind {
-    return _buf.kind();
+  auto mem_location() const -> MemLocation {
+    return _buf.mem_location();
   }
 
   auto numel() const -> u32 {
@@ -251,7 +251,7 @@ class [[nodiscard]] NdArray<T, 1> {
   }
 
   auto clone() const -> NdArray {
-    auto res = NdArray::xnew(_inn.shape, _buf.kind());
+    auto res = NdArray::xnew(_inn.shape, _buf.mem_location());
     res._buf.copy_from(_buf);
     return res;
   }
@@ -262,8 +262,8 @@ class [[nodiscard]] NdArray<T, 1> {
 };
 
 template <class T, u32 N>
-auto array(const u32 (&shape)[N], MemKind memory = MemKind::CPU) -> NdArray<T, N> {
-  return NdArray<T, N>::xnew(shape, memory);
+auto array(const u32 (&shape)[N], MemLocation location = {}) -> NdArray<T, N> {
+  return NdArray<T, N>::xnew(shape, location);
 }
 
 }  // namespace sfc::math
