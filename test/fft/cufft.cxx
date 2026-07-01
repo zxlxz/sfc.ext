@@ -30,8 +30,8 @@ SFC_TEST(fft_c2c_perf) {
   for (auto BATCH : batchs) {
     io::println(" === Batch = {} === ", BATCH);
     for (const auto N : lens) {
-      auto X = NdArray<c32, 2>::xnew({N, BATCH}, MemType::GPU);
-      auto Y = NdArray<c32, 2>::xnew({N, BATCH}, MemType::GPU);
+      auto X = math::array<c32>({N, BATCH}, MemType::GPU);
+      auto Y = math::array<c32>({N, BATCH}, MemType::GPU);
       X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
@@ -76,13 +76,13 @@ SFC_TEST(fft_r2c_perf) {
   for (auto BATCH : batchs) {
     io::println(" === Batch = {} === ", BATCH);
     for (const auto N : lens) {
-      auto X = NdArray<f32, 2>::xnew({N, BATCH}, MemType::GPU);
-      auto Y = NdArray<c32, 2>::xnew({N / 2 + 1, BATCH}, MemType::GPU);
+      auto X = math::array<f32>({N, BATCH}, MemType::GPU);
+      auto Y = math::array<c32>({N / 2 + 1, BATCH}, MemType::GPU);
       X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
-      auto fft_r2c = CUFFT<f32, c32>::create(N, BATCH);
-      auto fft_c2r = CUFFT<c32, f32>::create(N, BATCH);
+      auto fft_r2c = fft::cufft<f32, c32>(N, BATCH);
+      auto fft_c2r = fft::cufft<c32, f32>(N, BATCH);
       cuda::device_sync();
       const auto t2 = time::Instant::now();
       fft_r2c(X, Y, -1);

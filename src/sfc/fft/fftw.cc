@@ -56,23 +56,110 @@ static void fft_exec(fft_plan_t plan, const I in[], O out[]) {
 
 }  // namespace fftw
 
+template <>
+struct FFTW<c32, c32>::Inn {
+  u32 _len;
+  fftw::fft_plan_t _c2c_fwd{nullptr};
+  fftw::fft_plan_t _c2c_inv{nullptr};
+  fftw::fft_plan_t _c2c_inplace_fwd{nullptr};
+  fftw::fft_plan_t _c2c_inplace_inv{nullptr};
+
+ public:
+  explicit Inn(u32 len) : _len{len} {
+    _c2c_inplace_fwd = fftw::fft_plan<c32, c32>(len, nullptr, nullptr, -1);
+    _c2c_inplace_inv = fftw::fft_plan<c32, c32>(len, nullptr, nullptr, +1);
+  }
+
+  ~Inn() {
+    fftw::fft_drop(_c2c_fwd);
+    fftw::fft_drop(_c2c_inv);
+    fftw::fft_drop(_c2c_inplace_fwd);
+    fftw::fft_drop(_c2c_inplace_inv);
+  }
+
+  Inn(const Inn&) = delete;
+  Inn& operator=(const Inn&) = delete;
+
+  auto plan(const c32 in[], c32 out[], int DIR) -> fftw::fft_plan_t {
+    auto& fwd_plan = in == out ? _c2c_inplace_fwd : _c2c_fwd;
+    auto& inv_plan = in == out ? _c2c_inplace_inv : _c2c_inv;
+    auto& plan = DIR < 0 ? fwd_plan : inv_plan;
+
+    if (plan == nullptr) {
+      plan = fftw::fft_plan<c32, c32>(_len, in, out, DIR);
+    }
+
+    return plan;
+  }
+};
+
+template <>
+struct FFTW<c32, f32>::Inn {
+  using plan_t = fftw::fft_plan_t;
+  plan_t _c2r{nullptr};
+
+ public:
+  explicit Inn(u32 len) {
+    _c2r = fftw::fft_plan<c32, f32>(len, nullptr, nullptr, -1);
+  }
+
+  ~Inn() {
+    fftw::fft_drop(_c2r);
+  }
+
+  Inn(const Inn&) = delete;
+  Inn& operator=(const Inn&) = delete;
+
+  auto plan([[maybe_unused]] const c32 in[], [[maybe_unused]] f32 out[], [[maybe_unused]] int DIR) -> plan_t {
+    return _c2r;
+  }
+};
+
+template <>
+struct FFTW<f32, c32>::Inn {
+  using plan_t = fftw::fft_plan_t;
+  plan_t _r2c{nullptr};
+
+ public:
+  explicit Inn(u32 len) {
+    _r2c = fftw::fft_plan<f32, c32>(len, nullptr, nullptr, -1);
+  }
+
+  ~Inn() {
+    fftw::fft_drop(_r2c);
+  }
+
+  Inn(const Inn&) = delete;
+  Inn& operator=(const Inn&) = delete;
+
+  auto plan([[maybe_unused]] const f32 in[], [[maybe_unused]] c32 out[], [[maybe_unused]] int DIR) -> plan_t {
+    return _r2c;
+  }
+};
+
 template <class I, class O>
 FFTW<I, O>::FFTW() noexcept {}
 
 template <class I, class O>
 FFTW<I, O>::~FFTW() {
-  fftw::fft_drop(_fwd);
-  fftw::fft_drop(_inv);
+  if (_inn == nullptr) {
+    return;
+  }
+  delete _inn;
 }
 
 template <class I, class O>
-FFTW<I, O>::FFTW(FFTW&& other) noexcept : _len{other._len}, _fwd{mem::take(other._fwd)}, _inv{mem::take(other._inv)} {}
+FFTW<I, O>::FFTW(FFTW&& other) noexcept : _len{other._len}, _inn{other._inn} {
+  other._len = 0;
+  other._inn = nullptr;
+}
 
 template <class I, class O>
 FFTW<I, O>& FFTW<I, O>::operator=(FFTW&& other) noexcept {
-  if (this == &other) return *this;
-  mem::swap(_fwd, other._fwd);
-  mem::swap(_inv, other._inv);
+  if (this != &other) {
+    mem::swap(_len, other._len);
+    mem::swap(_inn, other._inn);
+  }
   return *this;
 }
 
@@ -80,28 +167,8 @@ template <class I, class O>
 auto FFTW<I, O>::create(u32 len) -> FFTW {
   auto res = FFTW{};
   res._len = len;
-
-  if constexpr (sizeof(I) < sizeof(O)) {
-    res._fwd = fftw::fft_plan<I, O>(len, nullptr, nullptr, 0);
-  } else if constexpr (sizeof(I) > sizeof(O)) {
-    res._inv = fftw::fft_plan<I, O>(len, nullptr, nullptr, 0);
-  }
+  res._inn = new Inn(len);
   return res;
-}
-
-template <class I, class O>
-auto FFTW<I, O>::plan(const I in[], O out[], int DIR) -> plan_t {
-  if constexpr (sizeof(I) < sizeof(O)) {
-    return _fwd;
-  } else if constexpr (sizeof(I) > sizeof(O)) {
-    return _inv;
-  } else {
-    auto& plan = DIR < 0 ? _fwd : _inv;
-    if (plan == nullptr) {
-      plan = fftw::fft_plan(_len, in, out, DIR);
-    }
-    return plan;
-  }
 }
 
 template <class I, class O>
@@ -118,7 +185,7 @@ auto FFTW<I, O>::out_len() const -> usize {
 
 template <class I, class O>
 void FFTW<I, O>::exec(const I in[], O out[], int DIR) {
-  const auto plan = this->plan(in, out, DIR);
+  const auto plan = _inn->plan(in, out, DIR);
   fftw::fft_exec(plan, in, out);
 }
 

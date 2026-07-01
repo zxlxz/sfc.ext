@@ -3,16 +3,13 @@
 #include "sfc/math/complex.h"
 #include "sfc/math/ndarray.h"
 
-struct fftwf_plan_s;
-
 namespace sfc::fft {
 
 template <class I, class O>
 class FFTW {
-  using plan_t = ::fftwf_plan_s*;
+  struct Inn;
   u32 _len{0};
-  plan_t _fwd{nullptr};
-  plan_t _inv{nullptr};
+  Inn* _inn{nullptr};
 
  public:
   FFTW() noexcept;
@@ -24,7 +21,6 @@ class FFTW {
  public:
   auto in_len() const -> usize;
   auto out_len() const -> usize;
-  auto plan(const I in[], O out[], int DIR) -> plan_t;
   void exec(const I in[], O out[], int DIR = -1);
 
   void operator()(math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, int DIR = -1);
