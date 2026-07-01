@@ -20,6 +20,6 @@ void prefetch_cpu(void* ptr, usize size);
 void prefetch_gpu(void* ptr, usize size);
 
 void fill_bytes(void* ptr, u8 val, usize size);
-void copy_bytes(void* src, void* dst, usize size);
+void copy_bytes(const void* src, void* dst, usize size);
 
 }  // namespace sfc::cuda

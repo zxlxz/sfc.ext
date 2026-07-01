@@ -34,31 +34,39 @@ struct NdSlice<T, 1> {
     return _shape[0];
   }
 
-  __hd auto operator[](u32 i) const -> const T& {
-    // assume _strides[0] == 1
+  __hd auto operator[](u32 i) const -> T {
     return _data[i];
   }
 
   __hd auto operator[](u32 i) -> T& {
-    // assume _strides[0] == 1
     return _data[i];
   }
 
- public:
+  __hd auto operator[](const u32 (&idx)[1]) const -> T {
+    const auto offset = idx[0] * _strides[0];
+    return _data[offset];
+  }
+
+  __hd auto operator[](const u32 (&idx)[1]) -> T& {
+    const auto offset = idx[0] * _strides[0];
+    return _data[offset];
+  }
+
+  __hd auto get(u32 i) const -> const T& {
+    const auto offset = i * _strides[0];
+    return _data[offset];
+  }
+
+  __hd void set(u32 i, const T& value) {
+    const auto offset = i * _strides[0];
+    _data[offset] = value;
+  }
+
   __hd auto contains(u32 i) const -> bool {
     return i < _shape[0];
   }
 
-  __hd auto get(u32 i) const -> const T& {
-    // assume _strides[0] == 1
-    return _data[i];
-  }
-
-  __hd void set(u32 i, const T& value) {
-    // assume _strides[0] == 1
-    _data[i] = value;
-  }
-
+ public:
   void imap(auto&& f) const {
     for (auto i = 0U; i < _shape[0]; ++i) {
       const auto& val = (*this)[i];
@@ -112,27 +120,35 @@ struct NdSlice<T, 2> {
     return NdSlice<T, NDIM - 1>{data, {_shape[1]}, {_strides[1]}};
   }
 
- public:
-  __hd auto contains(u32 i, u32 j) const -> bool {
-    return i < _shape[0] && j < _shape[1];
-  }
-
-  __hd auto get(u32 i, u32 j) const -> const T& {
-    const auto offset = i * _strides[0] + j * _strides[1];
+  __hd auto operator[](const u32 (&idx)[NDIM]) const -> T {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
     return _data[offset];
   }
 
-  __hd void set(u32 i, u32 j, const T& value) {
-    const auto offset = i * _strides[0] + j * _strides[1];
-    _data[offset] = value;
+  __hd auto operator[](const u32 (&idx)[NDIM]) -> T& {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
+    return _data[offset];
   }
 
+  __hd auto get(u32 i, u32 j) const -> T {
+    return (*this)[{i, j}];
+  }
+
+  __hd void set(u32 i, u32 j, const T& value) {
+    (*this)[{i, j}] = value;
+  }
+
+  __hd auto contains(const u32 (&idx)[NDIM]) const -> bool {
+    return idx[0] < _shape[0] && idx[1] < _shape[1];
+  }
+
+ public:
   void imap(auto&& f) const {
     for (auto i = 0U; i < _shape[0]; ++i) {
       const auto row = (*this)[i];
       for (auto j = 0U; j < _shape[1]; ++j) {
         const auto& val = row[j];
-        f({i, j}, val);
+        f(i, j, val);
       }
     }
   }
@@ -142,7 +158,7 @@ struct NdSlice<T, 2> {
       auto row = (*this)[i];
       for (auto j = 0U; j < _shape[1]; ++j) {
         auto& val = row[j];
-        f({i, j}, val);
+        f(i, j, val);
       }
     }
   }
@@ -189,21 +205,29 @@ struct NdSlice<T, 3> {
     return {data, {_shape[1], _shape[2]}, {_strides[1], _strides[2]}};
   }
 
- public:
+  __hd auto operator[](const u32 (&idx)[NDIM]) const -> T {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2];
+    return _data[offset];
+  }
+
+  __hd auto operator[](const u32 (&idx)[NDIM]) -> T& {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2];
+    return _data[offset];
+  }
+
+  __hd auto get(u32 i, u32 j, u32 k) const -> T {
+    return (*this)[{i, j, k}];
+  }
+
+  __hd void set(u32 i, u32 j, u32 k, const T& value) {
+    (*this)[{i, j, k}] = value;
+  }
+
   __hd auto contains(u32 i, u32 j, u32 k) const -> bool {
     return i < _shape[0] && j < _shape[1] && k < _shape[2];
   }
 
-  __hd auto get(u32 i, u32 j, u32 k) const -> const T& {
-    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2];
-    return _data[offset];
-  }
-
-  __hd void set(u32 i, u32 j, u32 k, const T& value) {
-    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2];
-    _data[offset] = value;
-  }
-
+ public:
   void imap(auto&& f) const {
     for (auto i = 0U; i < _shape[0]; ++i) {
       const auto mat = (*this)[i];
@@ -263,21 +287,6 @@ struct NdSlice<T, 4> {
   __hd auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
     const auto data = _data + idx * _strides[0];
     return {data, {_shape[1], _shape[2], _shape[3]}, {_strides[1], _strides[2], _strides[3]}};
-  }
-
- public:
-  __hd auto contains(u32 i, u32 j, u32 k, u32 l) const -> bool {
-    return i < _shape[0] && j < _shape[1] && k < _shape[2] && l < _shape[3];
-  }
-
-  __hd auto get(u32 i, u32 j, u32 k, u32 l) const -> const T& {
-    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2] + l * _strides[3];
-    return _data[offset];
-  }
-
-  __hd void set(u32 i, u32 j, u32 k, u32 l, const T& value) {
-    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2] + l * _strides[3];
-    _data[offset] = value;
   }
 };
 

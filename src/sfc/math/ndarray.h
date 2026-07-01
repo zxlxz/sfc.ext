@@ -8,7 +8,7 @@ namespace sfc::math {
 class RawBuf {
   using A = PoolAllocator;
 
-  void* _ptr{nullptr};
+  u8* _ptr{nullptr};
   usize _size{0};
   MemType _mtype{MemType::CPU};
   [[no_unique_address]] A _alloc{};
@@ -23,7 +23,7 @@ class RawBuf {
   static auto xnew(usize size, MemType mtype) -> RawBuf;
 
  public:
-  auto ptr() const -> void* {
+  auto ptr() const -> u8* {
     return _ptr;
   }
 
@@ -35,7 +35,9 @@ class RawBuf {
     return _mtype;
   }
 
+ public:
   void bzero();
+  void copy_from(const RawBuf& other);
 };
 
 template <class T, u32 N>
@@ -74,15 +76,7 @@ class [[nodiscard]] NdArray {
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
-  auto buf() -> Buf& {
-    return _buf;
-  }
-
-  auto len() const -> u32 {
-    return _inn.len();
-  }
-
-  auto data() -> T* {
+  auto data() const -> T* {
     return _inn._data;
   }
 
@@ -94,21 +88,30 @@ class [[nodiscard]] NdArray {
     return _inn._shape;
   }
 
- public:
   auto operator*() const -> Inn {
     return _inn;
   }
 
-  auto operator[](u32 idx) -> NdSlice<T, NDIM - 1> {
+ public:
+  auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
     return _inn[idx];
   }
 
-  auto get(const u32 (&indices)[NDIM]) const -> const T& {
-    return _inn.get(indices);
+  auto operator[](const u32 (&idx)[NDIM]) const -> T {
+    return _inn[idx];
   }
 
-  void set(const u32 (&indices)[NDIM], const T& value) {
-    _inn.set(indices, value);
+  auto operator[](const u32 (&idx)[NDIM]) -> T& {
+    return _inn[idx];
+  }
+
+ public:
+  auto as_bytes() const -> Slice<const u8> {
+    return Slice<const u8>{_buf.ptr(), _buf.size()};
+  }
+
+  auto as_mut_bytes() -> Slice<u8> {
+    return Slice<u8>{_buf.ptr(), _buf.size()};
   }
 
   void imap(auto&& f) const {
@@ -119,13 +122,12 @@ class [[nodiscard]] NdArray {
     _inn.imap_mut(f);
   }
 
- public:
   void bzero() {
     _buf.bzero();
   }
 
-  auto clone(MemType mtype) const -> NdArray {
-    auto res = NdArray::xnew(_inn.shape, mtype);
+  auto clone() const -> NdArray {
+    auto res = NdArray::xnew(_inn._shape, _buf.mtype());
     res._buf.copy_from(_buf);
     return res;
   }
@@ -166,31 +168,23 @@ class [[nodiscard]] NdArray<T, 1> {
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
-  auto buf() -> Buf& {
-    return _buf;
-  }
-
-  auto data() -> T* {
+  auto data() const -> T* {
     return _inn._data;
-  }
-
-  auto len() const -> u32 {
-    return _inn.len();
   }
 
   auto numel() const -> u32 {
     return _inn.numel();
   }
 
-  auto shape() const -> const u32 (&)[NDIM] {
+  auto shape() const -> const Shape& {
     return _inn._shape;
   }
 
- public:
   auto operator*() const -> Inn {
     return _inn;
   }
 
+ public:
   auto operator[](u32 idx) const -> const T& {
     return _inn[idx];
   }
@@ -199,12 +193,21 @@ class [[nodiscard]] NdArray<T, 1> {
     return _inn[idx];
   }
 
-  auto get(const u32 (&indices)[1]) const -> const T& {
-    return _inn.get(indices);
+  auto operator[](const u32 (&idx)[NDIM]) const -> T {
+    return _inn[idx];
   }
 
-  void set(const u32 (&indices)[1], const T& value) {
-    _inn.set(indices, value);
+  auto operator[](const u32 (&idx)[NDIM]) -> T& {
+    return _inn[idx];
+  }
+
+ public:
+  auto as_bytes() const -> Slice<const u8> {
+    return Slice<const u8>{_buf.ptr(), _buf.size()};
+  }
+
+  auto as_mut_bytes() -> Slice<u8> {
+    return Slice<u8>{_buf.ptr(), _buf.size()};
   }
 
   void imap(auto&& f) const {
@@ -215,13 +218,12 @@ class [[nodiscard]] NdArray<T, 1> {
     _inn.imap_mut(f);
   }
 
- public:
   void bzero() {
     _buf.bzero();
   }
 
-  auto clone(MemType mtype) const -> NdArray {
-    auto res = NdArray::xnew(_inn.shape, mtype);
+  auto clone() const -> NdArray {
+    auto res = NdArray::xnew(_inn.shape, _buf.mtype());
     res._buf.copy_from(_buf);
     return res;
   }

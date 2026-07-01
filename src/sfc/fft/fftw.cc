@@ -190,7 +190,7 @@ void FFTW<I, O>::exec(const I in[], O out[], int DIR) {
 }
 
 template <class I, class O>
-void FFTW<I, O>::operator()(math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, int DIR) {
+void FFTW<I, O>::operator()(const math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, int DIR) {
   const auto ilen = this->in_len();
   const auto olen = this->out_len();
   sfc::assert_eq(in.shape()[0], ilen);
@@ -199,7 +199,7 @@ void FFTW<I, O>::operator()(math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, i
 }
 
 template <class I, class O>
-void FFTW<I, O>::operator()(math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR) {
+void FFTW<I, O>::operator()(const math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR) {
   const auto in_batch = in.shape()[0];
   const auto out_batch = out.shape()[0];
   sfc::assert_eq(in_batch, out_batch);

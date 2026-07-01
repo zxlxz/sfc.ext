@@ -23,8 +23,8 @@ class FFTW {
   auto out_len() const -> usize;
   void exec(const I in[], O out[], int DIR = -1);
 
-  void operator()(math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, int DIR = -1);
-  void operator()(math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR = -1);
+  void operator()(const math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, int DIR = -1);
+  void operator()(const math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR = -1);
 };
 
 template <class I, class O>

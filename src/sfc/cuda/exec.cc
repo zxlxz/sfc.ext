@@ -53,19 +53,4 @@ void set_worksize(dim3_t ws, dim3_t bs) {
   ExecConf::instance().set_worksize(ws, bs);
 }
 
-template <>
-void config(math::vec<unsigned, 1> ws, math::vec<unsigned, 1> bs) {
-  cuda::set_worksize({ws.x, 1, 1}, {bs.x, 1, 1});
-}
-
-template <>
-void config(math::vec<unsigned, 2> ws, math::vec<unsigned, 2> bs) {
-  cuda::set_worksize({ws.x, ws.y, 1}, {bs.x, bs.y, 1});
-}
-
-template <>
-void config(math::vec<unsigned, 3> ws, math::vec<unsigned, 3> bs) {
-  cuda::set_worksize({ws.x, ws.y, ws.z}, {bs.x, bs.y, bs.z});
-}
-
 }  // namespace sfc::cuda
