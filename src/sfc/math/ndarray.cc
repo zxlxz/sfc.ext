@@ -7,34 +7,34 @@ RawBuf::RawBuf() noexcept {}
 
 RawBuf::~RawBuf() {
   if (_ptr == nullptr) return;
-  _alloc.deallocate(_ptr, _size, _mtype);
+  _alloc.deallocate(_ptr, _size, _kind);
 }
 
 RawBuf::RawBuf(RawBuf&& other) noexcept
-    : _ptr{other._ptr}, _size{other._size}, _mtype{other._mtype}, _alloc{other._alloc} {
+    : _ptr{other._ptr}, _size{other._size}, _kind{other._kind}, _alloc{other._alloc} {
   other._ptr = nullptr;
   other._size = 0;
-  other._mtype = MemType::CPU;
+  other._kind = MemKind::CPU;
 }
 
 RawBuf& RawBuf::operator=(RawBuf&& other) noexcept {
   if (this != &other) {
     mem::swap(_ptr, other._ptr);
     mem::swap(_size, other._size);
-    mem::swap(_mtype, other._mtype);
+    mem::swap(_kind, other._kind);
     mem::swap(_alloc, other._alloc);
   }
 
   return *this;
 }
 
-auto RawBuf::xnew(usize size, MemType mtype) -> RawBuf {
+auto RawBuf::xnew(usize size, MemKind mem_kind) -> RawBuf {
   auto alloc = A{};
 
   auto res = RawBuf{};
-  res._ptr = ptr::cast<u8>(alloc.allocate(size, mtype));
+  res._ptr = ptr::cast<u8>(alloc.allocate(size, mem_kind));
   res._size = size;
-  res._mtype = mtype;
+  res._kind = mem_kind;
   res._alloc = alloc;
   return res;
 }
@@ -45,11 +45,11 @@ void RawBuf::bzero() {
   }
 
   auto p = ptr::cast<u8>(_ptr);
-  switch (_mtype) {
+  switch (_kind) {
     default:           break;
-    case MemType::CPU: ptr::write_bytes(p, 0, _size); break;
-    case MemType::GPU: cuda::fill_bytes(p, 0, _size); break;
-    case MemType::UVA: cuda::fill_bytes(p, 0, _size); break;
+    case MemKind::CPU: ptr::write_bytes(p, 0, _size); break;
+    case MemKind::GPU: cuda::fill_bytes(p, 0, _size); break;
+    case MemKind::UVA: cuda::fill_bytes(p, 0, _size); break;
   }
 }
 
@@ -60,11 +60,11 @@ void RawBuf::copy_from(const RawBuf& src) {
   const auto pdst = ptr::cast<u8>(_ptr);
   const auto size = src._size;
 
-  switch (_mtype) {
+  switch (_kind) {
     default:           break;
-    case MemType::CPU: ptr::copy_nonoverlapping(psrc, pdst, size); break;
-    case MemType::GPU: cuda::copy_bytes(psrc, pdst, size); break;
-    case MemType::UVA: cuda::copy_bytes(psrc, pdst, size); break;
+    case MemKind::CPU: ptr::copy_nonoverlapping(psrc, pdst, size); break;
+    case MemKind::GPU: cuda::copy_bytes(psrc, pdst, size); break;
+    case MemKind::UVA: cuda::copy_bytes(psrc, pdst, size); break;
   }
 }
 

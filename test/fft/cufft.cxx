@@ -9,7 +9,7 @@
 namespace sfc::fft::test {
 
 using math::NdArray;
-using math::MemType;
+using math::MemKind;
 
 SFC_TEST(fft_c2c_perf) {
   cuda::device_set(0);
@@ -30,8 +30,8 @@ SFC_TEST(fft_c2c_perf) {
   for (auto BATCH : batchs) {
     io::println(" === Batch = {} === ", BATCH);
     for (const auto N : lens) {
-      auto X = math::array<c32>({N, BATCH}, MemType::GPU);
-      auto Y = math::array<c32>({N, BATCH}, MemType::GPU);
+      auto X = math::array<c32>({N, BATCH}, MemKind::GPU);
+      auto Y = math::array<c32>({N, BATCH}, MemKind::GPU);
       X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();
@@ -76,8 +76,8 @@ SFC_TEST(fft_r2c_perf) {
   for (auto BATCH : batchs) {
     io::println(" === Batch = {} === ", BATCH);
     for (const auto N : lens) {
-      auto X = math::array<f32>({N, BATCH}, MemType::GPU);
-      auto Y = math::array<c32>({N / 2 + 1, BATCH}, MemType::GPU);
+      auto X = math::array<f32>({N, BATCH}, MemKind::GPU);
+      auto Y = math::array<c32>({N / 2 + 1, BATCH}, MemKind::GPU);
       X.bzero();
       cuda::device_sync();
       const auto t1 = time::Instant::now();

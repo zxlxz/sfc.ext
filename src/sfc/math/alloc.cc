@@ -10,13 +10,13 @@ class MemBucket {
     usize seq;
   };
 
-  const MemType _mem_type;
+  const MemKind _mem_type;
   const usize _blk_size;
   usize _blk_cnt{0};
   List<Info> _free_list{};
 
  public:
-  explicit MemBucket(MemType type, usize size) : _mem_type{type}, _blk_size{size} {}
+  explicit MemBucket(MemKind type, usize size) : _mem_type{type}, _blk_size{size} {}
 
   ~MemBucket() {
     this->clear();
@@ -165,26 +165,26 @@ class MemBucket {
 };
 
 class MemPool {
-  MemType _mem_type;
+  MemKind _mem_type;
   usize _seq{0};
   List<MemBucket> _free_list;
   sync::Mutex _mutex;
 
  public:
-  MemPool(MemType mtype) : _mem_type{mtype} {}
+  MemPool(MemKind mtype) : _mem_type{mtype} {}
 
   ~MemPool() {}
 
-  static auto instance(MemType mtype) -> MemPool& {
-    static MemPool cpu_pool{MemType::CPU};
-    static MemPool gpu_pool{MemType::GPU};
-    static MemPool uva_pool{MemType::UVA};
+  static auto instance(MemKind mtype) -> MemPool& {
+    static MemPool cpu_pool{MemKind::CPU};
+    static MemPool gpu_pool{MemKind::GPU};
+    static MemPool uva_pool{MemKind::UVA};
 
     switch (mtype) {
       default:           return cpu_pool;
-      case MemType::CPU: return cpu_pool;
-      case MemType::GPU: return gpu_pool;
-      case MemType::UVA: return uva_pool;
+      case MemKind::CPU: return cpu_pool;
+      case MemKind::GPU: return gpu_pool;
+      case MemKind::UVA: return uva_pool;
     }
   }
 
@@ -242,34 +242,34 @@ class MemPool {
   }
 };
 
-auto SysAllocator::allocate(usize size, MemType mtype) -> void* {
+auto SysAllocator::allocate(usize size, MemKind mtype) -> void* {
   if (size == 0) return nullptr;
 
   switch (mtype) {
     default:           return nullptr;
-    case MemType::CPU: return cuda::heap_alloc(size);
-    case MemType::GPU: return cuda::device_alloc(size);
-    case MemType::UVA: return cuda::managed_alloc(size);
+    case MemKind::CPU: return cuda::heap_alloc(size);
+    case MemKind::GPU: return cuda::device_alloc(size);
+    case MemKind::UVA: return cuda::managed_alloc(size);
   }
 }
 
-void SysAllocator::deallocate(void* ptr, usize size, MemType mtype) {
+void SysAllocator::deallocate(void* ptr, usize size, MemKind mtype) {
   if (ptr == nullptr) return;
 
   switch (mtype) {
     default:           return;
-    case MemType::CPU: return cuda::heap_free(ptr);
-    case MemType::GPU: return cuda::device_free(ptr);
-    case MemType::UVA: return cuda::managed_free(ptr);
+    case MemKind::CPU: return cuda::heap_free(ptr);
+    case MemKind::GPU: return cuda::device_free(ptr);
+    case MemKind::UVA: return cuda::managed_free(ptr);
   }
 }
 
-auto PoolAllocator::allocate(usize size, MemType mtype) -> void* {
+auto PoolAllocator::allocate(usize size, MemKind mtype) -> void* {
   auto& pool = MemPool::instance(mtype);
   return pool.allocate(size);
 }
 
-void PoolAllocator::deallocate(void* ptr, usize size, MemType mtype) {
+void PoolAllocator::deallocate(void* ptr, usize size, MemKind mtype) {
   auto& pool = MemPool::instance(mtype);
   pool.deallocate(ptr, size);
 }

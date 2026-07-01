@@ -10,7 +10,7 @@ class RawBuf {
 
   u8* _ptr{nullptr};
   usize _size{0};
-  MemType _mtype{MemType::CPU};
+  MemKind _kind{MemKind::CPU};
   [[no_unique_address]] A _alloc{};
 
  public:
@@ -20,7 +20,7 @@ class RawBuf {
   RawBuf(RawBuf&& other) noexcept;
   RawBuf& operator=(RawBuf&& other) noexcept;
 
-  static auto xnew(usize size, MemType mtype) -> RawBuf;
+  static auto xnew(usize size, MemKind memory) -> RawBuf;
 
  public:
   auto ptr() const -> u8* {
@@ -31,8 +31,8 @@ class RawBuf {
     return _size;
   }
 
-  auto mtype() const -> MemType {
-    return _mtype;
+  auto kind() const -> MemKind {
+    return _kind;
   }
 
  public:
@@ -70,10 +70,14 @@ class [[nodiscard]] NdArray {
     return res;
   }
 
-  static auto xnew(const Shape& shape, MemType mtype = MemType::CPU) -> NdArray {
+  static auto xnew(const Shape& shape, MemKind memory = MemKind::CPU) -> NdArray {
     const auto numel = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::xnew(numel * sizeof(T), mtype);
+    auto buf = Buf::xnew(numel * sizeof(T), memory);
     return NdArray::from_buf(mem::move(buf), shape);
+  }
+
+  auto kind() const -> MemKind {
+    return _buf.kind();
   }
 
   auto data() const -> T* {
@@ -88,11 +92,11 @@ class [[nodiscard]] NdArray {
     return _inn._shape;
   }
 
+ public:
   auto operator*() const -> Inn {
     return _inn;
   }
 
- public:
   auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
     return _inn[idx];
   }
@@ -105,13 +109,12 @@ class [[nodiscard]] NdArray {
     return _inn[idx];
   }
 
- public:
-  auto as_bytes() const -> Slice<const u8> {
-    return Slice<const u8>{_buf.ptr(), _buf.size()};
+  auto get(const u32 (&idx)[NDIM]) const -> T {
+    return _inn[idx];
   }
 
-  auto as_mut_bytes() -> Slice<u8> {
-    return Slice<u8>{_buf.ptr(), _buf.size()};
+  void set(const u32 (&idx)[NDIM], T value) {
+    _inn[idx] = value;
   }
 
   void imap(auto&& f) const {
@@ -122,12 +125,23 @@ class [[nodiscard]] NdArray {
     _inn.imap_mut(f);
   }
 
+ public:
+#ifndef __CUDACC__
+  auto as_bytes() const -> slice::Slice<const u8> {
+    return {_buf.ptr(), _buf.size()};
+  }
+
+  auto as_mut_bytes() -> slice::Slice<u8> {
+    return {_buf.ptr(), _buf.size()};
+  }
+#endif
+
   void bzero() {
     _buf.bzero();
   }
 
   auto clone() const -> NdArray {
-    auto res = NdArray::xnew(_inn._shape, _buf.mtype());
+    auto res = NdArray::xnew(_inn._shape, _buf.kind());
     res._buf.copy_from(_buf);
     return res;
   }
@@ -162,14 +176,18 @@ class [[nodiscard]] NdArray<T, 1> {
     return res;
   }
 
-  static auto xnew(const Shape& shape, MemType mtype = MemType::CPU) -> NdArray {
+  static auto xnew(const Shape& shape, MemKind memory = MemKind::CPU) -> NdArray {
     const auto size = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::xnew(size * sizeof(T), mtype);
+    auto buf = Buf::xnew(size * sizeof(T), memory);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
   auto data() const -> T* {
     return _inn._data;
+  }
+
+  auto kind() const -> MemKind {
+    return _buf.kind();
   }
 
   auto numel() const -> u32 {
@@ -201,13 +219,12 @@ class [[nodiscard]] NdArray<T, 1> {
     return _inn[idx];
   }
 
- public:
-  auto as_bytes() const -> Slice<const u8> {
-    return Slice<const u8>{_buf.ptr(), _buf.size()};
+  auto get(const u32 (&idx)[NDIM]) const -> T {
+    return _inn[idx];
   }
 
-  auto as_mut_bytes() -> Slice<u8> {
-    return Slice<u8>{_buf.ptr(), _buf.size()};
+  void set(const u32 (&idx)[NDIM], T value) {
+    _inn[idx] = value;
   }
 
   void imap(auto&& f) const {
@@ -218,12 +235,23 @@ class [[nodiscard]] NdArray<T, 1> {
     _inn.imap_mut(f);
   }
 
+ public:
+#ifndef __CUDACC__
+  auto as_bytes() const -> slice::Slice<const u8> {
+    return {_buf.ptr(), _buf.size()};
+  }
+
+  auto as_mut_bytes() -> slice::Slice<u8> {
+    return {_buf.ptr(), _buf.size()};
+  }
+#endif
+
   void bzero() {
     _buf.bzero();
   }
 
   auto clone() const -> NdArray {
-    auto res = NdArray::xnew(_inn.shape, _buf.mtype());
+    auto res = NdArray::xnew(_inn.shape, _buf.kind());
     res._buf.copy_from(_buf);
     return res;
   }
@@ -234,8 +262,8 @@ class [[nodiscard]] NdArray<T, 1> {
 };
 
 template <class T, u32 N>
-auto array(const u32 (&shape)[N], MemType mtype = MemType::CPU) -> NdArray<T, N> {
-  return NdArray<T, N>::xnew(shape, mtype);
+auto array(const u32 (&shape)[N], MemKind memory = MemKind::CPU) -> NdArray<T, N> {
+  return NdArray<T, N>::xnew(shape, memory);
 }
 
 }  // namespace sfc::math

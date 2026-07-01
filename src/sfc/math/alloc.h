@@ -4,20 +4,20 @@
 
 namespace sfc::math {
 
-enum class MemType {
+enum class MemKind {
   CPU,
   GPU,
   UVA,
 };
 
 struct SysAllocator {
-  static void* allocate(usize size, MemType mtype);
-  static void deallocate(void* ptr, usize size, MemType mtype);
+  static void* allocate(usize size, MemKind kind);
+  static void deallocate(void* ptr, usize size, MemKind kind);
 };
 
 struct PoolAllocator {
-  static void* allocate(usize size, MemType mtype);
-  static void deallocate(void* ptr, usize size, MemType mtype);
+  static void* allocate(usize size, MemKind kind);
+  static void deallocate(void* ptr, usize size, MemKind kind);
 };
 
 }  // namespace sfc::math
