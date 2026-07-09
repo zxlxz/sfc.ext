@@ -136,13 +136,13 @@ auto CUFFT<I, O>::create(u32 len, u32 batch) -> CUFFT {
 }
 
 template <class I, class O>
-auto CUFFT<I, O>::in_len() const -> usize {
+auto CUFFT<I, O>::ilen() const -> usize {
   const auto half_len = _len / 2 + 1;
   return sizeof(I) <= sizeof(O) ? _len : half_len;
 }
 
 template <class I, class O>
-auto CUFFT<I, O>::out_len() const -> usize {
+auto CUFFT<I, O>::olen() const -> usize {
   const auto half_len = _len / 2 + 1;
   return sizeof(O) <= sizeof(I) ? _len : half_len;
 }
@@ -154,14 +154,14 @@ auto CUFFT<I, O>::exec(const I in[], O out[], int DIR) -> FFTResult<> {
 
 template <class I, class O>
 auto CUFFT<I, O>::operator()(math::NdSlice<I, 1> src, math::NdSlice<O, 1> dst, int DIR) -> FFTResult<> {
-  const auto ilen = this->in_len();
-  const auto olen = this->out_len();
+  const auto ilen = this->ilen();
+  const auto olen = this->olen();
   const auto [src_len] = src._shape;
   const auto [dst_len] = dst._shape;
   sfc::assert_(src.is_contiguous(), "CUFFT::exec: src is not contiguous");
   sfc::assert_(dst.is_contiguous(), "CUFFT::exec: dst is not contiguous");
-  sfc::assert_(src_len == ilen, "CUFFT::exec: src.shape({}) != {}", src_len, ilen);
-  sfc::assert_(dst_len == olen, "CUFFT::exec: dst.shape({}) != {}", dst_len, olen);
+  sfc::assert_(src_len == ilen, "CUFFT::exec: src.shape({}) != ilen{}", src_len, ilen);
+  sfc::assert_(dst_len == olen, "CUFFT::exec: dst.shape({}) != olen{}", dst_len, olen);
 
   sfc::assert_(_batch == 1, "CUFFT::exec: batch({}) != 1", _batch);
   _TRY(this->exec(src._data, dst._data, DIR));
@@ -171,8 +171,8 @@ auto CUFFT<I, O>::operator()(math::NdSlice<I, 1> src, math::NdSlice<O, 1> dst, i
 
 template <class I, class O>
 auto CUFFT<I, O>::operator()(math::NdSlice<I, 2> src, math::NdSlice<O, 2> dst, int DIR) -> FFTResult<> {
-  const auto ilen = this->in_len();
-  const auto olen = this->out_len();
+  const auto ilen = this->ilen();
+  const auto olen = this->olen();
   const auto [src_batch, src_len] = src._shape;
   const auto [dst_batch, dst_len] = dst._shape;
 
@@ -185,9 +185,9 @@ auto CUFFT<I, O>::operator()(math::NdSlice<I, 2> src, math::NdSlice<O, 2> dst, i
 
   const auto loop_cnt = src_batch / _batch;
   for (auto i = 0U; i < loop_cnt; ++i) {
-    const auto src_ptr = src._data + i * _batch * ilen;
-    const auto dst_ptr = dst._data + i * _batch * olen;
-    _TRY(this->exec(src_ptr, dst_ptr, DIR));
+    auto src_col = src[i * _batch];
+    auto dst_col = dst[i * _batch];
+    _TRY(this->exec(src_col._data, dst_col._data, DIR));
   }
 
   return Ok{};

@@ -12,6 +12,9 @@ struct DeviceInfo {
   u64 global_memory;
   u64 l2_cache_size;
   const char* name;
+
+ public:
+  void fmt(fmt::Formatter& f) const;
 };
 
 struct Device {

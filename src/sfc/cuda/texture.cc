@@ -11,7 +11,7 @@
 
 namespace sfc::cuda {
 
-using buffer_t = struct cudaArray*;
+using buffer_t = cudaArray_t;
 
 template <class T>
 static auto pitched_ptr(const T* p, cudaExtent extent) -> cudaPitchedPtr {
@@ -112,12 +112,12 @@ static auto texture_new(buffer_t arr, TexFilt tex_filt, TexAddr tex_addr) -> Res
       .filterMode = filt_mode,
   };
 
-  auto tex_obj = u64{0};
-  if (auto err = cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, nullptr)) {
+  auto tex = cudaTextureObject_t{};
+  if (auto err = cudaCreateTextureObject(&tex, &res_desc, &tex_desc, nullptr)) {
     return Error(err);
   }
 
-  return Ok{tex_obj};
+  return Ok{tex};
 }
 
 static auto texture_del(u64 tex) -> Result<> {

@@ -135,7 +135,7 @@ class MemBucket {
     return true;
   }
 
-  auto try_dealloc_some() -> u32 {
+  auto try_dealloc_some() -> usize {
     if (_free_list.is_empty()) {
       return 0;
     }
@@ -237,47 +237,22 @@ auto SysAllocator::allocate(usize size, MemLocation location) -> void* {
   }
 
   switch (location.kind) {
-    case MemKind::CPU: {
-      using A = cuda::HeapAllocator;
-      const auto p = A::allocate(size);
-      return p;
-    }
-    case MemKind::GPU: {
-      using A = cuda::DeviceAllocator;
-      const auto p = A::allocate(size);
-      return p;
-    }
-    case MemKind::UVA: {
-      using A = cuda::ManagedAllocator;
-      const auto p = A::allocate(size);
-      return p;
-    }
+    case MemKind::CPU: return cuda::HeapAllocator::allocate(size);
+    case MemKind::GPU: return cuda::DeviceAllocator::allocate(size);
+    case MemKind::UVA: return cuda::ManagedAllocator::allocate(size);
   }
-
   return nullptr;
 }
 
-void SysAllocator::deallocate(void* ptr, usize size, MemLocation location) {
+void SysAllocator::deallocate(void* ptr, [[maybe_unused]] usize size, MemLocation location) {
   if (ptr == nullptr) {
     return;
   }
 
   switch (location.kind) {
-    case MemKind::CPU: {
-      using A = cuda::HeapAllocator;
-      A::deallocate(ptr);
-      break;
-    }
-    case MemKind::GPU: {
-      using A = cuda::DeviceAllocator;
-      A::deallocate(ptr);
-      break;
-    }
-    case MemKind::UVA: {
-      using A = cuda::ManagedAllocator;
-      A::deallocate(ptr);
-      break;
-    }
+    case MemKind::CPU: return cuda::HeapAllocator::deallocate(ptr);
+    case MemKind::GPU: return cuda::DeviceAllocator::deallocate(ptr);
+    case MemKind::UVA: return cuda::ManagedAllocator::deallocate(ptr);
   }
 }
 

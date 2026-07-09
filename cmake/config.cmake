@@ -29,16 +29,13 @@ endif()
 
 
 function(target_source_path TARGET DIR)
-    set(_SOURCES)
-    set(_PATTERNS ${ARGN})
-    if(NOT _PATTERNS)
-        set(_PATTERNS "*.cpp" "*.cxx" "*.cc" "*.cu" "*.c")
-    endif()
+  set(_PATTERNS ${ARGN})
 
-    foreach(PATTERN ${_PATTERNS})
-        file(GLOB MATCHED_SOURCES CONFIGURE_DEPENDS "${DIR}/${PATTERN}")
-        list(APPEND _SOURCES ${MATCHED_SOURCES})
-    endforeach()
+  set(_SOURCES)
+  foreach(PATTERN ${_PATTERNS})
+    file(GLOB MATCHED_SOURCES CONFIGURE_DEPENDS "${DIR}/${PATTERN}")
+    list(APPEND _SOURCES ${MATCHED_SOURCES})
+  endforeach()
 
-    target_sources(${TARGET} PRIVATE ${_SOURCES})
+  target_sources(${TARGET} PRIVATE ${_SOURCES})
 endfunction()

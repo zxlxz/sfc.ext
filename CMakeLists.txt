@@ -2,6 +2,4 @@ cmake_minimum_required(VERSION 3.21)
 project(sfc.ext)
 
 add_subdirectory(../sfc/src sfc)
-
 add_subdirectory(src)
-add_subdirectory(test)

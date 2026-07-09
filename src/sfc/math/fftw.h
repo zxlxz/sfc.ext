@@ -3,7 +3,7 @@
 #include "sfc/math/complex.h"
 #include "sfc/math/ndarray.h"
 
-namespace sfc::fft {
+namespace sfc::math {
 
 template <class I, class O>
 class FFTW {
@@ -15,16 +15,17 @@ class FFTW {
   FFTW() noexcept;
   ~FFTW();
   FFTW(FFTW&& other) noexcept;
-  auto operator=(FFTW&& other) noexcept -> FFTW&;
+  FFTW& operator=(FFTW&& other) noexcept;
+
   static auto create(u32 len) -> FFTW;
 
  public:
-  auto in_len() const -> usize;
-  auto out_len() const -> usize;
+  auto ilen() const -> usize;
+  auto olen() const -> usize;
   void exec(const I in[], O out[], int DIR = -1);
 
-  void operator()(const math::NdArray<I, 1>& in, math::NdArray<O, 1>& out, int DIR = -1);
-  void operator()(const math::NdArray<I, 2>& in, math::NdArray<O, 2>& out, int DIR = -1);
+  void operator()(NdSlice<I, 1> in, NdSlice<O, 1> out, int DIR = -1);
+  void operator()(NdSlice<I, 2> in, NdSlice<O, 2> out, int DIR = -1);
 };
 
 template <class I, class O>
@@ -32,4 +33,4 @@ auto fftw(u32 len) -> FFTW<I, O> {
   return FFTW<I, O>::create(len);
 }
 
-}  // namespace sfc::fft
+}  // namespace sfc::math

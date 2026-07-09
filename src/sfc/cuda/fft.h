@@ -27,8 +27,8 @@ class CUFFT {
   static auto create(u32 len, u32 batch = 1) -> CUFFT;
 
  public:
-  auto in_len() const -> usize;
-  auto out_len() const -> usize;
+  auto ilen() const -> usize;
+  auto olen() const -> usize;
   auto exec(const I in[], O out[], int DIR) -> FFTResult<>;
 
   auto operator()(math::NdSlice<I, 1> in, math::NdSlice<O, 1> out, int DIR = -1) -> FFTResult<>;

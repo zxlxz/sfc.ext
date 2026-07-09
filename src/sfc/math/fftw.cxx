@@ -1,11 +1,9 @@
 #include "sfc/test.h"
 #include "sfc/io.h"
-#include "sfc/fft/fftw.h"
 #include "sfc/math/ndarray.h"
+#include "sfc/math/fftw.h"
 
-namespace sfc::fft::test {
-
-using math::NdArray;
+namespace sfc::math::test {
 
 SFC_TEST(fft_c2c_outplace) {
   const u32 lens[] = {2, 4, 8, 16, 32, 40};
@@ -48,4 +46,4 @@ SFC_TEST(fft_r2c) {
   }
 }
 
-}  // namespace sfc::fft::test
+}  // namespace sfc::math::test
