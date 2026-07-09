@@ -7,7 +7,6 @@ namespace sfc::math {
 
 class RawBuf {
   using A = PoolAllocator;
-
   u8* _ptr{nullptr};
   usize _size{0};
   MemLocation _location{MemKind::CPU, 0};
@@ -23,30 +22,23 @@ class RawBuf {
   static auto xnew(usize size, MemLocation location) -> RawBuf;
 
  public:
-  auto ptr() const -> u8* {
-    return _ptr;
-  }
+  auto ptr() const -> u8*;
+  auto capacity() const -> usize;
+  auto mem_location() const -> MemLocation;
 
-  auto size() const -> usize {
-    return _size;
-  }
-
-  auto mem_location() const -> MemLocation {
-    return _location;
-  }
+  auto as_bytes() const -> slice::Slice<const u8>;
+  auto as_mut_bytes() -> slice::Slice<u8>;
 
  public:
   void bzero();
+  void sync(MemLocation location);
   void copy_from(const RawBuf& other);
 };
 
 template <class T, u32 N>
 class [[nodiscard]] NdArray {
-  static constexpr u32 NDIM = N;
   using Buf = RawBuf;
-  using Inn = NdSlice<T, NDIM>;
-  using Shape = u32[NDIM];
-
+  using Inn = NdSlice<T, N>;
   Buf _buf{};
   Inn _inn{};
 
@@ -57,10 +49,10 @@ class [[nodiscard]] NdArray {
   NdArray(NdArray&& other) noexcept = default;
   NdArray& operator=(NdArray&& other) noexcept = default;
 
-  static auto from_buf(Buf buf, const Shape& shape) -> NdArray {
-    u32 strides[NDIM] = {};
-    for (auto i = NDIM; i != 0; --i) {
-      strides[i - 1] = i == NDIM ? 1 : shape[i] * strides[i];
+  static auto from_buf(Buf buf, const u32 (&shape)[N]) -> NdArray {
+    u32 strides[N] = {};
+    for (auto i = N; i != 0; --i) {
+      strides[i - 1] = i == N ? 1 : shape[i] * strides[i];
     }
 
     const auto ptr = ptr::cast<T>(buf.ptr());
@@ -70,7 +62,7 @@ class [[nodiscard]] NdArray {
     return res;
   }
 
-  static auto xnew(const Shape& shape, MemLocation location = {}) -> NdArray {
+  static auto xnew(const u32 (&shape)[N], MemLocation location = {}) -> NdArray {
     const auto numel = Inn{nullptr, shape, {}}.numel();
     auto buf = Buf::xnew(numel * sizeof(T), location);
     return NdArray::from_buf(mem::move(buf), shape);
@@ -84,176 +76,79 @@ class [[nodiscard]] NdArray {
     return _inn.numel();
   }
 
-  auto shape() const -> const Shape& {
+  auto shape() const -> const u32 (&)[N] {
     return _inn._shape;
   }
 
- public:
-  auto operator*() const -> Inn {
-    return _inn;
+  auto buf() const -> const Buf& {
+    return _buf;
   }
 
-  auto operator[](u32 idx) const -> NdSlice<T, NDIM - 1> {
-    return _inn[idx];
-  }
-
-  auto operator[](const u32 (&idx)[NDIM]) const -> T {
-    return _inn[idx];
-  }
-
-  auto operator[](const u32 (&idx)[NDIM]) -> T& {
-    return _inn[idx];
-  }
-
-  auto get(const u32 (&idx)[NDIM]) const -> T {
-    return _inn[idx];
-  }
-
-  void set(const u32 (&idx)[NDIM], T value) {
-    _inn[idx] = value;
-  }
-
-  void imap(auto&& f) const {
-    _inn.imap(f);
-  }
-
-  void imap_mut(auto&& f) {
-    _inn.imap_mut(f);
-  }
-
- public:
-#ifndef __CUDACC__
-  auto as_bytes() const -> slice::Slice<const u8> {
-    return {_buf.ptr(), _buf.size()};
-  }
-
-  auto as_mut_bytes() -> slice::Slice<u8> {
-    return {_buf.ptr(), _buf.size()};
-  }
-#endif
-
-  void bzero() {
-    _buf.bzero();
-  }
-
-  auto clone() const -> NdArray {
-    auto res = NdArray::xnew(_inn._shape, _buf.mem_location());
-    res._buf.copy_from(_buf);
-    return res;
+  auto buf_mut() -> Buf& {
+    return _buf;
   }
 
   auto mem_location() const -> MemLocation {
     return _buf.mem_location();
   }
 
-  void fmt(auto& f) const {
-    _inn.fmt(f);
+  auto as_bytes() const -> slice::Slice<const u8> {
+    return _buf.as_bytes();
   }
-};
 
-template <class T>
-class [[nodiscard]] NdArray<T, 1> {
-  static constexpr u32 NDIM = 1;
-  using Buf = RawBuf;
-  using Inn = NdSlice<T, NDIM>;
-  using Shape = u32[NDIM];
-  Buf _buf{};
-  Inn _inn{};
+  auto as_mut_bytes() -> slice::Slice<u8> {
+    return _buf.as_mut_bytes();
+  }
 
  public:
-  NdArray() noexcept : _buf{}, _inn{nullptr, {}, {}} {}
-  ~NdArray() {}
-
-  NdArray(NdArray&& other) noexcept = default;
-  NdArray& operator=(NdArray&& other) noexcept = default;
-
-  static auto from_buf(Buf buf, const Shape& shape) -> NdArray {
-    const auto ptr = ptr::cast<T>(buf.ptr());
-
-    auto res = NdArray{};
-    res._buf = mem::move(buf);
-    res._inn = Inn{ptr, shape, {1}};
-    return res;
-  }
-
-  static auto xnew(const Shape& shape, MemLocation location = {}) -> NdArray {
-    const auto size = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::xnew(size * sizeof(T), location);
-    return NdArray::from_buf(mem::move(buf), shape);
-  }
-
-  auto data() const -> T* {
-    return _inn._data;
-  }
-
-  auto mem_location() const -> MemLocation {
-    return _buf.mem_location();
-  }
-
-  auto numel() const -> u32 {
-    return _inn.numel();
-  }
-
-  auto shape() const -> const Shape& {
-    return _inn._shape;
+  operator Inn() const {
+    return _inn;
   }
 
   auto operator*() const -> Inn {
     return _inn;
   }
 
- public:
-  auto operator[](u32 idx) const -> const T& {
+  auto operator[](u32 idx) const -> decltype(auto) {
     return _inn[idx];
   }
 
-  auto operator[](u32 idx) -> T& {
+  auto operator[](u32 idx) -> decltype(auto) {
     return _inn[idx];
   }
 
-  auto operator[](const u32 (&idx)[NDIM]) const -> T {
+  auto operator[](const u32 (&idx)[N]) const -> T {
     return _inn[idx];
   }
 
-  auto operator[](const u32 (&idx)[NDIM]) -> T& {
+  auto operator[](const u32 (&idx)[N]) -> T& {
     return _inn[idx];
   }
 
-  auto get(const u32 (&idx)[NDIM]) const -> T {
+  auto get(const u32 (&idx)[N]) const -> T {
     return _inn[idx];
   }
 
-  void set(const u32 (&idx)[NDIM], T value) {
+  void set(const u32 (&idx)[N], T value) {
     _inn[idx] = value;
   }
 
-  void imap(auto&& f) const {
-    _inn.imap(f);
-  }
-
-  void imap_mut(auto&& f) {
-    _inn.imap_mut(f);
-  }
-
  public:
-#ifndef __CUDACC__
-  auto as_bytes() const -> slice::Slice<const u8> {
-    return {_buf.ptr(), _buf.size()};
-  }
-
-  auto as_mut_bytes() -> slice::Slice<u8> {
-    return {_buf.ptr(), _buf.size()};
-  }
-#endif
-
   void bzero() {
     _buf.bzero();
   }
 
-  auto clone() const -> NdArray {
-    auto res = NdArray::xnew(_inn.shape, _buf.mem_location());
-    res._buf.copy_from(_buf);
-    return res;
+  void sync(MemLocation location) {
+    _buf.sync(location);
+    _inn._data = ptr::cast<T>(_buf.ptr());
+  }
+
+  void for_each(auto&& f) const {
+    _inn.for_each(f);
+  }
+
+  void for_each(auto&& f) {
+    _inn.for_each(f);
   }
 
   void fmt(auto& f) const {

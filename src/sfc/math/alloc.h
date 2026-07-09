@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sfc/alloc.h"
+#include "sfc/core.h"
 
 namespace sfc::math {
 
@@ -27,6 +27,7 @@ struct SysAllocator {
 
 struct PoolAllocator {
   static auto pool(MemLocation location) -> MemPool&;
+
   static void* allocate(usize size, MemLocation location);
   static void deallocate(void* ptr, usize size, MemLocation location);
 };

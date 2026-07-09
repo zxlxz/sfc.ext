@@ -1,7 +1,6 @@
 #pragma once
 
 #include "sfc/cuda/tex.h"
-#include "sfc/cuda/buffer.h"
 #include "sfc/math/ndslice.h"
 
 namespace sfc::cuda {
@@ -18,17 +17,37 @@ enum class TexAddr {
   Border = 3   // 3
 };
 
-auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t;
-void texture_del(tex_t obj);
+struct Extent {
+  u32 x = 0;
+  u32 y = 0;
+  u32 z = 0;
+};
+
+template <class T>
+class Buffer {
+  using buf_t = struct cudaArray*;
+  buf_t _arr = nullptr;
+
+ public:
+  Buffer() noexcept;
+  ~Buffer();
+  Buffer(Buffer&& other) noexcept;
+  Buffer& operator=(Buffer&& other) noexcept;
+
+  static auto xnew(Extent ext) -> Buffer;
+  static auto xnew_layered(Extent ext) -> Buffer;
+
+ public:
+  auto as_ptr() const -> buf_t;
+  auto set_data(const T* src) -> Result<>;
+};
 
 template <class T, int N = 3>
 class Texture {
-  using Buf = cuda::Buffer<T>;
   using Tex = cuda::Tex<T, N>;
-  using Shape = u32[N];
-
+  using Buf = cuda::Buffer<T>;
+  u64 _tex = {};
   Buf _buf = {};
-  Tex _tex = {};
 
  public:
   Texture() noexcept;
@@ -36,24 +55,26 @@ class Texture {
   Texture(Texture&& other) noexcept;
   Texture& operator=(Texture&& other) noexcept;
 
-  static auto xnew(const Shape& shape, TexFilt filt = TexFilt::Point, TexAddr addr = TexAddr::Clamp) -> Texture;
+  static auto xnew(const u32 (&shape)[N], TexFilt filt = TexFilt::Point, TexAddr addr = TexAddr::Clamp) -> Texture;
 
  public:
-  auto operator*() const -> Tex {
-    return _tex;
+  operator Tex() const {
+    return {_tex};
   }
 
-  void set_data(math::NdSlice<T, N> src);
+  auto operator*() const -> Tex {
+    return {_tex};
+  }
+
+  auto set_data(math::NdSlice<T, N> src) -> Result<>;
 };
 
 template <class T, int N = 3>
 class LTexture {
-  using Buf = cuda::Buffer<T>;
   using Tex = cuda::LTex<T, N>;
-  using Shape = u32[N];
-
+  using Buf = cuda::Buffer<T>;
+  u64 _tex = {};
   Buf _buf = {};
-  Tex _tex = {};
 
  public:
   LTexture() noexcept;
@@ -61,14 +82,18 @@ class LTexture {
   LTexture(LTexture&& other) noexcept;
   LTexture& operator=(LTexture&& other) noexcept;
 
-  static auto xnew(const Shape& shape, TexFilt filt = TexFilt::Point, TexAddr addr = TexAddr::Clamp) -> LTexture;
+  static auto xnew(const u32 (&shape)[N], TexFilt filt = TexFilt::Point, TexAddr addr = TexAddr::Clamp) -> LTexture;
 
  public:
-  auto operator*() const -> Tex {
-    return _tex;
+  operator Tex() const {
+    return {_tex};
   }
 
-  void set_data(math::NdSlice<T, N> src);
+  auto operator*() const -> Tex {
+    return {_tex};
+  }
+
+  auto set_data(math::NdSlice<T, N> src) -> Result<>;
 };
 
 }  // namespace sfc::cuda

@@ -1,3 +1,4 @@
+#include "sfc/alloc.h"
 #include "sfc/sync.h"
 #include "sfc/math/alloc.h"
 #include "sfc/cuda/memory.h"
@@ -231,36 +232,52 @@ class MemPool {
 };
 
 auto SysAllocator::allocate(usize size, MemLocation location) -> void* {
-  if (size == 0) return nullptr;
+  if (size == 0) {
+    return nullptr;
+  }
 
   switch (location.kind) {
-    default:           return nullptr;
     case MemKind::CPU: {
-      const auto p = cuda::heap_alloc(size);
+      using A = cuda::HeapAllocator;
+      const auto p = A::allocate(size);
       return p;
     }
     case MemKind::GPU: {
-      auto dev = cuda::device_get();
-      cuda::device_set(location.device);
-      const auto p = cuda::device_alloc(size);
-      cuda::device_set(dev);
+      using A = cuda::DeviceAllocator;
+      const auto p = A::allocate(size);
       return p;
     }
     case MemKind::UVA: {
-      const auto p = cuda::managed_alloc(size);
+      using A = cuda::ManagedAllocator;
+      const auto p = A::allocate(size);
       return p;
     }
   }
+
+  return nullptr;
 }
 
 void SysAllocator::deallocate(void* ptr, usize size, MemLocation location) {
-  if (ptr == nullptr) return;
+  if (ptr == nullptr) {
+    return;
+  }
 
   switch (location.kind) {
-    default:           return;
-    case MemKind::CPU: return cuda::heap_free(ptr);
-    case MemKind::GPU: return cuda::device_free(ptr);
-    case MemKind::UVA: return cuda::managed_free(ptr);
+    case MemKind::CPU: {
+      using A = cuda::HeapAllocator;
+      A::deallocate(ptr);
+      break;
+    }
+    case MemKind::GPU: {
+      using A = cuda::DeviceAllocator;
+      A::deallocate(ptr);
+      break;
+    }
+    case MemKind::UVA: {
+      using A = cuda::ManagedAllocator;
+      A::deallocate(ptr);
+      break;
+    }
   }
 }
 

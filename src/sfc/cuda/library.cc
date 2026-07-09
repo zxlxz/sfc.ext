@@ -1,13 +1,14 @@
+#include <cuda_runtime_api.h>
 
-#include "sfc/cuda/mod.inl"
+#include "sfc/core.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/library.h"
 
 namespace sfc::cuda {
 
-auto lib_load(const char* path) -> lib_t {
+static auto lib_load(const char* path) -> Result<lib_t> {
   if (path == nullptr) {
-    return nullptr;
+    return Error(cudaErrorInvalidValue);
   }
 
   const auto jit_options = nullptr;
@@ -19,45 +20,56 @@ auto lib_load(const char* path) -> lib_t {
   const auto num_library_options = 0U;
 
   auto lib = lib_t{nullptr};
-  CHECK_RET(cudaLibraryLoadFromFile,
-            &lib,
-            path,
-            jit_options,
-            jit_options_values,
-            num_jit_options,
-            library_options,
-            library_option_values,
-            num_library_options);
-  return lib;
+  const auto err = cudaLibraryLoadFromFile(&lib,
+                                           path,
+                                           jit_options,
+                                           jit_options_values,
+                                           num_jit_options,
+                                           library_options,
+                                           library_option_values,
+                                           num_library_options);
+  if (err != cudaSuccess) {
+    return Error(err);
+  }
+  return Ok{lib};
 }
 
-void lib_unload(lib_t lib) {
+static auto lib_unload(lib_t lib) -> Result<> {
   if (lib == nullptr) {
-    return;
+    return Ok{};
   }
 
-  CHECK_RET(cudaLibraryUnload, lib);
+  if (auto err = cudaLibraryUnload(lib)) {
+    return Error(err);
+  }
+
+  return Ok{};
 }
 
-auto lib_get_kernel(lib_t lib, const char* name) -> kernel_t {
+static auto lib_kernel(lib_t lib, const char* name) -> Result<kernel_t> {
   if (lib == nullptr || name == nullptr) {
-    return nullptr;
+    return Error(cudaErrorInvalidValue);
   }
 
   auto func = kernel_t{nullptr};
-  CHECK_RET(cudaLibraryGetKernel, &func, lib, name);
-  return func;
+  if (auto err = cudaLibraryGetKernel(&func, lib, name)) {
+    return Error(err);
+  }
+  return Ok{func};
 }
 
-void launch_kernel(kernel_t f, void* args[]) {
+auto launch_kernel(kernel_t f, void* args[]) -> Result<> {
   if (f == nullptr) {
-    return;
+    return Error(cudaErrorInvalidValue);
   }
 
-  const auto stream = cuda::stream_get();
+  const auto stream = cuda::stream_current();
   const auto grid_dim = cuda::grid_dim();
   const auto block_dim = cuda::block_dim();
-  CHECK_RET(cudaLaunchKernel, f, grid_dim, block_dim, args, 0, stream);
+  if (auto err = cudaLaunchKernel(f, grid_dim, block_dim, args, 0, stream)) {
+    return Error(err);
+  }
+  return Ok{};
 }
 
 Library::Library() noexcept = default;
@@ -67,22 +79,22 @@ Library::~Library() noexcept {
     return;
   }
 
-  cuda::lib_unload(_lib);
+  cuda::lib_unload(_lib).unwrap();
   _lib = nullptr;
 }
 
-Library::Library(Library&& other) noexcept : _lib{other._lib} {
-  other._lib = nullptr;
-}
+Library::Library(Library&& other) noexcept : _lib{mem::take(other._lib)} {}
 
 auto Library::load(const char* path) -> Library {
+  auto lib = cuda::lib_load(path).unwrap();
+
   auto res = Library{};
-  res._lib = cuda::lib_load(path);
+  res._lib = lib;
   return res;
 }
 
-auto Library::get_kernel(const char* name) const -> kernel_t {
-  return cuda::lib_get_kernel(_lib, name);
+auto Library::get_kernel(const char* name) const -> Result<kernel_t> {
+  return cuda::lib_kernel(_lib, name);
 }
 
 }  // namespace sfc::cuda

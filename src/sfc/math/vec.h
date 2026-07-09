@@ -18,7 +18,7 @@ struct vec<T, 1> {
 
  public:
   void fmt(auto& f) const {
-    f.debug_tuple().entry(x);
+    f.debug_tuple().field(x);
   }
 };
 
@@ -32,7 +32,7 @@ struct vec<T, 2> {
   __hd vec(const T(&v)[2]) : x{v[0]}, y{v[1]} {}
 
   void fmt(auto& f) const {
-    f.debug_tuple().entry(x).entry(y);
+    f.debug_tuple().field(x).field(y);
   }
 };
 
@@ -46,7 +46,7 @@ struct vec<T, 3> {
   __hd vec(const T(&v)[3]) : x{v[0]}, y{v[1]}, z{v[2]} {}
 
   void fmt(auto& f) const {
-    f.debug_tuple().entry(x).entry(y).entry(z);
+    f.debug_tuple().field(x).field(y).field(z);
   }
 };
 
@@ -60,7 +60,7 @@ struct vec<T, 4> {
   __hd vec(const T(&v)[4]) : x{v[0]}, y{v[1]}, z{v[2]}, w{v[3]} {}
 
   void fmt(auto& f) const {
-    f.debug_tuple().entry(x).entry(y).entry(z).entry(w);
+    f.debug_tuple().field(x).field(y).field(z).field(w);
   }
 };
 

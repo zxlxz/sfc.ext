@@ -4,7 +4,7 @@
 
 namespace sfc::math {
 
-template <class T, int N>
+template <class T, u32 N = 1>
 struct NdSlice;
 
 template <class T>
@@ -17,7 +17,7 @@ struct NdSlice<T, 1> {
   u32 _strides[NDIM] = {};
 
  public:
-  __hd NdSlice() noexcept = default;
+  __hd NdSlice() noexcept : _data{nullptr}, _shape{0}, _strides{0} {}
 
   __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0]}, _strides{strides[0]} {}
@@ -42,7 +42,7 @@ struct NdSlice<T, 1> {
     return _data[i];
   }
 
-  __hd auto operator[](const u32 (&idx)[1]) const -> T {
+  __hd auto operator[](const u32 (&idx)[1]) const -> const T& {
     const auto offset = idx[0] * _strides[0];
     return _data[offset];
   }
@@ -68,31 +68,25 @@ struct NdSlice<T, 1> {
   }
 
  public:
-  void imap(auto&& f) const {
-    for (auto i = 0U; i < _shape[0]; ++i) {
-      const auto& val = (*this)[i];
-      if constexpr (requires { f(i, val); }) {
-        f(i, val);
-      } else {
-        f({i}, val);
-      }
-    }
-  }
-
-  void imap_mut(auto&& f) {
-    for (auto i = 0U; i < _shape[0]; ++i) {
-      auto& val = (*this)[i];
-      if constexpr (requires { f(i, val); }) {
-        f(i, val);
-      } else {
-        f({i}, val);
-      }
-    }
-  }
-
 #ifndef __CUDACC__
+  auto is_contiguous() const -> bool {
+    return _strides[0] == 1;
+  }
+
+  void for_each(this auto&& self, auto&& f) {
+    for (auto i = 0U; i < self._shape[0]; ++i) {
+      auto&& val = self[i];
+      f(i, val);
+    }
+  }
+
   void fmt(auto& f) const {
-    Slice{_data, _shape[0]}.fmt(f);
+    f.write_str("[");
+    this->for_each([&](u32 i, const T& val) {
+      if (i != 0) f.write_str(", ");
+      f.write_val(val);
+    });
+    f.write_str("]");
   }
 #endif
 };
@@ -107,7 +101,7 @@ struct NdSlice<T, 2> {
   u32 _strides[NDIM] = {};
 
  public:
-  __hd NdSlice() noexcept = default;
+  __hd NdSlice() noexcept : _data{nullptr}, _shape{0, 0}, _strides{0, 0} {}
 
   __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0], shape[1]}, _strides{strides[0], strides[1]} {}
@@ -129,7 +123,7 @@ struct NdSlice<T, 2> {
     return NdSlice<T, NDIM - 1>{data, {_shape[1]}, {_strides[1]}};
   }
 
-  __hd auto operator[](const u32 (&idx)[NDIM]) const -> T {
+  __hd auto operator[](const u32 (&idx)[NDIM]) const -> const T& {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
     return _data[offset];
   }
@@ -153,40 +147,29 @@ struct NdSlice<T, 2> {
   }
 
  public:
-  void imap(auto&& f) const {
-    for (auto i = 0U; i < _shape[0]; ++i) {
-      const auto row = (*this)[i];
-      for (auto j = 0U; j < _shape[1]; ++j) {
-        const auto& val = row[j];
-        if constexpr (requires { f(i, j, val); }) {
-          f(i, j, val);
-        } else {
-          f({i, j}, val);
-        }
-      }
-    }
-  }
-
-  void imap_mut(auto&& f) {
-    for (auto i = 0U; i < _shape[0]; ++i) {
-      auto row = (*this)[i];
-      for (auto j = 0U; j < _shape[1]; ++j) {
-        auto& val = row[j];
-        if constexpr (requires { f(i, j, val); }) {
-          f(i, j, val);
-        } else {
-          f({i, j}, val);
-        }
-      }
-    }
-  }
-
 #ifndef __CUDACC__
+  auto is_contiguous() const -> bool {
+    return _strides[0] == _shape[1] && _strides[1] == 1;
+  }
+
+  void for_each(this auto&& self, auto&& f) {
+    for (auto i = 0U; i < self._shape[0]; ++i) {
+      auto row = self[i];
+      for (auto j = 0U; j < self._shape[1]; ++j) {
+        auto& val = row[j];
+        f(i, j, val);
+      }
+    }
+  }
+
   void fmt(auto& f) const {
+    f.write_str("[");
     for (auto i = 0U; i < _shape[0]; ++i) {
       const auto row = (*this)[i];
-      f.write_fmt("\n  {}", row);
+      if (i != 0) f.write_str("\n  ");
+      f.write_val(row);
     }
+    f.write_str("]");
   }
 #endif
 };
@@ -201,7 +184,7 @@ struct NdSlice<T, 3> {
   u32 _strides[NDIM] = {};
 
  public:
-  __hd NdSlice() noexcept = default;
+  __hd NdSlice() noexcept : _data{nullptr}, _shape{0, 0, 0}, _strides{0, 0, 0} {}
 
   __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0], shape[1], shape[2]}, _strides{strides[0], strides[1], strides[2]} {}
@@ -223,7 +206,7 @@ struct NdSlice<T, 3> {
     return {data, {_shape[1], _shape[2]}, {_strides[1], _strides[2]}};
   }
 
-  __hd auto operator[](const u32 (&idx)[NDIM]) const -> T {
+  __hd auto operator[](const u32 (&idx)[NDIM]) const -> const T& {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2];
     return _data[offset];
   }
@@ -249,39 +232,30 @@ struct NdSlice<T, 3> {
   }
 
  public:
-  void imap(auto&& f) const {
-    for (auto i = 0U; i < _shape[0]; ++i) {
-      const auto mat = (*this)[i];
-      for (auto j = 0U; j < _shape[1]; ++j) {
-        const auto row = mat[j];
-        for (auto k = 0U; k < _shape[2]; ++k) {
-          const auto& val = row[k];
-          if constexpr (requires { f(i, j, k, val); }) {
-            f(i, j, k, val);
-          } else {
-            f({i, j, k}, val);
-          }
+#ifndef __CUDACC__
+  void for_each(this auto&& self, auto&& f) {
+    for (auto i = 0U; i < self._shape[0]; ++i) {
+      auto mat = self[i];
+      for (auto j = 0U; j < self._shape[1]; ++j) {
+        auto col = mat[j];
+        for (auto k = 0U; k < self._shape[2]; ++k) {
+          auto& val = col[k];
+          f(i, j, k, val);
         }
       }
     }
   }
 
-  void imap_mut(auto&& f) {
+  void fmt(auto& f) const {
+    f.write_str("[");
     for (auto i = 0U; i < _shape[0]; ++i) {
-      auto mat = (*this)[i];
-      for (auto j = 0U; j < _shape[1]; ++j) {
-        auto row = mat[j];
-        for (auto k = 0U; k < _shape[2]; ++k) {
-          auto& val = row[k];
-          if constexpr (requires { f(i, j, k, val); }) {
-            f(i, j, k, val);
-          } else {
-            f({i, j, k}, val);
-          }
-        }
-      }
+      const auto mat = (*this)[i];
+      if (i != 0) f.write_str("\n\n ");
+      f.write_val(mat);
     }
+    f.write_str("]");
   }
+#endif
 };
 
 template <class T>
@@ -294,7 +268,7 @@ struct NdSlice<T, 4> {
   u32 _strides[NDIM] = {};
 
  public:
-  __hd NdSlice() noexcept = default;
+  __hd NdSlice() noexcept : _data{nullptr}, _shape{0, 0, 0, 0}, _strides{0, 0, 0, 0} {}
 
   __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}

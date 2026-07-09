@@ -1,13 +1,18 @@
 #pragma once
 
-#include "sfc/core.h"
+#include "sfc/cuda/mod.h"
 
 namespace sfc::cuda {
 
-auto dev_count() -> u32;
-auto device_get() -> u32;
-void device_set(u32 dev_id);
-void device_sync();
+struct DeviceInfo {
+  u32 dev_id;
+  u32 compute_capability;
+  u32 sm_count;
+  u32 async_engine_count;
+  u64 global_memory;
+  u64 l2_cache_size;
+  const char* name;
+};
 
 struct Device {
   u32 id = 0;
@@ -15,15 +20,26 @@ struct Device {
  public:
   static auto current() -> Device;
 
-#ifndef __CUDACC__
-  auto name() const -> Str;
-#endif
+ public:
+  auto info() const -> DeviceInfo;
 
-  auto compute_capability() const -> u32;
-  auto sm_count() const -> u32;
-  auto global_memory() const -> u64;
-  auto l2_cache_size() const -> u64;
-  auto async_engine_count() const -> u32;
+  class ScopeGuard;
+  auto scope() -> ScopeGuard;
 };
+
+class Device::ScopeGuard {
+  u32 _dev_enter;
+  u32 _dev_exit;
+
+ public:
+  ScopeGuard(u32 enter, u32 exit);
+  ~ScopeGuard();
+
+  ScopeGuard(const ScopeGuard&) = delete;
+  ScopeGuard& operator=(const ScopeGuard&) = delete;
+};
+
+auto device_count() -> u32;
+auto device_sync() -> Result<>;
 
 }  // namespace sfc::cuda

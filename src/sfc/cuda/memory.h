@@ -1,25 +1,33 @@
 #pragma once
 
-#include "sfc/core.h"
+#include "sfc/cuda/mod.h"
 
 namespace sfc::cuda {
 
-auto heap_alloc(usize size) -> void*;
-void heap_free(void* ptr);
+struct HeapAllocator {
+  static auto allocate(usize size) -> void*;
+  static void deallocate(void* ptr);
+};
 
-auto host_alloc(usize size) -> void*;
-void host_free(void* ptr);
+struct HostAllocator {
+  static auto allocate(usize size) -> void*;
+  static void deallocate(void* ptr);
+};
 
-auto device_alloc(usize size) -> void*;
-void device_free(void* ptr);
+struct DeviceAllocator {
+  static auto allocate(usize size) -> void*;
+  static void deallocate(void* ptr);
+};
 
-auto managed_alloc(usize size) -> void*;
-void managed_free(void* ptr);
+struct ManagedAllocator {
+  static auto allocate(usize size) -> void*;
+  static void deallocate(void* ptr);
+};
 
-void prefetch_cpu(void* ptr, usize size);
-void prefetch_gpu(void* ptr, usize size);
+auto prefetch_cpu(void* ptr, usize size) -> Result<>;
+auto prefetch_gpu(void* ptr, usize size) -> Result<>;
 
-void fill_bytes(void* ptr, u8 val, usize size);
-void copy_bytes(const void* src, void* dst, usize size);
+auto fill_bytes(void* ptr, u8 val, usize size) -> Result<>;
+auto copy_bytes(const void* src, void* dst, usize size) -> Result<>;
 
 }  // namespace sfc::cuda

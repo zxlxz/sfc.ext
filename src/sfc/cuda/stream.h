@@ -1,19 +1,12 @@
 #pragma once
 
-#include "sfc/core.h"
+#include "sfc/cuda/device.h"
 
 struct CUstream_st;
 
 namespace sfc::cuda {
 
 using stream_t = ::CUstream_st*;
-
-auto stream_new(unsigned int flags = 0) -> stream_t;
-void stream_del(stream_t);
-void stream_sync(stream_t);
-
-void stream_set(stream_t);
-auto stream_get() -> stream_t;
 
 class Stream {
   stream_t _raw{nullptr};
@@ -26,14 +19,27 @@ class Stream {
   Stream& operator=(Stream&& other) noexcept;
 
   static auto create(u32 flags = 0) -> Stream;
-  void sync();
 
  public:
-  void run(auto& f) {
-    cuda::stream_set(_raw);
-    f();
-    cuda::stream_set(nullptr);
-  }
+  auto sync() -> Result<>;
+
+  class ScopeGuard;
+  auto scope() -> ScopeGuard;
 };
+
+class Stream::ScopeGuard {
+  stream_t _enter;
+  stream_t _exit;
+
+ public:
+  ScopeGuard(stream_t enter, stream_t exit);
+  ~ScopeGuard();
+
+  ScopeGuard(const ScopeGuard&) = delete;
+  ScopeGuard& operator=(const ScopeGuard&) = delete;
+};
+
+auto stream_current() -> stream_t;
+auto stream_sync() -> Result<>;
 
 }  // namespace sfc::cuda

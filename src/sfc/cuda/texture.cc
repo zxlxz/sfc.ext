@@ -1,5 +1,8 @@
-#include "sfc/math.h"
-#include "sfc/cuda/mod.inl"
+#include <cuda_runtime_api.h>
+
+#include "sfc/core.h"
+#include "sfc/cuda/mod.h"
+#include "sfc/cuda/stream.h"
 #include "sfc/cuda/texture.h"
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -8,11 +11,96 @@
 
 namespace sfc::cuda {
 
-static constexpr auto kInvalidTex = num::Int<tex_t>::MAX;
+using buffer_t = struct cudaArray*;
 
-auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
-  const auto cu_filt = cudaTextureFilterMode(filt_mode);
-  const auto cu_addr = cudaTextureAddressMode(addr_mode);
+template <class T>
+static auto pitched_ptr(const T* p, cudaExtent extent) -> cudaPitchedPtr {
+  const auto pitch = extent.width * sizeof(T);
+  const auto xsize = extent.width;
+  const auto ysize = extent.height ? extent.height : 1;
+  return cudaPitchedPtr{ptr::cast_mut(p), pitch, xsize, ysize};
+}
+
+template <class T>
+static auto buffer_format() -> cudaChannelFormatDesc {
+  static constexpr auto NBITS = sizeof(T) * 8;
+  if constexpr (trait::uint_<T>) {
+    return {NBITS, 0, 0, 0, cudaChannelFormatKindUnsigned};
+  } else if constexpr (trait::sint_<T>) {
+    return {NBITS, 0, 0, 0, cudaChannelFormatKindSigned};
+  } else if constexpr (trait::float_<T>) {
+    return {NBITS, 0, 0, 0, cudaChannelFormatKindFloat};
+  } else {
+    static_assert(false, "unsupported type");
+  }
+}
+
+template <class T>
+static auto buffer_new(cudaExtent ext, u32 flags) -> Result<buffer_t> {
+  const auto desc = cuda::buffer_format<T>();
+  auto res = buffer_t{nullptr};
+  if (auto err = cudaMalloc3DArray(&res, &desc, ext, flags)) {
+    return Error(err);
+  }
+
+  return Ok{res};
+}
+
+static auto buffer_del(buffer_t arr) -> Result<> {
+  if (arr == nullptr) {
+    return Ok{};
+  }
+
+  if (auto err = cudaFreeArray(arr)) {
+    return Error(err);
+  }
+
+  return Ok{};
+}
+
+static auto buffer_ext(buffer_t arr) -> Result<cudaExtent> {
+  if (arr == nullptr) {
+    return Error(cudaErrorInvalidValue);
+  }
+
+  auto desc = cudaChannelFormatDesc{};
+  auto ext = cudaExtent{};
+  auto flags = 0U;
+  if (auto err = cudaArrayGetInfo(&desc, &ext, &flags, arr)) {
+    return Error(err);
+  }
+  return Ok{ext};
+}
+
+template <class T>
+static auto buffer_set(buffer_t arr, const T* src) -> Result<> {
+  if (arr == nullptr || src == nullptr) {
+    return Error(cudaErrorInvalidValue);
+  }
+
+  const auto ext = _TRY(buffer_ext(arr));
+
+  auto copy_params = cudaMemcpy3DParms{};
+  copy_params.srcPtr = cuda::pitched_ptr(src, ext);
+  copy_params.dstArray = arr;
+  copy_params.extent = ext;  // array element count
+  copy_params.kind = cudaMemcpyHostToDevice;
+
+  const auto stream = cuda::stream_current();
+  const auto err_code = stream  //
+                            ? cudaMemcpy3DAsync(&copy_params, stream)
+                            : cudaMemcpy3D(&copy_params);
+
+  if (err_code != cudaSuccess) {
+    return Error(err_code);
+  }
+
+  return Ok{};
+}
+
+static auto texture_new(buffer_t arr, TexFilt tex_filt, TexAddr tex_addr) -> Result<u64> {
+  const auto filt_mode = cudaTextureFilterMode(tex_filt);
+  const auto addr_mode = cudaTextureAddressMode(tex_addr);
 
   const auto res_desc = cudaResourceDesc{
       .resType = cudaResourceTypeArray,
@@ -20,20 +108,77 @@ auto texture_new(buf_t arr, TexFilt filt_mode, TexAddr addr_mode) -> tex_t {
   };
 
   const auto tex_desc = cudaTextureDesc{
-      .addressMode = {cu_addr, cu_addr, cu_addr},
-      .filterMode = cu_filt,
+      .addressMode = {addr_mode, addr_mode, addr_mode},
+      .filterMode = filt_mode,
   };
 
-  auto tex_obj = tex_t{0};
-  CHECK_RET(cudaCreateTextureObject, &tex_obj, &res_desc, &tex_desc, nullptr);
+  auto tex_obj = u64{0};
+  if (auto err = cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, nullptr)) {
+    return Error(err);
+  }
 
-  return tex_obj;
+  return Ok{tex_obj};
 }
 
-void texture_del(tex_t obj) {
-  if (obj == kInvalidTex) return;
+static auto texture_del(u64 tex) -> Result<> {
+  if (auto err = cudaDestroyTextureObject(tex)) {
+    return Error(err);
+  }
+  return Ok{};
+}
 
-  CHECK_RET(cudaDestroyTextureObject, obj);
+template <class T>
+Buffer<T>::Buffer() noexcept : _arr{nullptr} {}
+
+template <class T>
+Buffer<T>::~Buffer() {
+  if (_arr == nullptr) {
+    return;
+  }
+
+  cuda::buffer_del(_arr).unwrap();
+}
+
+template <class T>
+Buffer<T>::Buffer(Buffer&& other) noexcept : _arr{other._arr} {
+  other._arr = nullptr;
+}
+
+template <class T>
+auto Buffer<T>::operator=(Buffer&& other) noexcept -> Buffer& {
+  if (this == &other) return *this;
+  mem::swap(_arr, other._arr);
+  return *this;
+}
+
+template <class T>
+auto Buffer<T>::xnew(Extent ext) -> Buffer {
+  const auto cu_ext = cudaExtent{ext.x, ext.y, ext.z};
+
+  auto buf = cuda::buffer_new<T>(cu_ext, cudaArrayDefault).unwrap();
+  auto res = Buffer{};
+  res._arr = buf;
+  return res;
+}
+
+template <class T>
+auto Buffer<T>::xnew_layered(Extent ext) -> Buffer {
+  const auto cu_ext = cudaExtent{ext.x, ext.y, ext.z};
+
+  auto buf = cuda::buffer_new<T>(cu_ext, cudaArrayLayered).unwrap();
+  auto res = Buffer{};
+  res._arr = buf;
+  return res;
+}
+
+template <class T>
+auto Buffer<T>::as_ptr() const -> buf_t {
+  return _arr;
+}
+
+template <class T>
+auto Buffer<T>::set_data(const T* src) -> Result<> {
+  return cuda::buffer_set(_arr, src);
 }
 
 template <class T, int N>
@@ -41,33 +186,45 @@ Texture<T, N>::Texture() noexcept {}
 
 template <class T, int N>
 Texture<T, N>::~Texture() noexcept {
-  cuda::texture_del(_tex._tex);
+  if (_tex == 0) {
+    return;
+  }
+
+  cuda::texture_del(_tex).unwrap();
+  _tex = {};
 }
 
 template <class T, int N>
-Texture<T, N>::Texture(Texture&& other) noexcept : _buf{mem::move(other._buf)}, _tex{other._tex} {
-  other._tex = Tex{kInvalidTex};
-}
+Texture<T, N>::Texture(Texture&& other) noexcept : _tex{mem::take(other._tex)}, _buf{mem::move(other._buf)} {}
 
 template <class T, int N>
 auto Texture<T, N>::operator=(Texture&& other) noexcept -> Texture& {
-  if (this == &other) return *this;
-  mem::swap(_buf, other._buf);
-  mem::swap(_tex, other._tex);
+  if (this != &other) {
+    mem::swap(_tex, other._tex);
+    mem::swap(_buf, other._buf);
+  }
   return *this;
 }
 
 template <class T, int N>
-auto Texture<T, N>::xnew(const Shape& shape, TexFilt filt, TexAddr addr) -> Texture {
+auto Texture<T, N>::xnew(const u32 (&shape)[N], TexFilt filt, TexAddr addr) -> Texture {
+  const auto ext = Extent{
+      N > 0 ? shape[0] : 0,
+      N > 1 ? shape[1] : 0,
+      N > 2 ? shape[2] : 0,
+  };
+  auto buf = Buf::xnew(ext);
+  auto tex = cuda::texture_new(buf.as_ptr(), filt, addr).unwrap();
+
   auto res = Texture{};
-  res._buf = Buf::xnew(shape);
-  res._tex = {cuda::texture_new(res._buf.as_ptr(), filt, addr)};
+  res._buf = mem::move(buf);
+  res._tex = tex;
   return res;
 }
 
 template <class T, int N>
-void Texture<T, N>::set_data(math::NdSlice<T, N> src) {
-  _buf.set_data(src._data);
+auto Texture<T, N>::set_data(math::NdSlice<T, N> src) -> Result<> {
+  return _buf.set_data(src._data);
 }
 
 template <class T, int N>
@@ -75,33 +232,40 @@ LTexture<T, N>::LTexture() noexcept {}
 
 template <class T, int N>
 LTexture<T, N>::~LTexture() noexcept {
-  cuda::texture_del(_tex._tex);
+  if (_tex == 0) {
+    return;
+  }
+  cuda::texture_del(_tex).unwrap();
 }
 
 template <class T, int N>
-LTexture<T, N>::LTexture(LTexture&& other) noexcept : _buf{mem::move(other._buf)}, _tex{other._tex} {
-  other._tex = Tex{kInvalidTex};
-}
+LTexture<T, N>::LTexture(LTexture&& other) noexcept : _tex{mem::take(other._tex)}, _buf{mem::move(other._buf)} {}
 
 template <class T, int N>
 auto LTexture<T, N>::operator=(LTexture&& other) noexcept -> LTexture& {
-  if (this == &other) return *this;
-  mem::swap(_buf, other._buf);
-  mem::swap(_tex, other._tex);
+  if (this != &other) {
+    mem::swap(_tex, other._tex);
+    mem::swap(_buf, other._buf);
+  }
   return *this;
 }
 
 template <class T, int N>
-auto LTexture<T, N>::xnew(const Shape& shape, TexFilt filt, TexAddr addr) -> LTexture {
+auto LTexture<T, N>::xnew(const u32 (&shape)[N], TexFilt filt, TexAddr addr) -> LTexture {
+  const auto ext = Extent{
+      N > 0 ? shape[0] : 0,
+      N > 1 ? shape[1] : 0,
+      N > 2 ? shape[2] : 0,
+  };
   auto res = LTexture{};
-  res._buf = Buf::xnew(shape);
-  res._tex = {cuda::texture_new(res._buf.as_ptr(), filt, addr)};
+  res._buf = Buf::xnew_layered(ext);
+  res._tex = cuda::texture_new(res._buf.as_ptr(), filt, addr).unwrap();
   return res;
 }
 
 template <class T, int N>
-void LTexture<T, N>::set_data(math::NdSlice<T, N> src) {
-  _buf.set_data(src._data);
+auto LTexture<T, N>::set_data(math::NdSlice<T, N> src) -> Result<> {
+  return _buf.set_data(src._data);
 }
 
 #define IMPL_TEXTURE(T)         \

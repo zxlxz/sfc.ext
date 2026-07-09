@@ -5,18 +5,19 @@
 namespace sfc::cuda::test {
 
 SFC_TEST(device_query) {
-  const auto dev_cnt = cuda::dev_count();
+  const auto dev_cnt = cuda::device_count();
 
   io::println("cuda.dev: count={}", dev_cnt);
   for (auto i = 0U; i < dev_cnt; ++i) {
     const auto dev = Device{i};
+    const auto info  = dev.info();
     io::println("cuda.dev[{}]", i);
-    io::println("  name = {}", dev.name());
-    io::println("  compute_capability = {}", dev.compute_capability());
-    io::println("  sm_count = {}", dev.sm_count());
-    io::println("  global_memory = {}", dev.global_memory());
-    io::println("  l2_cache_size = {}", dev.l2_cache_size());
-    io::println("  async_engine_count = {}", dev.async_engine_count());
+    io::println("  name = {}", info.name);
+    io::println("  compute_capability = {}", info.compute_capability);
+    io::println("  sm_count = {}", info.sm_count);
+    io::println("  global_memory = {}", info.global_memory);
+    io::println("  l2_cache_size = {}", info.l2_cache_size);
+    io::println("  async_engine_count = {}", info.async_engine_count);
   }
 }
 
