@@ -2,7 +2,7 @@
 #include "sfc/io.h"
 #include "sfc/cuda/device.h"
 
-namespace sfc::cuda::test {
+namespace sfc::cuda::device::test {
 
 SFC_TEST(device_query) {
   const auto dev_cnt = cuda::device_count();

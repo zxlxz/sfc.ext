@@ -2,7 +2,7 @@
 #include "sfc/io.h"
 #include "sfc/math/ndslice.h"
 
-namespace sfc::math::test {
+namespace sfc::math::ndslice::test {
 
 template <class T, int N0>
 auto as_slice_1d(T (&v)[N0]) -> NdSlice<T, 1> {

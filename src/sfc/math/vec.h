@@ -14,7 +14,7 @@ struct vec<T, 1> {
 
  public:
   __hd vec(T x) : x{x} {}
-  __hd vec(const T(&v)[1]) : x{v[0]} {}
+  __hd vec(const T (&v)[1]) : x{v[0]} {}
 
  public:
   void fmt(auto& f) const {
@@ -29,10 +29,10 @@ struct vec<T, 2> {
 
  public:
   __hd vec(T x, T y) : x{x}, y{y} {}
-  __hd vec(const T(&v)[2]) : x{v[0]}, y{v[1]} {}
+  __hd vec(const T (&v)[2]) : x{v[0]}, y{v[1]} {}
 
   void fmt(auto& f) const {
-    f.debug_tuple().field(x).field(y);
+    f.debug_tuple("vec").field(x).field(y);
   }
 };
 
@@ -43,10 +43,10 @@ struct vec<T, 3> {
 
  public:
   __hd vec(T x, T y, T z) : x{x}, y{y}, z{z} {}
-  __hd vec(const T(&v)[3]) : x{v[0]}, y{v[1]}, z{v[2]} {}
+  __hd vec(const T (&v)[3]) : x{v[0]}, y{v[1]}, z{v[2]} {}
 
   void fmt(auto& f) const {
-    f.debug_tuple().field(x).field(y).field(z);
+    f.debug_tuple("vec").field(x).field(y).field(z);
   }
 };
 
@@ -57,10 +57,10 @@ struct vec<T, 4> {
 
  public:
   __hd vec(T x, T y, T z, T w) : x{x}, y{y}, z{z}, w{w} {}
-  __hd vec(const T(&v)[4]) : x{v[0]}, y{v[1]}, z{v[2]}, w{v[3]} {}
+  __hd vec(const T (&v)[4]) : x{v[0]}, y{v[1]}, z{v[2]}, w{v[3]} {}
 
   void fmt(auto& f) const {
-    f.debug_tuple().field(x).field(y).field(z).field(w);
+    f.debug_tuple("vec").field(x).field(y).field(z).field(w);
   }
 };
 

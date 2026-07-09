@@ -3,7 +3,7 @@
 #include "sfc/math/ndarray.h"
 #include "sfc/math/fftw.h"
 
-namespace sfc::math::test {
+namespace sfc::math::fftw::test {
 
 SFC_TEST(fft_c2c_outplace) {
   const u32 lens[] = {2, 4, 8, 16, 32, 40};

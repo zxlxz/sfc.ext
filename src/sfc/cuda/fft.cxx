@@ -6,7 +6,7 @@
 #include "sfc/cuda/device.h"
 #include "sfc/cuda/fft.h"
 
-namespace sfc::fft::test {
+namespace sfc::cuda::fft::test {
 
 using cuda::CUFFT;
 using math::NdArray;
