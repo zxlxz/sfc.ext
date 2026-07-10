@@ -34,8 +34,8 @@ class Buffer {
   Buffer(Buffer&& other) noexcept;
   Buffer& operator=(Buffer&& other) noexcept;
 
-  static auto xnew(Extent ext) -> Buffer;
-  static auto xnew_layered(Extent ext) -> Buffer;
+  static auto new_(Extent ext) -> Buffer;
+  static auto new_layered(Extent ext) -> Buffer;
 
  public:
   auto as_ptr() const -> buf_t;
@@ -55,7 +55,7 @@ class Texture {
   Texture(Texture&& other) noexcept;
   Texture& operator=(Texture&& other) noexcept;
 
-  static auto xnew(const u32 (&shape)[N], TexFilt filt = TexFilt::Point, TexAddr addr = TexAddr::Clamp) -> Texture;
+  static auto new_(const u32 (&shape)[N], TexFilt filt = TexFilt::Point, TexAddr addr = TexAddr::Clamp) -> Texture;
 
  public:
   operator Tex() const {
@@ -82,7 +82,7 @@ class LTexture {
   LTexture(LTexture&& other) noexcept;
   LTexture& operator=(LTexture&& other) noexcept;
 
-  static auto xnew(const u32 (&shape)[N], TexFilt filt = TexFilt::Point, TexAddr addr = TexAddr::Clamp) -> LTexture;
+  static auto new_(const u32 (&shape)[N], TexFilt filt = TexFilt::Point, TexAddr addr = TexAddr::Clamp) -> LTexture;
 
  public:
   operator Tex() const {

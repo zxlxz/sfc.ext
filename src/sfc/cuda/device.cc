@@ -7,12 +7,6 @@
 
 namespace sfc::cuda {
 
-auto to_str(Error err) -> cstr_t {
-  const auto code = cudaError_t(err);
-  const auto name = ::cudaGetErrorName(code);
-  return name;
-}
-
 auto device_get() -> Result<u32> {
   auto dev = 0;
   if (auto err = ::cudaGetDevice(&dev)) {

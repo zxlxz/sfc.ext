@@ -76,7 +76,13 @@ struct NdSlice<T, 1> {
   void for_each(this auto&& self, auto&& f) {
     for (auto i = 0U; i < self._shape[0]; ++i) {
       auto&& val = self[i];
-      f(i, val);
+      if constexpr (requires { f(i, val); }) {
+        f(i, val);
+      } else if constexpr (requires { f({i}, val); }) {
+        f({i}, val);
+      } else {
+        f(val);
+      }
     }
   }
 
@@ -157,7 +163,13 @@ struct NdSlice<T, 2> {
       auto row = self[i];
       for (auto j = 0U; j < self._shape[1]; ++j) {
         auto& val = row[j];
-        f(i, j, val);
+        if constexpr (requires { f(i, j, val); }) {
+          f(i, j, val);
+        } else if constexpr (requires { f({i, j}, val); }) {
+          f({i, j}, val);
+        } else {
+          f(val);
+        }
       }
     }
   }
@@ -240,7 +252,13 @@ struct NdSlice<T, 3> {
         auto col = mat[j];
         for (auto k = 0U; k < self._shape[2]; ++k) {
           auto& val = col[k];
-          f(i, j, k, val);
+          if constexpr (requires { f(i, j, k, val); }) {
+            f(i, j, k, val);
+          } else if constexpr (requires { f({i, j, k}, val); }) {
+            f({i, j, k}, val);
+          } else {
+            f(val);
+          }
         }
       }
     }

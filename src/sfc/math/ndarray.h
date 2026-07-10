@@ -19,7 +19,7 @@ class RawBuf {
   RawBuf(RawBuf&& other) noexcept;
   RawBuf& operator=(RawBuf&& other) noexcept;
 
-  static auto xnew(usize size, MemLocation location) -> RawBuf;
+  static auto new_(usize size, MemLocation location) -> RawBuf;
 
  public:
   auto ptr() const -> u8*;
@@ -62,9 +62,9 @@ class [[nodiscard]] NdArray {
     return res;
   }
 
-  static auto xnew(const u32 (&shape)[N], MemLocation location = {}) -> NdArray {
+  static auto new_(const u32 (&shape)[N], MemLocation location = {}) -> NdArray {
     const auto numel = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::xnew(numel * sizeof(T), location);
+    auto buf = Buf::new_(numel * sizeof(T), location);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
@@ -158,7 +158,7 @@ class [[nodiscard]] NdArray {
 
 template <class T, u32 N>
 auto array(const u32 (&shape)[N], MemLocation location = {}) -> NdArray<T, N> {
-  return NdArray<T, N>::xnew(shape, location);
+  return NdArray<T, N>::new_(shape, location);
 }
 
 }  // namespace sfc::math

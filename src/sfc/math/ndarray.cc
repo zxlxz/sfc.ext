@@ -48,7 +48,7 @@ auto RawBuf::as_mut_bytes() -> slice::Slice<u8> {
   return {_ptr, _size};
 }
 
-auto RawBuf::xnew(usize size, MemLocation location) -> RawBuf {
+auto RawBuf::new_(usize size, MemLocation location) -> RawBuf {
   auto alloc = A{};
 
   auto res = RawBuf{};
@@ -77,7 +77,7 @@ void RawBuf::sync(MemLocation location) {
   if (_location.kind == location.kind && _location.device == location.device) {
     return;
   }
-  auto tmp = RawBuf::xnew(_size, location);
+  auto tmp = RawBuf::new_(_size, location);
   tmp.copy_from(*this);
   *this = mem::move(tmp);
 }

@@ -1,7 +1,7 @@
 #pragma once
 
+#include "sfc/cuda/mod.h"
 #include "sfc/cuda/tex.h"
-#include "sfc/cuda/exec.h"
 
 #ifndef __CUDACC__
 #include "sfc/cuda/device.h"

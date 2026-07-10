@@ -152,7 +152,7 @@ auto Buffer<T>::operator=(Buffer&& other) noexcept -> Buffer& {
 }
 
 template <class T>
-auto Buffer<T>::xnew(Extent ext) -> Buffer {
+auto Buffer<T>::new_(Extent ext) -> Buffer {
   const auto cu_ext = cudaExtent{ext.x, ext.y, ext.z};
 
   auto buf = cuda::buffer_new<T>(cu_ext, cudaArrayDefault).unwrap();
@@ -162,7 +162,7 @@ auto Buffer<T>::xnew(Extent ext) -> Buffer {
 }
 
 template <class T>
-auto Buffer<T>::xnew_layered(Extent ext) -> Buffer {
+auto Buffer<T>::new_layered(Extent ext) -> Buffer {
   const auto cu_ext = cudaExtent{ext.x, ext.y, ext.z};
 
   auto buf = cuda::buffer_new<T>(cu_ext, cudaArrayLayered).unwrap();
@@ -207,13 +207,13 @@ auto Texture<T, N>::operator=(Texture&& other) noexcept -> Texture& {
 }
 
 template <class T, int N>
-auto Texture<T, N>::xnew(const u32 (&shape)[N], TexFilt filt, TexAddr addr) -> Texture {
+auto Texture<T, N>::new_(const u32 (&shape)[N], TexFilt filt, TexAddr addr) -> Texture {
   const auto ext = Extent{
       N > 0 ? shape[0] : 0,
       N > 1 ? shape[1] : 0,
       N > 2 ? shape[2] : 0,
   };
-  auto buf = Buf::xnew(ext);
+  auto buf = Buf::new_(ext);
   auto tex = cuda::texture_new(buf.as_ptr(), filt, addr).unwrap();
 
   auto res = Texture{};
@@ -251,14 +251,14 @@ auto LTexture<T, N>::operator=(LTexture&& other) noexcept -> LTexture& {
 }
 
 template <class T, int N>
-auto LTexture<T, N>::xnew(const u32 (&shape)[N], TexFilt filt, TexAddr addr) -> LTexture {
+auto LTexture<T, N>::new_(const u32 (&shape)[N], TexFilt filt, TexAddr addr) -> LTexture {
   const auto ext = Extent{
       N > 0 ? shape[0] : 0,
       N > 1 ? shape[1] : 0,
       N > 2 ? shape[2] : 0,
   };
   auto res = LTexture{};
-  res._buf = Buf::xnew_layered(ext);
+  res._buf = Buf::new_layered(ext);
   res._tex = cuda::texture_new(res._buf.as_ptr(), filt, addr).unwrap();
   return res;
 }
