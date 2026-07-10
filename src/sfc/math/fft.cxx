@@ -1,7 +1,7 @@
 #include "sfc/test.h"
 #include "sfc/io.h"
 #include "sfc/math/ndarray.h"
-#include "sfc/math/fftw.h"
+#include "sfc/math/fft.h"
 
 namespace sfc::math::fftw::test {
 
@@ -46,4 +46,4 @@ SFC_TEST(fft_r2c) {
   }
 }
 
-}  // namespace sfc::math::test
+}  // namespace sfc::math::fftw::test

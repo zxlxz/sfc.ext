@@ -1,6 +1,5 @@
 #include <fftw3.h>
-
-#include "sfc/math/fftw.h"
+#include "sfc/math/fft.h"
 
 namespace sfc::math {
 
