@@ -39,7 +39,7 @@ static auto lib_unload(lib_t lib) -> Result<> {
     return Ok{};
   }
 
-  if (auto err = cudaLibraryUnload(lib)) {
+  if (auto err = cudaLibraryUnload(lib); err != cudaSuccess) {
     return Error(err);
   }
 
@@ -52,7 +52,7 @@ static auto lib_kernel(lib_t lib, const char* name) -> Result<kernel_t> {
   }
 
   auto func = kernel_t{nullptr};
-  if (auto err = cudaLibraryGetKernel(&func, lib, name)) {
+  if (auto err = cudaLibraryGetKernel(&func, lib, name); err != cudaSuccess) {
     return Error(err);
   }
   return Ok{func};
@@ -66,7 +66,7 @@ auto launch_kernel(kernel_t f, void* args[]) -> Result<> {
   const auto stream = cuda::stream_current();
   const auto grid_dim = cuda::grid_dim();
   const auto block_dim = cuda::block_dim();
-  if (auto err = cudaLaunchKernel(f, grid_dim, block_dim, args, 0, stream)) {
+  if (auto err = cudaLaunchKernel(f, grid_dim, block_dim, args, 0, stream); err != cudaSuccess) {
     return Error(err);
   }
   return Ok{};

@@ -50,7 +50,7 @@ class MemBucket {
   }
 
   void* slow_allocate() {
-    const auto ptr = cuda::allocate(_blk_size, _location);
+    const auto ptr = cuda::mem_allocate(_blk_size, _location);
     if (ptr != nullptr) {
       _blk_cnt += 1;
     }
@@ -118,7 +118,7 @@ class MemBucket {
   }
 
   void slow_deallocate(void* ptr) {
-    cuda::deallocate(ptr, _blk_size, _location);
+    cuda::mem_deallocate(ptr, _location);
     _blk_cnt -= 1;
   }
 

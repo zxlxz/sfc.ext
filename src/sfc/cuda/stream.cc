@@ -8,7 +8,7 @@ namespace sfc::cuda {
 
 static auto stream_new(unsigned int flags) -> Result<stream_t> {
   auto stream = stream_t{nullptr};
-  if (auto err = ::cudaStreamCreateWithFlags(&stream, flags)) {
+  if (auto err = ::cudaStreamCreateWithFlags(&stream, flags); err != cudaSuccess) {
     return Err{Error(err)};
   }
   return Ok{stream};
@@ -19,7 +19,7 @@ static auto stream_del(stream_t s) -> Result<> {
     return Ok{};
   }
 
-  if (auto err = ::cudaStreamDestroy(s)) {
+  if (auto err = ::cudaStreamDestroy(s); err != cudaSuccess) {
     return Err{Error(err)};
   }
   return Ok{};
@@ -30,7 +30,7 @@ static auto stream_sync(stream_t s) -> Result<> {
     return Ok{};
   }
 
-  if (auto err = ::cudaStreamSynchronize(s)) {
+  if (auto err = ::cudaStreamSynchronize(s); err != cudaSuccess) {
     return Err{Error(err)};
   }
   return Ok{};
@@ -47,10 +47,7 @@ auto stream_current() -> stream_t {
 }
 
 auto stream_sync() -> Result<> {
-  if (auto err = ::cudaStreamSynchronize(_tls_stream)) {
-    return Err{Error(err)};
-  }
-  return Ok{};
+  return cuda::stream_sync(_tls_stream);
 }
 
 Stream::Stream() noexcept {}
@@ -59,7 +56,8 @@ Stream::~Stream() noexcept {
   if (_raw == nullptr) {
     return;
   }
-  (void)cuda::stream_del(_raw);
+  (void)cuda::stream_del(_raw).unwrap();
+  _raw = nullptr;
 }
 
 Stream::Stream(Stream&& other) noexcept : _raw{other._raw} {

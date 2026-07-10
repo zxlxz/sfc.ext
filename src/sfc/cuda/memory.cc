@@ -120,12 +120,12 @@ auto to_str(MemKind kind) -> Str {
   }
 }
 
-auto allocate(usize size, MemLocation loc) -> void* {
+auto mem_allocate(usize size, MemLocation loc) -> void* {
   if (size == 0) {
     return nullptr;
   }
 
-  if (loc.kind != MemKind::CPU) {
+  if (loc.kind == MemKind::GPU || loc.kind == MemKind::UVA) {
     cuda::device_set(loc.device).unwrap();
   }
 
@@ -138,16 +138,16 @@ auto allocate(usize size, MemLocation loc) -> void* {
   return nullptr;
 }
 
-void deallocate(void* ptr, [[maybe_unused]] usize size, MemLocation location) {
+void mem_deallocate(void* ptr, MemLocation loc) {
   if (ptr == nullptr) {
     return;
   }
 
-  if (location.kind != MemKind::CPU) {
-    cuda::device_set(location.device).unwrap();
+  if (loc.kind == MemKind::GPU || loc.kind == MemKind::UVA) {
+    cuda::device_set(loc.device).unwrap();
   }
 
-  switch (location.kind) {
+  switch (loc.kind) {
     case MemKind::CPU: return HeapAllocator::deallocate(ptr);
     case MemKind::RAM: return HostAllocator::deallocate(ptr);
     case MemKind::GPU: return DeviceAllocator::deallocate(ptr);
@@ -155,7 +155,7 @@ void deallocate(void* ptr, [[maybe_unused]] usize size, MemLocation location) {
   }
 }
 
-auto location(void* ptr) -> MemLocation {
+auto mem_location(void* ptr) -> MemLocation {
   if (ptr == nullptr) {
     return {};
   }
@@ -171,7 +171,7 @@ auto location(void* ptr) -> MemLocation {
   return res;
 }
 
-auto prefetch_cpu(void* ptr, usize size) -> Result<> {
+auto mem_prefetch(void* ptr, usize size, MemLocation loc) -> Result<> {
   if (size == 0) {
     return Ok{};
   }
@@ -180,30 +180,17 @@ auto prefetch_cpu(void* ptr, usize size) -> Result<> {
     return Error(cudaErrorInvalidValue);
   }
 
-  const auto loc = cudaMemLocation{cudaMemLocationTypeHost, 0};
-  const auto flags = 0U;  // must be zero now
-  const auto stream = cuda::stream_current();
-  if (auto err = cudaMemPrefetchAsync(ptr, size, loc, flags, stream)) {
-    return Error(err);
-  }
-
-  return Ok{};
-}
-
-auto prefetch_gpu(void* ptr, usize size) -> Result<> {
-  if (size == 0) {
-    return Ok{};
-  }
-
-  if (ptr == nullptr) {
+  if (loc.kind != MemKind::CPU && loc.kind != MemKind::GPU) {
     return Error(cudaErrorInvalidValue);
   }
 
-  const auto dev = Device::current();
-  const auto loc = cudaMemLocation{cudaMemLocationTypeDevice, static_cast<int>(dev.id)};
+  const auto loc_type = loc.kind == MemKind::CPU ? cudaMemLocationTypeHost : cudaMemLocationTypeDevice;
+  const auto loc_dev = loc.kind == MemKind::CPU ? 0 : static_cast<int>(loc.device);
+
+  const auto cu_loc = cudaMemLocation{loc_type, loc_dev};
   const auto flags = 0U;  // must be zero now
   const auto stream = cuda::stream_current();
-  if (auto err = cudaMemPrefetchAsync(ptr, size, loc, flags, stream)) {
+  if (auto err = cudaMemPrefetchAsync(ptr, size, cu_loc, flags, stream); err != cudaSuccess) {
     return Error(err);
   }
 
@@ -220,9 +207,7 @@ auto fill_bytes(void* ptr, u8 val, usize size) -> Result<> {
   }
 
   const auto stream = cuda::stream_current();
-  const auto err_code = stream  //
-                            ? cudaMemsetAsync(ptr, val, size, stream)
-                            : cudaMemset(ptr, val, size);
+  const auto err_code = stream ? cudaMemsetAsync(ptr, val, size, stream) : cudaMemset(ptr, val, size);
 
   if (err_code != cudaSuccess) {
     return Error(err_code);
@@ -242,9 +227,7 @@ auto copy_bytes(const void* src, void* dst, usize size) -> Result<> {
 
   const auto kind = cudaMemcpyDefault;
   const auto stream = cuda::stream_current();
-  const auto err_code = stream  //
-                            ? cudaMemcpyAsync(dst, src, size, kind, stream)
-                            : cudaMemcpy(dst, src, size, kind);
+  const auto err_code = stream ? cudaMemcpyAsync(dst, src, size, kind, stream) : cudaMemcpy(dst, src, size, kind);
 
   if (err_code != cudaSuccess) {
     return Error(err_code);

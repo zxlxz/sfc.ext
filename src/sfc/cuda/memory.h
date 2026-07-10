@@ -23,12 +23,10 @@ struct MemLocation {
   void fmt(fmt::Formatter& f) const;
 };
 
-auto allocate(usize size, MemLocation loc) -> void*;
-void deallocate(void* ptr, usize size, MemLocation loc);
-auto location(void* ptr) -> MemLocation;
-
-auto prefetch_cpu(void* ptr, usize size) -> Result<>;
-auto prefetch_gpu(void* ptr, usize size) -> Result<>;
+auto mem_allocate(usize size, MemLocation loc) -> void*;
+void mem_deallocate(void* ptr, MemLocation location);
+auto mem_location(void* ptr) -> MemLocation;
+auto mem_prefetch(void* ptr, usize size, MemLocation loc) -> Result<>;
 
 auto fill_bytes(void* ptr, u8 val, usize size) -> Result<>;
 auto copy_bytes(const void* src, void* dst, usize size) -> Result<>;

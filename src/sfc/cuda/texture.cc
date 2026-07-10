@@ -39,7 +39,7 @@ template <class T>
 static auto buffer_new(cudaExtent ext, u32 flags) -> Result<buffer_t> {
   const auto desc = cuda::buffer_format<T>();
   auto res = buffer_t{nullptr};
-  if (auto err = cudaMalloc3DArray(&res, &desc, ext, flags)) {
+  if (auto err = cudaMalloc3DArray(&res, &desc, ext, flags); err != cudaSuccess) {
     return Error(err);
   }
 
@@ -51,7 +51,7 @@ static auto buffer_del(buffer_t arr) -> Result<> {
     return Ok{};
   }
 
-  if (auto err = cudaFreeArray(arr)) {
+  if (auto err = cudaFreeArray(arr); err != cudaSuccess) {
     return Error(err);
   }
 
@@ -66,7 +66,7 @@ static auto buffer_ext(buffer_t arr) -> Result<cudaExtent> {
   auto desc = cudaChannelFormatDesc{};
   auto ext = cudaExtent{};
   auto flags = 0U;
-  if (auto err = cudaArrayGetInfo(&desc, &ext, &flags, arr)) {
+  if (auto err = cudaArrayGetInfo(&desc, &ext, &flags, arr); err != cudaSuccess) {
     return Error(err);
   }
   return Ok{ext};
@@ -113,7 +113,7 @@ static auto texture_new(buffer_t arr, TexFilt tex_filt, TexAddr tex_addr) -> Res
   };
 
   auto tex = cudaTextureObject_t{};
-  if (auto err = cudaCreateTextureObject(&tex, &res_desc, &tex_desc, nullptr)) {
+  if (auto err = cudaCreateTextureObject(&tex, &res_desc, &tex_desc, nullptr); err != cudaSuccess) {
     return Error(err);
   }
 
@@ -121,7 +121,7 @@ static auto texture_new(buffer_t arr, TexFilt tex_filt, TexAddr tex_addr) -> Res
 }
 
 static auto texture_del(u64 tex) -> Result<> {
-  if (auto err = cudaDestroyTextureObject(tex)) {
+  if (auto err = cudaDestroyTextureObject(tex); err != cudaSuccess) {
     return Error(err);
   }
   return Ok{};

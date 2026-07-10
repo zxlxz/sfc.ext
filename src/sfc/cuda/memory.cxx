@@ -5,46 +5,46 @@ namespace sfc::cuda::memory::test {
 
 SFC_TEST(heap) {
   const auto n = 16U;
-  auto p = cuda::allocate(n * sizeof(u32), {MemKind::CPU});
+  auto p = cuda::mem_allocate(n * sizeof(u32), MemKind::CPU);
   sfc::assert_ne(p, nullptr);
 
-  const auto loc = cuda::location(p);
+  const auto loc = cuda::mem_location(p);
   sfc::assert_eq(loc.kind, MemKind::CPU);
-  cuda::deallocate(p, n * sizeof(u32), loc);
+  cuda::mem_deallocate(p, loc);
 }
 
 SFC_TEST(host) {
   const auto n = 16U;
 
-  auto p = cuda::allocate(n * sizeof(u32), {MemKind::RAM});
+  auto p = cuda::mem_allocate(n * sizeof(u32), MemKind::RAM);
   sfc::assert_ne(p, nullptr);
 
-  const auto loc = cuda::location(p);
+  const auto loc = cuda::mem_location(p);
   sfc::assert_eq(loc.kind, MemKind::RAM);
-  cuda::deallocate(p, n * sizeof(u32), loc);
+  cuda::mem_deallocate(p, loc);
 }
 
 SFC_TEST(device) {
   const auto n = 16U;
 
-  auto p = cuda::allocate(n * sizeof(u32), {MemKind::GPU});
+  auto p = cuda::mem_allocate(n * sizeof(u32), MemKind::GPU);
   sfc::assert_ne(p, nullptr);
 
-  const auto loc = cuda::location(p);
+  const auto loc = cuda::mem_location(p);
   sfc::assert_eq(loc.kind, MemKind::GPU);
 
-  cuda::deallocate(p, n * sizeof(u32), loc);
+  cuda::mem_deallocate(p, loc);
 }
 
 SFC_TEST(managed) {
   const auto n = 16U;
 
-  auto p = cuda::allocate(n * sizeof(u32), {MemKind::UVA});
+  auto p = cuda::mem_allocate(n * sizeof(u32), MemKind::UVA);
   sfc::assert_ne(p, nullptr);
 
-  const auto loc = cuda::location(p);
+  const auto loc = cuda::mem_location(p);
   sfc::assert_eq(loc.kind, MemKind::UVA);
-  cuda::deallocate(p, n * sizeof(u32), loc);
+  cuda::mem_deallocate(p, loc);
 }
 
 }  // namespace sfc::cuda::memory::test
