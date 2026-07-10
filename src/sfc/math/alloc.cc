@@ -1,5 +1,6 @@
 #include "sfc/alloc.h"
 #include "sfc/sync.h"
+#include "sfc/io.h"
 #include "sfc/math/alloc.h"
 #include "sfc/cuda/memory.h"
 #include "sfc/cuda/device.h"
@@ -49,7 +50,7 @@ class MemBucket {
   }
 
   void* slow_allocate() {
-    const auto ptr = SysAllocator::allocate(_blk_size, _location);
+    const auto ptr = cuda::allocate(_blk_size, _location);
     if (ptr != nullptr) {
       _blk_cnt += 1;
     }
@@ -117,7 +118,7 @@ class MemBucket {
   }
 
   void slow_deallocate(void* ptr) {
-    SysAllocator::deallocate(ptr, _blk_size, _location);
+    cuda::deallocate(ptr, _blk_size, _location);
     _blk_cnt -= 1;
   }
 
@@ -175,7 +176,9 @@ class MemPool {
  public:
   MemPool(MemLocation location) : _location{location} {}
 
-  ~MemPool() {}
+  ~MemPool() {
+    this->shutdown();
+  }
 
  public:
   auto allocate(usize size) -> void* {
@@ -231,35 +234,9 @@ class MemPool {
   }
 };
 
-auto SysAllocator::allocate(usize size, MemLocation location) -> void* {
-  if (size == 0) {
-    return nullptr;
-  }
-
-  switch (location.kind) {
-    case MemKind::CPU: return cuda::HeapAllocator::allocate(size);
-    case MemKind::GPU: return cuda::DeviceAllocator::allocate(size);
-    case MemKind::UVA: return cuda::ManagedAllocator::allocate(size);
-  }
-  return nullptr;
-}
-
-void SysAllocator::deallocate(void* ptr, [[maybe_unused]] usize size, MemLocation location) {
-  if (ptr == nullptr) {
-    return;
-  }
-
-  switch (location.kind) {
-    case MemKind::CPU: return cuda::HeapAllocator::deallocate(ptr);
-    case MemKind::GPU: return cuda::DeviceAllocator::deallocate(ptr);
-    case MemKind::UVA: return cuda::ManagedAllocator::deallocate(ptr);
-  }
-}
-
 auto PoolAllocator::pool(MemLocation location) -> MemPool& {
-  static MemPool cpu_pool{{MemKind::CPU, 0}};
-  static MemPool uva_pool{{MemKind::UVA, 0}};
-
+  static MemPool cpu_pool{{MemKind::CPU}};
+  static MemPool ram_pool{{MemKind::RAM}};
   static MemPool gpu_pools[] = {
       {{MemKind::GPU, 0}},
       {{MemKind::GPU, 1}},
@@ -270,12 +247,23 @@ auto PoolAllocator::pool(MemLocation location) -> MemPool& {
       {{MemKind::GPU, 6}},
       {{MemKind::GPU, 7}},
   };
+  static MemPool uva_pools[] = {
+      {{MemKind::UVA, 0}},
+      {{MemKind::UVA, 1}},
+      {{MemKind::UVA, 2}},
+      {{MemKind::UVA, 3}},
+      {{MemKind::UVA, 4}},
+      {{MemKind::UVA, 5}},
+      {{MemKind::UVA, 6}},
+      {{MemKind::UVA, 7}},
+  };
 
   switch (location.kind) {
     default:           return cpu_pool;
     case MemKind::CPU: return cpu_pool;
+    case MemKind::RAM: return ram_pool;
     case MemKind::GPU: return gpu_pools[location.device];
-    case MemKind::UVA: return uva_pool;
+    case MemKind::UVA: return uva_pools[location.device];
   }
 }
 

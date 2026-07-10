@@ -5,7 +5,26 @@
 
 namespace sfc::cuda {
 
-enum class FFTError;
+enum class FFTError {
+  Success = 0x0,
+  InvalidPlan = 0x1,
+  AllocFailed = 0x2,
+  InvalidType = 0x3,
+  InvalidValue = 0x4,
+  InternalError = 0x5,
+  ExecFailed = 0x6,
+  SetupFailed = 0x7,
+  InvalidSize = 0x8,
+  UnalignedData = 0x9,
+  InvalidDevice = 0xB,
+  NoWorkspace = 0xD,
+  NotImplemented = 0xE,
+  NotSupported = 0x10,
+  MissingDependency = 0x11,
+  NVRTCFailure = 0x12,
+  NVJITLinkFailure = 0x13,
+  NVSHMEMFailure = 0x14,
+};
 
 template <class T = Unit>
 using FFTResult = result::Result<T, FFTError>;
@@ -35,7 +54,7 @@ class CUFFT {
   auto operator()(math::NdSlice<I, 2> in, math::NdSlice<O, 2> out, int DIR = -1) -> FFTResult<>;
 };
 
-template<class I, class O>
+template <class I, class O>
 auto cufft(u32 len, u32 batch = 1) -> CUFFT<I, O> {
   return CUFFT<I, O>::create(len, batch);
 }

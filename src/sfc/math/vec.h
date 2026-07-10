@@ -4,7 +4,7 @@
 
 namespace sfc::math {
 
-template <class T, int N>
+template <class T, u32 N>
 struct vec;
 
 template <class T>
@@ -17,9 +17,11 @@ struct vec<T, 1> {
   __hd vec(const T (&v)[1]) : x{v[0]} {}
 
  public:
+#ifndef __CUDACC__
   void fmt(auto& f) const {
-    f.debug_tuple().field(x);
+    f.debug_tuple("vec").field(x);
   }
+#endif
 };
 
 template <class T>
@@ -31,9 +33,12 @@ struct vec<T, 2> {
   __hd vec(T x, T y) : x{x}, y{y} {}
   __hd vec(const T (&v)[2]) : x{v[0]}, y{v[1]} {}
 
+ public:
+#ifndef __CUDACC__
   void fmt(auto& f) const {
     f.debug_tuple("vec").field(x).field(y);
   }
+#endif
 };
 
 template <class T>
@@ -45,9 +50,12 @@ struct vec<T, 3> {
   __hd vec(T x, T y, T z) : x{x}, y{y}, z{z} {}
   __hd vec(const T (&v)[3]) : x{v[0]}, y{v[1]}, z{v[2]} {}
 
+ public:
+#ifndef __CUDACC__
   void fmt(auto& f) const {
     f.debug_tuple("vec").field(x).field(y).field(z);
   }
+#endif
 };
 
 template <class T>
@@ -59,9 +67,12 @@ struct vec<T, 4> {
   __hd vec(T x, T y, T z, T w) : x{x}, y{y}, z{z}, w{w} {}
   __hd vec(const T (&v)[4]) : x{v[0]}, y{v[1]}, z{v[2]}, w{v[3]} {}
 
+ public:
+#ifndef __CUDACC__
   void fmt(auto& f) const {
     f.debug_tuple("vec").field(x).field(y).field(z).field(w);
   }
+#endif
 };
 
 using vec1i = math::vec<i32, 1>;
@@ -79,7 +90,22 @@ using vec2f = math::vec<f32, 2>;
 using vec3f = math::vec<f32, 3>;
 using vec4f = math::vec<f32, 4>;
 
-template <class T, int N>
+template <class T>
+vec(T) -> vec<T, 1>;
+
+template <class T>
+vec(T, T) -> vec<T, 2>;
+
+template <class T>
+vec(T, T, T) -> vec<T, 3>;
+
+template <class T>
+vec(T, T, T, T) -> vec<T, 4>;
+
+template <class T, u32 N>
+vec(const T (&arr)[N]) -> vec<T, N>;
+
+template <class T, u32 N>
 __hd inline auto operator==(const vec<T, N>& a, const vec<T, N>& b) -> bool {
   if constexpr (N == 1) return a.x == b.x;
   if constexpr (N == 2) return a.x == b.x && a.y == b.y;
@@ -87,7 +113,7 @@ __hd inline auto operator==(const vec<T, N>& a, const vec<T, N>& b) -> bool {
   if constexpr (N == 4) return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 }
 
-template <class T, int N>
+template <class T, u32 N>
 __hd inline auto operator<(const vec<T, N>& a, const vec<T, N>& b) -> bool {
   if constexpr (N == 1) return a.x < b.x;
   if constexpr (N == 2) return a.x < b.x && a.y < b.y;
@@ -95,7 +121,31 @@ __hd inline auto operator<(const vec<T, N>& a, const vec<T, N>& b) -> bool {
   if constexpr (N == 4) return a.x < b.x && a.y < b.y && a.z < b.z && a.w < b.w;
 }
 
-template <class T, int N>
+template <class T, u32 N>
+__hd inline auto operator<=(const vec<T, N>& a, const vec<T, N>& b) -> bool {
+  if constexpr (N == 1) return a.x <= b.x;
+  if constexpr (N == 2) return a.x <= b.x && a.y <= b.y;
+  if constexpr (N == 3) return a.x <= b.x && a.y <= b.y && a.z <= b.z;
+  if constexpr (N == 4) return a.x <= b.x && a.y <= b.y && a.z <= b.z && a.w <= b.w;
+}
+
+template <class T, u32 N>
+__hd inline auto operator>(const vec<T, N>& a, const vec<T, N>& b) -> bool {
+  if constexpr (N == 1) return a.x > b.x;
+  if constexpr (N == 2) return a.x > b.x && a.y > b.y;
+  if constexpr (N == 3) return a.x > b.x && a.y > b.y && a.z > b.z;
+  if constexpr (N == 4) return a.x > b.x && a.y > b.y && a.z > b.z && a.w > b.w;
+}
+
+template <class T, u32 N>
+__hd inline auto operator>=(const vec<T, N>& a, const vec<T, N>& b) -> bool {
+  if constexpr (N == 1) return a.x >= b.x;
+  if constexpr (N == 2) return a.x >= b.x && a.y >= b.y;
+  if constexpr (N == 3) return a.x >= b.x && a.y >= b.y && a.z >= b.z;
+  if constexpr (N == 4) return a.x >= b.x && a.y >= b.y && a.z >= b.z && a.w >= b.w;
+}
+
+template <class T, u32 N>
 __hd inline auto operator+(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> {
   if constexpr (N == 1) return {a.x + b.x};
   if constexpr (N == 2) return {a.x + b.x, a.y + b.y};
@@ -103,7 +153,7 @@ __hd inline auto operator+(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> 
   if constexpr (N == 4) return {a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w};
 }
 
-template <class T, int N>
+template <class T, u32 N>
 __hd inline auto operator-(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> {
   if constexpr (N == 1) return {a.x - b.x};
   if constexpr (N == 2) return {a.x - b.x, a.y - b.y};
@@ -111,7 +161,7 @@ __hd inline auto operator-(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> 
   if constexpr (N == 4) return {a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w};
 }
 
-template <class T, int N>
+template <class T, u32 N>
 __hd inline auto operator*(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> {
   if constexpr (N == 1) return {a.x * b.x};
   if constexpr (N == 2) return {a.x * b.x, a.y * b.y};
@@ -119,7 +169,7 @@ __hd inline auto operator*(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> 
   if constexpr (N == 4) return {a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w};
 }
 
-template <class T, int N>
+template <class T, u32 N>
 __hd inline auto operator/(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> {
   if constexpr (N == 1) return {a.x / b.x};
   if constexpr (N == 2) return {a.x / b.x, a.y / b.y};
@@ -127,7 +177,7 @@ __hd inline auto operator/(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> 
   if constexpr (N == 4) return {a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w};
 }
 
-template <class T, int N>
+template <class T, u32 N>
 __hd inline auto operator*(T s, const vec<T, N>& v) -> vec<T, N> {
   if constexpr (N == 1) return {s * v.x};
   if constexpr (N == 2) return {s * v.x, s * v.y};
@@ -135,7 +185,7 @@ __hd inline auto operator*(T s, const vec<T, N>& v) -> vec<T, N> {
   if constexpr (N == 4) return {s * v.x, s * v.y, s * v.z, s * v.w};
 }
 
-template <class T, int N>
+template <class T, u32 N>
 __hd inline auto operator/(T s, const vec<T, N>& v) -> vec<T, N> {
   if constexpr (N == 1) return {s / v.x};
   if constexpr (N == 2) return {s / v.x, s / v.y};
@@ -143,7 +193,7 @@ __hd inline auto operator/(T s, const vec<T, N>& v) -> vec<T, N> {
   if constexpr (N == 4) return {s / v.x, s / v.y, s / v.z, s / v.w};
 }
 
-template <class T, class F, int N>
+template <class T, class F, u32 N>
 __hd inline auto cast(const vec<F, N>& v) -> vec<T, N> {
   if constexpr (N == 1) return {(T)(v.x)};
   if constexpr (N == 2) return {(T)(v.x), (T)(v.y)};
@@ -151,7 +201,7 @@ __hd inline auto cast(const vec<F, N>& v) -> vec<T, N> {
   if constexpr (N == 4) return {(T)(v.x), (T)(v.y), (T)(v.z), (T)(v.w)};
 }
 
-template <int N>
+template <u32 N>
 __hd inline auto len(const vec<f32, N>& a) -> float {
   if constexpr (N == 1) return math::fabsf(a.x);
   if constexpr (N == 2) return math::sqrtf(a.x * a.x + a.y * a.y);
@@ -159,7 +209,7 @@ __hd inline auto len(const vec<f32, N>& a) -> float {
   if constexpr (N == 4) return math::sqrtf(a.x * a.x + a.y * a.y + a.z * a.z + a.w * a.w);
 }
 
-template <class T, int N>
+template <class T, u32 N>
 __hd inline auto reduce_add(const vec<T, N>& v) -> T {
   if constexpr (N == 1) return v.x;
   if constexpr (N == 2) return v.x + v.y;
@@ -167,7 +217,7 @@ __hd inline auto reduce_add(const vec<T, N>& v) -> T {
   if constexpr (N == 4) return v.x + v.y + v.z + v.w;
 }
 
-template <class T, int N>
+template <class T, u32 N>
 __hd inline auto reduce_mul(const vec<T, N>& v) -> T {
   if constexpr (N == 1) return v.x;
   if constexpr (N == 2) return v.x * v.y;
@@ -175,7 +225,7 @@ __hd inline auto reduce_mul(const vec<T, N>& v) -> T {
   if constexpr (N == 4) return v.x * v.y * v.z * v.w;
 }
 
-template <class T, int N>
+template <class T, u32 N>
 __hd inline auto dot(const vec<T, N>& a, const vec<T, N>& b) -> T {
   if constexpr (N == 1) return a.x * b.x;
   if constexpr (N == 2) return a.x * b.x + a.y * b.y;

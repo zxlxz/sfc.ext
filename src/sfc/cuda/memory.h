@@ -4,25 +4,28 @@
 
 namespace sfc::cuda {
 
-struct HeapAllocator {
-  static auto allocate(usize size) -> void*;
-  static void deallocate(void* ptr);
+enum MemKind {
+  CPU = 0,
+  RAM = 1,
+  GPU = 2,
+  UVA = 3,
+};
+auto to_str(MemKind kind) -> Str;
+
+struct MemLocation {
+  MemKind kind{};
+  u32 device{0};
+
+ public:
+  MemLocation(MemKind kind = {}, u32 device = {}) noexcept : kind{kind}, device{device} {}
+
+ public:
+  void fmt(fmt::Formatter& f) const;
 };
 
-struct HostAllocator {
-  static auto allocate(usize size) -> void*;
-  static void deallocate(void* ptr);
-};
-
-struct DeviceAllocator {
-  static auto allocate(usize size) -> void*;
-  static void deallocate(void* ptr);
-};
-
-struct ManagedAllocator {
-  static auto allocate(usize size) -> void*;
-  static void deallocate(void* ptr);
-};
+auto allocate(usize size, MemLocation loc) -> void*;
+void deallocate(void* ptr, usize size, MemLocation loc);
+auto location(void* ptr) -> MemLocation;
 
 auto prefetch_cpu(void* ptr, usize size) -> Result<>;
 auto prefetch_gpu(void* ptr, usize size) -> Result<>;

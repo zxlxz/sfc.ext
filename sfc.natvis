@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+    <!-- sfc::slice::Slice<T> -->
+    <Type Name="sfc::slice::Slice&lt;*&gt;">
+        <Expand>
+            <Item Name="[_len]">_len</Item>
+            <ArrayItems>
+                <Size>_len</Size>
+                <ValuePointer>_ptr</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <!-- sfc::boxed::Box<T> -->
+    <Type Name="sfc::boxed::Box&lt;*&gt;">
+        <DisplayString Condition="_ptr">{*_ptr}</DisplayString>
+        <DisplayString Condition="!_ptr">Box()</DisplayString>
+    </Type>
+
+    <!-- sfc::rc::Rc<T> -->
+    <Type Name="sfc::rc::Rc&lt;*&gt;">
+        <DisplayString Condition="_ptr">{*_ptr}</DisplayString>
+        <DisplayString Condition="!_ptr">Rc()</DisplayString>
+    </Type>
+
+    <!-- sfc::list::List<T> -->
+    <Type Name="sfc::list::List&lt;*,*&gt;">
+        <Expand>
+            <Item Name="[_len]">_len</Item>
+            <Item Name="[_cap]">_buf._cap</Item>
+            <ArrayItems>
+                <Size>_len</Size>
+                <ValuePointer>_buf._ptr</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <!-- sfc::str::Str -->
+    <Type Name="sfc::str::Str">
+        <DisplayString>{_ptr, [_len]s}</DisplayString>
+        <Expand>
+            <Item Name="[_len]">_len</Item>
+            <ArrayItems>
+                <Size>_len</Size>
+                <ValuePointer>_ptr</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <!-- sfc::string::String -->
+    <Type Name="sfc::string::String">
+        <DisplayString>{_buf._buf._ptr, [_buf._len]s}</DisplayString>
+    </Type>
+
+
+    <!-- sfc::option::Option<T> -->
+    <Type Name="sfc::option::Option&lt;*&gt;">
+        <DisplayString Condition="_tag==0">None()</DisplayString>
+        <DisplayString Condition="_tag==1">Some({_1})</DisplayString>
+    </Type>
+
+    <!-- sfc::option::Option<T&> -->
+    <Type Name="sfc::option::Option&lt;*&gt;">
+        <DisplayString Condition="_tag==0">None()</DisplayString>
+        <DisplayString Condition="_tag==1">Some({*_1})</DisplayString>
+    </Type>
+
+    <!-- sfc::result::Result<T,E> -->
+    <Type Name="sfc::result::Result&lt;*,*&gt;">
+        <DisplayString Condition="_tag==0">Ok({_0})</DisplayString>
+        <DisplayString Condition="_tag==1">Err({_1})</DisplayString>
+    </Type>
+
+    <!-- sfc::result::Result<void,E> -->
+    <Type Name="sfc::result::Result&lt;void,*&gt;">
+        <DisplayString Condition="_tag==0">Ok()</DisplayString>
+        <DisplayString Condition="_tag==1">Err({_1})</DisplayString>
+    </Type>
+
+    <!-- sfc::collections::hash_tbl::HashTbl-->
+    <Type Name="sfc::collections::hash_tbl::HashTbl&lt;*,*&gt;">
+        <Expand>
+            <Item Name="[_len]">_len</Item>
+            <Item Name="[_cap]">_buf._cap</Item>
+        </Expand>
+    </Type>
+</AutoVisualizer>

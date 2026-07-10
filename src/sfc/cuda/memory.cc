@@ -9,102 +9,166 @@
 
 namespace sfc::cuda {
 
-struct alignas(256) SimdBlock {
-  u8 _data[256];
+struct HeapAllocator {
+  struct alignas(256) SimdBlock {
+    u8 _data[256];
+  };
+
+  static auto allocate(usize size) -> void* {
+    if (size == 0) {
+      return nullptr;
+    }
+
+    const auto layout = mem::Layout{size, alignof(SimdBlock)};
+    const auto p = alloc::Global::allocate(layout);
+    return p;
+  }
+
+  static void deallocate(void* ptr) {
+    if (ptr == nullptr) {
+      return;
+    }
+    const auto layout = mem::Layout::of<SimdBlock>();
+    alloc::Global::deallocate(ptr, layout);
+  }
 };
 
-static auto heap_allocate(usize size) -> void* {
-  if (size == 0) return 0;
-  const auto p = alloc::Global::allocate({size, alignof(SimdBlock)});
-  return p;
-}
+struct HostAllocator {
+  static auto allocate(usize size) -> void* {
+    constexpr auto flags = u32{cudaHostAllocDefault};
+    if (size == 0) {
+      return nullptr;
+    }
 
-static void heap_deallocate(void* ptr) {
-  if (ptr == nullptr) return;
-  alloc::Global::deallocate(ptr, {0, alignof(SimdBlock)});
-}
+    auto p = ptr::null();
+    if (auto err = ::cudaHostAlloc(&p, size, flags); err != cudaSuccess) {
+      Result{Error(err)}.unwrap();
+    }
 
-static auto host_allocate(usize size, u32 flags = cudaHostAllocDefault) -> Result<void*> {
-  if (size == 0) return Ok{nullptr};
-  void* ptr = nullptr;
-  if (auto err = cudaHostAlloc(&ptr, size, flags)) {
-    return Error(err);
+    return p;
   }
-  return Ok{ptr};
-}
 
-static auto host_deallocate(void* ptr) -> Result<> {
-  if (ptr == nullptr) return Ok{};
-  if (auto err = cudaFreeHost(ptr)) {
-    return Error(err);
+  static void deallocate(void* ptr) {
+    if (ptr == nullptr) {
+      return;
+    }
+
+    if (auto err = ::cudaFreeHost(ptr); err != cudaSuccess) {
+      Result{Error(err)}.unwrap();
+    }
   }
-  return Ok{};
-}
+};
 
-static auto device_allocate(usize size) -> Result<void*> {
-  if (size == 0) return Ok{nullptr};
-  void* ptr = nullptr;
-  if (auto err = cudaMalloc(&ptr, size)) {
-    return Error(err);
+struct DeviceAllocator {
+  static auto allocate(usize size) -> void* {
+    if (size == 0) {
+      return nullptr;
+    }
+
+    auto p = ptr::null();
+    if (auto err = ::cudaMalloc(&p, size); err != cudaSuccess) {
+      Result{Error(err)}.unwrap();
+    }
+    return p;
   }
-  return Ok{ptr};
-}
 
-static auto device_deallocate(void* ptr) -> Result<> {
-  if (ptr == nullptr) return Ok{};
-  if (auto err = cudaFree(ptr)) {
-    return Error(err);
+  static void deallocate(void* ptr) {
+    if (ptr == nullptr) {
+      return;
+    }
+    if (auto err = ::cudaFree(ptr); err != cudaSuccess) {
+      Result{Error(err)}.unwrap();
+    }
   }
-  return Ok{};
-}
+};
 
-static auto managed_allocate(usize size, u32 flags = cudaMemAttachGlobal) -> Result<void*> {
-  if (size == 0) return Ok{nullptr};
-  void* ptr = nullptr;
-  if (auto err = cudaMallocManaged(&ptr, size, flags)) {
-    return Error(err);
+struct ManagedAllocator {
+  static auto allocate(usize size) -> void* {
+    constexpr auto flags = u32{cudaMemAttachGlobal};
+
+    if (size == 0) {
+      return nullptr;
+    }
+
+    auto p = ptr::null();
+    if (auto err = ::cudaMallocManaged(&p, size, flags); err != cudaSuccess) {
+      Result{Error(err)}.unwrap();
+    }
+    return p;
   }
-  return Ok{ptr};
-}
 
-static auto managed_deallocate(void* ptr) -> Result<> {
-  if (ptr == nullptr) return Ok{};
-  if (auto err = cudaFree(ptr)) {
-    return Error(err);
+  static void deallocate(void* ptr) {
+    if (ptr == nullptr) {
+      return;
+    }
+    if (auto err = ::cudaFree(ptr); err != cudaSuccess) {
+      Result{Error(err)}.unwrap();
+    }
   }
-  return Ok{};
+};
+
+auto MemLocation::fmt(fmt::Formatter& f) const -> void {
+  f.write_fmt("{}:{}", to_str(kind), device);
 }
 
-auto HeapAllocator::allocate(usize size) -> void* {
-  return cuda::heap_allocate(size);
+auto to_str(MemKind kind) -> Str {
+  switch (kind) {
+    case MemKind::CPU: return "CPU";
+    case MemKind::RAM: return "RAM";
+    case MemKind::GPU: return "GPU";
+    case MemKind::UVA: return "UVA";
+  }
 }
 
-void HeapAllocator::deallocate(void* ptr) {
-  return cuda::heap_deallocate(ptr);
+auto allocate(usize size, MemLocation loc) -> void* {
+  if (size == 0) {
+    return nullptr;
+  }
+
+  if (loc.kind != MemKind::CPU) {
+    cuda::device_set(loc.device).unwrap();
+  }
+
+  switch (loc.kind) {
+    case MemKind::CPU: return HeapAllocator::allocate(size);
+    case MemKind::RAM: return HostAllocator::allocate(size);
+    case MemKind::GPU: return DeviceAllocator::allocate(size);
+    case MemKind::UVA: return ManagedAllocator::allocate(size);
+  }
+  return nullptr;
 }
 
-auto HostAllocator::allocate(usize size) -> void* {
-  return cuda::host_allocate(size).unwrap();
+void deallocate(void* ptr, [[maybe_unused]] usize size, MemLocation location) {
+  if (ptr == nullptr) {
+    return;
+  }
+
+  if (location.kind != MemKind::CPU) {
+    cuda::device_set(location.device).unwrap();
+  }
+
+  switch (location.kind) {
+    case MemKind::CPU: return HeapAllocator::deallocate(ptr);
+    case MemKind::RAM: return HostAllocator::deallocate(ptr);
+    case MemKind::GPU: return DeviceAllocator::deallocate(ptr);
+    case MemKind::UVA: return ManagedAllocator::deallocate(ptr);
+  }
 }
 
-void HostAllocator::deallocate(void* ptr) {
-  cuda::host_deallocate(ptr).unwrap();
-}
+auto location(void* ptr) -> MemLocation {
+  if (ptr == nullptr) {
+    return {};
+  }
 
-auto DeviceAllocator::allocate(usize size) -> void* {
-  return cuda::device_allocate(size).unwrap();
-}
+  auto attr = cudaPointerAttributes{};
+  if (auto err = cudaPointerGetAttributes(&attr, ptr); err != cudaSuccess) {
+    return {};
+  }
 
-void DeviceAllocator::deallocate(void* ptr) {
-  cuda::device_deallocate(ptr).unwrap();
-}
-
-auto ManagedAllocator::allocate(usize size) -> void* {
-  return cuda::managed_allocate(size).unwrap();
-}
-
-void ManagedAllocator::deallocate(void* ptr) {
-  cuda::managed_deallocate(ptr).unwrap();
+  auto res = MemLocation{};
+  res.kind = MemKind(attr.type);
+  res.device = u32(attr.device);
+  return res;
 }
 
 auto prefetch_cpu(void* ptr, usize size) -> Result<> {

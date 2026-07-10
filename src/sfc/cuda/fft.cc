@@ -7,27 +7,26 @@
 namespace sfc::cuda {
 
 auto to_str(FFTError e) -> cstr_t {
-  const auto err_code = cufftResult(e);
-  switch (err_code) {
-    case CUFFT_SUCCESS:            return "CUFFT_SUCCESS";
-    case CUFFT_INVALID_PLAN:       return "CUFFT_INVALID_PLAN";
-    case CUFFT_ALLOC_FAILED:       return "CUFFT_ALLOC_FAILED";
-    case CUFFT_INVALID_TYPE:       return "CUFFT_INVALID_TYPE";
-    case CUFFT_INVALID_VALUE:      return "CUFFT_INVALID_VALUE";
-    case CUFFT_INTERNAL_ERROR:     return "CUFFT_INTERNAL_ERROR";
-    case CUFFT_EXEC_FAILED:        return "CUFFT_EXEC_FAILED";
-    case CUFFT_SETUP_FAILED:       return "CUFFT_SETUP_FAILED";
-    case CUFFT_INVALID_SIZE:       return "CUFFT_INVALID_SIZE";
-    case CUFFT_UNALIGNED_DATA:     return "CUFFT_UNALIGNED_DATA";
-    case CUFFT_INVALID_DEVICE:     return "CUFFT_INVALID_DEVICE";
-    case CUFFT_NO_WORKSPACE:       return "CUFFT_NO_WORKSPACE";
-    case CUFFT_NOT_IMPLEMENTED:    return "CUFFT_NOT_IMPLEMENTED";
-    case CUFFT_NOT_SUPPORTED:      return "CUFFT_NOT_SUPPORTED";
-    case CUFFT_MISSING_DEPENDENCY: return "CUFFT_MISSING_DEPENDENCY";
-    case CUFFT_NVRTC_FAILURE:      return "CUFFT_NVRTC_FAILURE";
-    case CUFFT_NVJITLINK_FAILURE:  return "CUFFT_NVJITLINK_FAILURE";
-    case CUFFT_NVSHMEM_FAILURE:    return "CUFFT_NVSHMEM_FAILURE";
-    default:                       return "CUFFT_ERROR_UNKNOWN";
+  switch (e) {
+    case FFTError::Success:           return "cufft::Success";
+    case FFTError::InvalidPlan:       return "cufft::InvalidPlan";
+    case FFTError::AllocFailed:       return "cufft::AllocFailed";
+    case FFTError::InvalidType:       return "cufft::InvalidType";
+    case FFTError::InvalidValue:      return "cufft::InvalidValue";
+    case FFTError::InternalError:     return "cufft::InternalError";
+    case FFTError::ExecFailed:        return "cufft::ExecFailed";
+    case FFTError::SetupFailed:       return "cufft::SetupFailed";
+    case FFTError::InvalidSize:       return "cufft::InvalidSize";
+    case FFTError::UnalignedData:     return "cufft::UnalignedData";
+    case FFTError::InvalidDevice:     return "cufft::InvalidDevice";
+    case FFTError::NoWorkspace:       return "cufft::NoWorkspace";
+    case FFTError::NotImplemented:    return "cufft::NotImplemented";
+    case FFTError::NotSupported:      return "cufft::NotSupported";
+    case FFTError::MissingDependency: return "cufft::MissingDependency";
+    case FFTError::NVRTCFailure:      return "cufft::NVRTCFailure";
+    case FFTError::NVJITLinkFailure:  return "cufft::NVJITLinkFailure";
+    case FFTError::NVSHMEMFailure:    return "cufft::NVSHMEMFailure";
+    default:                          return "cufft::Unknown";
   }
 }
 
@@ -54,7 +53,7 @@ static auto fft_type() -> cufftType {
 }
 
 static auto fft_plan(u32 nx, u32 batch, cufftType type) -> FFTResult<cufftHandle> {
-  auto plan = cufftHandle{CUFFT_PLAN_NULL};
+  auto plan = cufftHandle{};
   if (auto err = cufftPlan1d(&plan, int(nx), type, int(batch))) {
     return FFTError(err);
   }
@@ -62,7 +61,7 @@ static auto fft_plan(u32 nx, u32 batch, cufftType type) -> FFTResult<cufftHandle
 }
 
 static auto fft_drop(cufftHandle plan) -> FFTResult<> {
-  if (plan == CUFFT_PLAN_NULL) return Ok{};
+  if (plan == 0) return Ok{};
   if (auto err = cufftDestroy(plan)) {
     return FFTError(err);
   }
@@ -72,7 +71,7 @@ static auto fft_drop(cufftHandle plan) -> FFTResult<> {
 static auto fft_exec(cufftHandle plan, c32* in, c32* out, int direction) -> FFTResult<> {
   const auto idata = fft_cast(in);
   const auto odata = fft_cast(out);
-  if (auto err = cufftExecC2C(plan, idata, odata, direction)) {
+  if (auto err = cufftExecC2C(plan, idata, odata, direction); err != CUFFT_SUCCESS) {
     return FFTError(err);
   }
   return Ok{};
@@ -97,11 +96,11 @@ static auto fft_exec(cufftHandle plan, c32* in, f32* out, [[maybe_unused]] int d
 }
 
 template <class I, class O>
-CUFFT<I, O>::CUFFT() noexcept : _plan{-1} {}
+CUFFT<I, O>::CUFFT() noexcept : _plan{0} {}
 
 template <class I, class O>
 CUFFT<I, O>::~CUFFT() {
-  if (_plan == CUFFT_PLAN_NULL) {
+  if (_plan == 0) {
     return;
   }
   cuda::fft_drop(_plan).unwrap();
@@ -111,7 +110,7 @@ template <class I, class O>
 CUFFT<I, O>::CUFFT(CUFFT&& other) noexcept : _len{other._len}, _batch{other._batch}, _plan{other._plan} {
   other._len = 0;
   other._batch = 0;
-  other._plan = CUFFT_PLAN_NULL;
+  other._plan = 0;
 }
 
 template <class I, class O>
@@ -149,7 +148,8 @@ auto CUFFT<I, O>::olen() const -> usize {
 
 template <class I, class O>
 auto CUFFT<I, O>::exec(const I in[], O out[], int DIR) -> FFTResult<> {
-  return cuda::fft_exec(_plan, (I*)in, out, DIR);
+  auto res = cuda::fft_exec(_plan, (I*)in, out, DIR);
+  return res;
 }
 
 template <class I, class O>
@@ -160,8 +160,8 @@ auto CUFFT<I, O>::operator()(math::NdSlice<I, 1> src, math::NdSlice<O, 1> dst, i
   const auto [dst_len] = dst._shape;
   sfc::assert_(src.is_contiguous(), "CUFFT::exec: src is not contiguous");
   sfc::assert_(dst.is_contiguous(), "CUFFT::exec: dst is not contiguous");
-  sfc::assert_(src_len == ilen, "CUFFT::exec: src.shape({}) != ilen{}", src_len, ilen);
-  sfc::assert_(dst_len == olen, "CUFFT::exec: dst.shape({}) != olen{}", dst_len, olen);
+  sfc::assert_(src_len == ilen, "CUFFT::exec: src.shape({}) not match ilen(={})", src_len, ilen);
+  sfc::assert_(dst_len == olen, "CUFFT::exec: dst.shape({}) not match olen(={})", dst_len, olen);
 
   sfc::assert_(_batch == 1, "CUFFT::exec: batch({}) != 1", _batch);
   _TRY(this->exec(src._data, dst._data, DIR));
@@ -178,10 +178,10 @@ auto CUFFT<I, O>::operator()(math::NdSlice<I, 2> src, math::NdSlice<O, 2> dst, i
 
   sfc::assert_(src.is_contiguous(), "CUFFT::exec: src is not contiguous");
   sfc::assert_(dst.is_contiguous(), "CUFFT::exec: dst is not contiguous");
-  sfc::assert_(src_len == ilen, "CUFFT::exec: src.shape({}) not match ilen{}", src._shape, ilen);
-  sfc::assert_(dst_len == olen, "CUFFT::exec: dst.shape({}) not match olen{}", dst._shape, olen);
-  sfc::assert_(src_batch == dst_batch, "CUFFT::exec: src.batch({}) not match dst.batch({})", src_batch, dst_batch);
-  sfc::assert_(src_batch % _batch == 0, "CUFFT::exec: src.batch({}) not multiple of batch({})", src_batch, _batch);
+  sfc::assert_(src_len == ilen, "CUFFT::exec: src.shape({}) not match ilen(={})", src._shape, ilen);
+  sfc::assert_(dst_len == olen, "CUFFT::exec: dst.shape({}) not match olen(={})", dst._shape, olen);
+  sfc::assert_(src_batch == dst_batch, "CUFFT::exec: src.batch({}) not match dst.batch(={})", src_batch, dst_batch);
+  sfc::assert_(src_batch % _batch == 0, "CUFFT::exec: src.batch({}) not multiple of batch(={})", src_batch, _batch);
 
   const auto loop_cnt = src_batch / _batch;
   for (auto i = 0U; i < loop_cnt; ++i) {

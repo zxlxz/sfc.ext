@@ -45,4 +45,7 @@ class Device::ScopeGuard {
 auto device_count() -> u32;
 auto device_sync() -> Result<>;
 
+auto device_get() -> Result<u32>;
+auto device_set(u32 idx) -> Result<>;
+
 }  // namespace sfc::cuda

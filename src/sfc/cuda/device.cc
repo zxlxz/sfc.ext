@@ -85,14 +85,14 @@ auto Device::info() const -> DeviceInfo {
 }
 
 void DeviceInfo::fmt(fmt::Formatter& f) const {
-  auto imp = f.debug_struct("DeviceInfo");
-  imp.field("name", name);
-  imp.field("dev_id", dev_id);
-  imp.field("compute_capability", compute_capability);
-  imp.field("sm_count", sm_count);
-  imp.field("async_engine_count", async_engine_count);
-  imp.field("global_memory", global_memory);
-  imp.field("l2_cache_size", l2_cache_size);
+  f.debug_struct("DeviceInfo")
+      .field("name", name)
+      .field("dev_id", dev_id)
+      .field("compute_capability", compute_capability)
+      .field("sm_count", sm_count)
+      .field("async_engine_count", async_engine_count)
+      .field("global_memory", global_memory)
+      .field("l2_cache_size", l2_cache_size);
 }
 
 auto Device::scope() -> ScopeGuard {
