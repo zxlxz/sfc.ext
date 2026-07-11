@@ -18,24 +18,12 @@ if(APPLE)
   set_target_properties(CUDA::cudart PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${CUDAToolkit_INCLUDE_DIRECTORIES}"
     INTERFACE_LINK_LIBRARIES "-lcudart"
+    INTERFACE_LINK_OPTIONS "LINKER:-rpath,${CUDAToolkit_TARGET_DIR}/lib"
   )
 
   add_library(CUDA::cufft INTERFACE IMPORTED)
+  target_link_libraries(CUDA::cufft INTERFACE CUDA::cudart)
   set_target_properties(CUDA::cufft PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${CUDAToolkit_INCLUDE_DIRECTORIES}"
     INTERFACE_LINK_LIBRARIES "-lcufft"
   )
 endif()
-
-
-function(target_source_path TARGET DIR)
-  set(_PATTERNS ${ARGN})
-
-  set(_SOURCES)
-  foreach(PATTERN ${_PATTERNS})
-    file(GLOB MATCHED_SOURCES CONFIGURE_DEPENDS "${DIR}/${PATTERN}")
-    list(APPEND _SOURCES ${MATCHED_SOURCES})
-  endforeach()
-
-  target_sources(${TARGET} PRIVATE ${_SOURCES})
-endfunction()

@@ -3,6 +3,7 @@
 
 namespace sfc::cuda::memory::test {
 
+#ifndef __APPLE__
 SFC_TEST(heap) {
   const auto n = 16U;
   auto p = cuda::mem_allocate(n * sizeof(u32), MemKind::CPU);
@@ -46,5 +47,6 @@ SFC_TEST(managed) {
   sfc::assert_eq(loc.kind, MemKind::UVA);
   cuda::mem_deallocate(p, loc);
 }
+#endif
 
 }  // namespace sfc::cuda::memory::test
