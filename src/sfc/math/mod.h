@@ -2,7 +2,12 @@
 
 #include <math.h>
 #include <sfc/core/mod.h>
-#include <sfc/cuda/mod.h>
+
+#ifdef __device__
+#define __hd  __host__ __device__
+#else
+#define __hd
+#endif
 
 namespace sfc::math {
 

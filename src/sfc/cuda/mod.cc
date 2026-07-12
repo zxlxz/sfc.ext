@@ -1,7 +1,7 @@
 #include <cuda_runtime_api.h>
 
+#include "sfc/core.h"
 #include "sfc/math/vec.h"
-#include "sfc/cuda/mod.h"
 #include "sfc/cuda/stream.h"
 
 namespace sfc::cuda {
@@ -48,10 +48,10 @@ template void config(const u32 (&)[1], const u32 (&)[1]);
 template void config(const u32 (&)[2], const u32 (&)[2]);
 template void config(const u32 (&)[3], const u32 (&)[3]);
 
-auto to_str(Error err) -> const char* {
+auto to_str(Error err) -> str::Str {
   const auto err_code = cudaError(err);
   const auto err_name = cudaGetErrorName(err_code);
-  return err_name;
+  return str::Str(err_name);
 }
 
 }  // namespace sfc::cuda

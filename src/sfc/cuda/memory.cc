@@ -111,7 +111,7 @@ auto MemLocation::fmt(fmt::Formatter& f) const -> void {
   f.write_fmt("{}:{}", to_str(kind), device);
 }
 
-auto to_str(MemKind kind) -> Str {
+auto to_str(MemKind kind) -> str::Str {
   switch (kind) {
     case MemKind::CPU: return "CPU";
     case MemKind::RAM: return "RAM";

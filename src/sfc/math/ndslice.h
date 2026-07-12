@@ -158,10 +158,10 @@ struct NdSlice<T, 2> {
     return _strides[0] == _shape[1] && _strides[1] == 1;
   }
 
-  void for_each(this auto&& self, auto&& f) {
-    for (auto i = 0U; i < self._shape[0]; ++i) {
-      auto row = self[i];
-      for (auto j = 0U; j < self._shape[1]; ++j) {
+  void for_each(auto&& f) {
+    for (auto i = 0U; i < _shape[0]; ++i) {
+      auto row = (*this)[i];
+      for (auto j = 0U; j < _shape[1]; ++j) {
         auto& val = row[j];
         if constexpr (requires { f(i, j, val); }) {
           f(i, j, val);

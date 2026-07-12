@@ -10,7 +10,7 @@ enum MemKind {
   GPU = 2,
   UVA = 3,
 };
-auto to_str(MemKind kind) -> Str;
+auto to_str(MemKind kind) -> str::Str;
 
 struct MemLocation {
   MemKind kind{};

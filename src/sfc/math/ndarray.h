@@ -35,7 +35,7 @@ class RawBuf {
   void copy_from(const RawBuf& other);
 };
 
-template <class T, u32 N>
+template <class T, u32 N = 1>
 class [[nodiscard]] NdArray {
   using Buf = RawBuf;
   using Inn = NdSlice<T, N>;

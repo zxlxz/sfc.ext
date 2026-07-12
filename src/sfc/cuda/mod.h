@@ -13,10 +13,8 @@
 
 #ifdef __device__
 #define __dev __device__
-#define __hd __host__ __device__
 #else
 #define __dev
-#define __hd
 #endif
 
 struct dim3;
@@ -24,7 +22,7 @@ struct dim3;
 namespace sfc::cuda {
 
 enum class Error;
-auto to_str(Error err) -> const char*;
+auto to_str(Error err) -> str::Str;
 
 template <class T = Unit>
 using Result = result::Result<T, Error>;
