@@ -2,10 +2,21 @@
 
 #include "sfc/core/mod.h"
 
+#ifdef __INTELLISENSE__
+#ifndef __device__
+#define __device__
+#endif
+#ifndef __global__
+#define __global__
+#endif
+#endif
+
 #ifdef __device__
 #define __dev __device__
+#define __hd __host__ __device__
 #else
 #define __dev
+#define __hd
 #endif
 
 struct dim3;

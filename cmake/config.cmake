@@ -7,3 +7,7 @@ if(WIN32)
   set(CMAKE_LIBRARY_PATH "${_LOCAL_PREFIX}/lib")
   set(CMAKE_PROGRAM_PATH "${_LOCAL_PREFIX}/bin")
 endif()
+
+if (APPLE)
+  include(${CMAKE_CURRENT_LIST_DIR}/cuda.cmake)
+endif()

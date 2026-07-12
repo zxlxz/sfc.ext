@@ -1,4 +1,5 @@
 
+project(cuda)
 
 if(APPLE)
   find_path(CUDAToolkit_INCLUDE_DIRECTORIES "cuda_runtime_api.h"
@@ -9,6 +10,7 @@ if(APPLE)
   )
 
   get_filename_component(CUDAToolkit_TARGET_DIR "${CUDAToolkit_INCLUDE_DIRECTORIES}" DIRECTORY)
+  message(STATUS "CUDA Toolkit Directory: ${CUDAToolkit_TARGET_DIR}")
   set(CMAKE_CUDA_COMPILER_TOOLKIT_ROOT ${CUDAToolkit_TARGET_DIR})
 
   find_library(_CUDART_LIBRARY "cudart" PATHS ${CUDAToolkit_TARGET_DIR}/lib)
@@ -18,7 +20,7 @@ if(APPLE)
     INTERFACE_LINK_LIBRARIES "${_CUDART_LIBRARY}"
   )
 
-  find_library(_CUFFT_LIBRARY "libcufft" PATHS ${CUDAToolkit_TARGET_DIR}/lib)
+  find_library(_CUFFT_LIBRARY "cufft" PATHS ${CUDAToolkit_TARGET_DIR}/lib)
   add_library(CUDA::cufft INTERFACE IMPORTED)
   set_target_properties(CUDA::cufft PROPERTIES
     INTERFACE_LINK_LIBRARIES "${_CUFFT_LIBRARY}"
