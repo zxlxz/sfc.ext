@@ -118,35 +118,19 @@ __hd inline auto operator==(const vec<T, N>& a, const vec<T, N>& b) -> bool {
 }
 
 template <class T, u32 N>
-__hd inline auto operator<(const vec<T, N>& a, const vec<T, N>& b) -> bool {
-  if constexpr (N == 1) return a.x < b.x;
-  if constexpr (N == 2) return a.x < b.x && a.y < b.y;
-  if constexpr (N == 3) return a.x < b.x && a.y < b.y && a.z < b.z;
-  if constexpr (N == 4) return a.x < b.x && a.y < b.y && a.z < b.z && a.w < b.w;
+__hd inline auto operator+(const vec<T, N>& a) -> vec<T, N> {
+  if constexpr (N == 1) return {a.x};
+  if constexpr (N == 2) return {a.x, a.y};
+  if constexpr (N == 3) return {a.x, a.y, a.z};
+  if constexpr (N == 4) return {a.x, a.y, a.z, a.w};
 }
 
 template <class T, u32 N>
-__hd inline auto operator<=(const vec<T, N>& a, const vec<T, N>& b) -> bool {
-  if constexpr (N == 1) return a.x <= b.x;
-  if constexpr (N == 2) return a.x <= b.x && a.y <= b.y;
-  if constexpr (N == 3) return a.x <= b.x && a.y <= b.y && a.z <= b.z;
-  if constexpr (N == 4) return a.x <= b.x && a.y <= b.y && a.z <= b.z && a.w <= b.w;
-}
-
-template <class T, u32 N>
-__hd inline auto operator>(const vec<T, N>& a, const vec<T, N>& b) -> bool {
-  if constexpr (N == 1) return a.x > b.x;
-  if constexpr (N == 2) return a.x > b.x && a.y > b.y;
-  if constexpr (N == 3) return a.x > b.x && a.y > b.y && a.z > b.z;
-  if constexpr (N == 4) return a.x > b.x && a.y > b.y && a.z > b.z && a.w > b.w;
-}
-
-template <class T, u32 N>
-__hd inline auto operator>=(const vec<T, N>& a, const vec<T, N>& b) -> bool {
-  if constexpr (N == 1) return a.x >= b.x;
-  if constexpr (N == 2) return a.x >= b.x && a.y >= b.y;
-  if constexpr (N == 3) return a.x >= b.x && a.y >= b.y && a.z >= b.z;
-  if constexpr (N == 4) return a.x >= b.x && a.y >= b.y && a.z >= b.z && a.w >= b.w;
+__hd inline auto operator-(const vec<T, N>& a) -> vec<T, N> {
+  if constexpr (N == 1) return {-a.x};
+  if constexpr (N == 2) return {-a.x, -a.y};
+  if constexpr (N == 3) return {-a.x, -a.y, -a.z};
+  if constexpr (N == 4) return {-a.x, -a.y, -a.z, -a.w};
 }
 
 template <class T, u32 N>

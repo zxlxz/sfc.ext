@@ -309,21 +309,6 @@ struct NdSlice<T, 4> {
     const auto data = _data + idx * _strides[0];
     return {data, {_shape[1], _shape[2], _shape[3]}, {_strides[1], _strides[2], _strides[3]}};
   }
-
- public:
-  __hd auto contains(u32 i, u32 j, u32 k, u32 l) const -> bool {
-    return i < _shape[0] && j < _shape[1] && k < _shape[2] && l < _shape[3];
-  }
-
-  __hd auto get(u32 i, u32 j, u32 k, u32 l) const -> T {
-    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2] + l * _strides[3];
-    return _data[offset];
-  }
-
-  __hd void set(u32 i, u32 j, u32 k, u32 l, const T& value) {
-    const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2] + l * _strides[3];
-    _data[offset] = value;
-  }
 };
 
 }  // namespace sfc::math

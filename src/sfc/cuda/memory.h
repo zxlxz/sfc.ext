@@ -28,7 +28,7 @@ void mem_deallocate(void* ptr, MemLocation location);
 auto mem_location(void* ptr) -> MemLocation;
 auto mem_prefetch(void* ptr, usize size, MemLocation loc) -> Result<>;
 
-auto fill_bytes(void* ptr, u8 val, usize size) -> Result<>;
-auto copy_bytes(const void* src, void* dst, usize size) -> Result<>;
+auto mem_fill(void* ptr, u8 val, usize size) -> Result<>;
+auto mem_copy(const void* src, void* dst, usize size) -> Result<>;
 
 }  // namespace sfc::cuda

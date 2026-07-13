@@ -68,8 +68,8 @@ void RawBuf::bzero() {
   switch (_location.kind) {
     default:           break;
     case MemKind::CPU: ptr::write_bytes(p, 0, _size); break;
-    case MemKind::GPU: cuda::fill_bytes(p, 0, _size).unwrap(); break;
-    case MemKind::UVA: cuda::fill_bytes(p, 0, _size).unwrap(); break;
+    case MemKind::GPU: cuda::mem_fill(p, 0, _size).unwrap(); break;
+    case MemKind::UVA: cuda::mem_fill(p, 0, _size).unwrap(); break;
   }
 }
 
@@ -92,8 +92,8 @@ void RawBuf::copy_from(const RawBuf& src) {
   switch (_location.kind) {
     default:           break;
     case MemKind::CPU: ptr::copy_nonoverlapping(psrc, pdst, size); break;
-    case MemKind::GPU: cuda::copy_bytes(psrc, pdst, size).unwrap(); break;
-    case MemKind::UVA: cuda::copy_bytes(psrc, pdst, size).unwrap(); break;
+    case MemKind::GPU: cuda::mem_copy(psrc, pdst, size).unwrap(); break;
+    case MemKind::UVA: cuda::mem_copy(psrc, pdst, size).unwrap(); break;
   }
 }
 

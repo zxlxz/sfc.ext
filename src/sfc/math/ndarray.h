@@ -62,9 +62,9 @@ class [[nodiscard]] NdArray {
     return res;
   }
 
-  static auto new_(const u32 (&shape)[N], MemLocation location = {}) -> NdArray {
+  static auto new_(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray {
     const auto numel = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::new_(numel * sizeof(T), location);
+    auto buf = Buf::new_(numel * sizeof(T), loc);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 

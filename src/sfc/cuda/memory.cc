@@ -197,7 +197,7 @@ auto mem_prefetch(void* ptr, usize size, MemLocation loc) -> Result<> {
   return Ok{};
 }
 
-auto fill_bytes(void* ptr, u8 val, usize size) -> Result<> {
+auto mem_fill(void* ptr, u8 val, usize size) -> Result<> {
   if (size == 0) {
     return Ok{};
   }
@@ -216,7 +216,7 @@ auto fill_bytes(void* ptr, u8 val, usize size) -> Result<> {
   return Ok{};
 }
 
-auto copy_bytes(const void* src, void* dst, usize size) -> Result<> {
+auto mem_copy(const void* src, void* dst, usize size) -> Result<> {
   if (size == 0) {
     return Ok{};
   }

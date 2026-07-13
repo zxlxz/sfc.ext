@@ -52,24 +52,6 @@ SFC_TEST(vec_cmp) {
 
   sfc::assert_eq(a == b, false);
   sfc::assert_eq(a != b, true);
-
-  sfc::assert_eq(a < b, false);
-  sfc::assert_eq(b < a, false);
-  sfc::assert_eq(a < c, true);
-
-  sfc::assert_eq(a <= b, false);
-  sfc::assert_eq(b <= a, false);
-  sfc::assert_eq(a <= c, true);
-
-  sfc::assert_eq(a > b, false);
-  sfc::assert_eq(b > a, false);
-  sfc::assert_eq(a > c, false);
-  sfc::assert_eq(c > a, true);
-
-  sfc::assert_eq(a >= b, false);
-  sfc::assert_eq(b >= a, false);
-  sfc::assert_eq(a >= c, false);
-  sfc::assert_eq(c >= a, true);
 }
 
 SFC_TEST(vec_add_sub_mul_div) {

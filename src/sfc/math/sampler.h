@@ -20,11 +20,11 @@ struct NearestSampler {
     return val;
   }
 
-  __hd auto load_2d(f32 x, f32 y) const -> Item {
+  __hd auto load_2d(f32 y, f32 x) const -> Item {
     const auto nx = _view._shape[0];
     const auto ny = _view._shape[1];
-    const auto ix = static_cast<i32>(x);
-    const auto iy = static_cast<i32>(y);
+    const auto ix = static_cast<i32>(y);
+    const auto iy = static_cast<i32>(x);
     if (ix < 0 || ix >= i32(nx)) return 0.0f;
     if (iy < 0 || iy >= i32(ny)) return 0.0f;
 
