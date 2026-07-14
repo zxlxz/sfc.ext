@@ -18,11 +18,9 @@ struct vec<T, 1> {
   __hd vec(const T (&v)[1]) : x{v[0]} {}
 
  public:
-#ifndef __CUDACC__
   void fmt(auto& f) const {
-    f.debug_tuple("vec").field(x);
+    f.debug_tuple("").field(x);
   }
-#endif
 };
 
 template <class T>
@@ -36,11 +34,9 @@ struct vec<T, 2> {
   __hd vec(const T (&v)[2]) : x{v[0]}, y{v[1]} {}
 
  public:
-#ifndef __CUDACC__
   void fmt(auto& f) const {
-    f.debug_tuple("vec").field(x).field(y);
+    f.debug_tuple("").field(x).field(y);
   }
-#endif
 };
 
 template <class T>
@@ -54,11 +50,9 @@ struct vec<T, 3> {
   __hd vec(const T (&v)[3]) : x{v[0]}, y{v[1]}, z{v[2]} {}
 
  public:
-#ifndef __CUDACC__
   void fmt(auto& f) const {
-    f.debug_tuple("vec").field(x).field(y).field(z);
+    f.debug_tuple("").field(x).field(y).field(z);
   }
-#endif
 };
 
 template <class T>
@@ -72,11 +66,9 @@ struct vec<T, 4> {
   __hd vec(const T (&v)[4]) : x{v[0]}, y{v[1]}, z{v[2]}, w{v[3]} {}
 
  public:
-#ifndef __CUDACC__
   void fmt(auto& f) const {
-    f.debug_tuple("vec").field(x).field(y).field(z).field(w);
+    f.debug_tuple("").field(x).field(y).field(z).field(w);
   }
-#endif
 };
 
 using vec1i = math::vec<i32, 1>;
