@@ -129,6 +129,11 @@ struct NdSlice<T, 2> {
     return NdSlice<T, NDIM - 1>{data, {_shape[1]}, {_strides[1]}};
   }
 
+  __hd auto operator[](u32 i, u32 j) const -> T {
+    const auto offset = i * _strides[0] + j * _strides[1];
+    return _data[offset];
+  }
+
   __hd auto operator[](const u32 (&idx)[NDIM]) const -> const T& {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
     return _data[offset];

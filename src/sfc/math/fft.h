@@ -3,34 +3,57 @@
 #include "sfc/math/complex.h"
 #include "sfc/math/ndarray.h"
 
-namespace sfc::math {
+struct fftwf_plan_s;
 
-template <class I, class O>
-class FFTW {
-  struct Inn;
+namespace sfc::math::fft {
+
+class FFT {
+  using plan_t = struct fftwf_plan_s*;
+
   u32 _len{0};
-  Inn* _inn{nullptr};
+  plan_t _fwd_inplace{nullptr};
+  plan_t _inv_inplace{nullptr};
+  plan_t _fwd_outplace{nullptr};
+  plan_t _inv_outplace{nullptr};
 
  public:
-  FFTW() noexcept;
-  ~FFTW();
-  FFTW(FFTW&& other) noexcept;
-  FFTW& operator=(FFTW&& other) noexcept;
+  FFT() noexcept;
+  ~FFT();
+  FFT(FFT&& other) noexcept;
+  FFT& operator=(FFT&& other) noexcept;
 
-  static auto create(u32 len) -> FFTW;
+  static auto new_(u32 len) -> FFT;
 
  public:
-  auto ilen() const -> usize;
-  auto olen() const -> usize;
-  void exec(const I in[], O out[], int DIR = -1);
+  auto len() const -> usize;
 
-  void operator()(NdSlice<I, 1> in, NdSlice<O, 1> out, int DIR = -1);
-  void operator()(NdSlice<I, 2> in, NdSlice<O, 2> out, int DIR = -1);
+  void fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out);
+  void ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out);
+
+  void fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out);
+  void ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out);
 };
 
-template <class I, class O>
-auto fftw(u32 len) -> FFTW<I, O> {
-  return FFTW<I, O>::create(len);
-}
+class RFFT {
+  using plan_t = struct fftwf_plan_s*;
+  u32 _len{0};
+  plan_t _r2c{nullptr};
+  plan_t _c2r{nullptr};
 
-}  // namespace sfc::math
+ public:
+  RFFT() noexcept;
+  ~RFFT();
+  RFFT(RFFT&& other) noexcept;
+  RFFT& operator=(RFFT&& other) noexcept;
+
+  static auto new_(u32 len) -> RFFT;
+
+ public:
+  void fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out);
+  void ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out);
+
+  void fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out);
+  void ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out);
+};
+
+}  // namespace sfc::math::fft

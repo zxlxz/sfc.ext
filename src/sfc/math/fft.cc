@@ -1,7 +1,7 @@
 #include <fftw3.h>
 #include "sfc/math/fft.h"
 
-namespace sfc::math {
+namespace sfc::math::fft {
 
 using fftw_plan_t = fftwf_plan_s*;
 
@@ -55,172 +55,206 @@ static void fftw_exec(fftw_plan_t plan, const c32 in[], f32 out[]) {
   ::fftwf_execute_dft_c2r(plan, idata, odata);
 }
 
-template <>
-struct FFTW<c32, c32>::Inn {
-  u32 _len;
-  fftw_plan_t _c2c_fwd{nullptr};
-  fftw_plan_t _c2c_inv{nullptr};
-  fftw_plan_t _c2c_inplace_fwd{nullptr};
-  fftw_plan_t _c2c_inplace_inv{nullptr};
+FFT::FFT() noexcept {}
 
- public:
-  explicit Inn(u32 len) : _len{len} {
-    _c2c_inplace_fwd = fftw_plan(len, ptr::null<c32>(), ptr::null<c32>(), -1);
-    _c2c_inplace_inv = fftw_plan(len, ptr::null<c32>(), ptr::null<c32>(), +1);
-  }
-
-  ~Inn() {
-    fftw_drop(_c2c_fwd);
-    fftw_drop(_c2c_inv);
-    fftw_drop(_c2c_inplace_fwd);
-    fftw_drop(_c2c_inplace_inv);
-  }
-
-  Inn(const Inn&) = delete;
-  Inn& operator=(const Inn&) = delete;
-
-  auto plan(const c32 in[], c32 out[], int DIR) -> fftw_plan_t {
-    auto& fwd_plan = in == out ? _c2c_inplace_fwd : _c2c_fwd;
-    auto& inv_plan = in == out ? _c2c_inplace_inv : _c2c_inv;
-    auto& plan = DIR < 0 ? fwd_plan : inv_plan;
-
-    if (plan == nullptr) {
-      plan = fftw_plan(_len, in, out, DIR);
-    }
-
-    return plan;
-  }
-};
-
-template <>
-struct FFTW<c32, f32>::Inn {
-  fftw_plan_t _c2r{nullptr};
-
- public:
-  explicit Inn(u32 len) {
-    _c2r = fftw_plan(len, ptr::null<c32>(), ptr::null<f32>(), -1);
-  }
-
-  ~Inn() {
-    fftw_drop(_c2r);
-  }
-
-  Inn(const Inn&) = delete;
-  Inn& operator=(const Inn&) = delete;
-
-  auto plan([[maybe_unused]] const c32 in[], [[maybe_unused]] f32 out[], [[maybe_unused]] int DIR) -> fftw_plan_t {
-    return _c2r;
-  }
-};
-
-template <>
-struct FFTW<f32, c32>::Inn {
-  fftw_plan_t _r2c{nullptr};
-
- public:
-  explicit Inn(u32 len) {
-    _r2c = fftw_plan(len, ptr::null<f32>(), ptr::null<c32>(), -1);
-  }
-
-  ~Inn() {
-    fftw_drop(_r2c);
-  }
-
-  Inn(const Inn&) = delete;
-  Inn& operator=(const Inn&) = delete;
-
-  auto plan([[maybe_unused]] const f32 in[], [[maybe_unused]] c32 out[], [[maybe_unused]] int DIR) -> fftw_plan_t {
-    return _r2c;
-  }
-};
-
-template <class I, class O>
-FFTW<I, O>::FFTW() noexcept {}
-
-template <class I, class O>
-FFTW<I, O>::~FFTW() {
-  if (_inn == nullptr) {
-    return;
-  }
-  delete _inn;
+FFT::~FFT() {
+  fftw_drop(_fwd_inplace);
+  fftw_drop(_inv_inplace);
+  fftw_drop(_fwd_outplace);
+  fftw_drop(_inv_outplace);
 }
 
-template <class I, class O>
-FFTW<I, O>::FFTW(FFTW&& other) noexcept : _len{other._len}, _inn{other._inn} {
-  other._len = 0;
-  other._inn = nullptr;
-}
+FFT::FFT(FFT&& other) noexcept
+    : _len{mem::take(other._len)}
+    , _fwd_inplace{mem::take(other._fwd_inplace)}
+    , _inv_inplace{mem::take(other._inv_inplace)}
+    , _fwd_outplace{mem::take(other._fwd_outplace)}
+    , _inv_outplace{mem::take(other._inv_outplace)} {}
 
-template <class I, class O>
-FFTW<I, O>& FFTW<I, O>::operator=(FFTW&& other) noexcept {
-  if (this != &other) {
-    mem::swap(_len, other._len);
-    mem::swap(_inn, other._inn);
-  }
+FFT& FFT::operator=(FFT&& other) noexcept {
+  if (this == &other) return *this;
+  mem::swap(_len, other._len);
+  mem::swap(_fwd_inplace, other._fwd_inplace);
+  mem::swap(_inv_inplace, other._inv_inplace);
+  mem::swap(_fwd_outplace, other._fwd_outplace);
+  mem::swap(_inv_outplace, other._inv_outplace);
+
   return *this;
 }
 
-template <class I, class O>
-auto FFTW<I, O>::create(u32 len) -> FFTW {
-  auto res = FFTW{};
+FFT FFT::new_(u32 len) {
+  const auto fwd_inplace = fftw_plan(len, ptr::null<c32>(), ptr::null<c32>(), FFTW_FORWARD);
+  const auto inv_inplace = fftw_plan(len, ptr::null<c32>(), ptr::null<c32>(), FFTW_BACKWARD);
+
+  auto res = FFT{};
   res._len = len;
-  res._inn = new Inn(len);
+  res._fwd_inplace = fwd_inplace;
+  res._inv_inplace = inv_inplace;
   return res;
 }
 
-template <class I, class O>
-auto FFTW<I, O>::ilen() const -> usize {
-  const auto half_len = _len / 2 + 1;
-  return sizeof(I) <= sizeof(O) ? _len : half_len;
+auto FFT::len() const -> usize {
+  return _len;
 }
 
-template <class I, class O>
-auto FFTW<I, O>::olen() const -> usize {
-  const auto half_len = _len / 2 + 1;
-  return sizeof(O) <= sizeof(I) ? _len : half_len;
+void FFT::fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
+  sfc::assert_(in.is_contiguous(), "FFT::fft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "FFT::fft: out is not contiguous");
+  sfc::assert_(in._shape[0] == _len, "FFT::fft: in.shape({}) not match len(={})", in._shape, _len);
+  sfc::assert_(out._shape[0] == _len, "FFT::fft: out.shape({}) not match len(={})", out._shape, _len);
+
+  auto& plan = in._data == out._data ? _fwd_inplace : _fwd_outplace;
+  if (plan == nullptr) {
+    plan = fftw_plan(_len, in._data, out._data, FFTW_FORWARD);
+  }
+
+  fftw_exec(plan, in._data, out._data);
 }
 
-template <class I, class O>
-void FFTW<I, O>::exec(const I in[], O out[], int DIR) {
-  const auto plan = _inn->plan(in, out, DIR);
-  fftw_exec(plan, in, out);
+void FFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
+  sfc::assert_(in.is_contiguous(), "FFT::ifft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "FFT::ifft: out is not contiguous");
+  sfc::assert_(in._shape[0] == _len, "FFT::ifft: in.shape({}) not match len(={})", in._shape, _len);
+  sfc::assert_(out._shape[0] == _len, "FFT::ifft: out.shape({}) not match len(={})", out._shape, _len);
+
+  auto& plan = in._data == out._data ? _inv_inplace : _inv_outplace;
+  if (plan == nullptr) {
+    plan = fftw_plan(_len, in._data, out._data, FFTW_BACKWARD);
+  }
+  fftw_exec(plan, in._data, out._data);
 }
 
-template <class I, class O>
-void FFTW<I, O>::operator()(NdSlice<I, 1> in, NdSlice<O, 1> out, int DIR) {
-  const auto ilen = this->ilen();
-  const auto olen = this->olen();
-  const auto [src_len] = in._shape;
-  const auto [dst_len] = out._shape;
-  sfc::assert_(in.is_contiguous(), "FFTW::exec: src is not contiguous");
-  sfc::assert_(out.is_contiguous(), "FFTW::exec: dst is not contiguous");
-  sfc::assert_(src_len == ilen, "FFTW::exec: src.shape({}) != ilen{}", src_len, ilen);
-  sfc::assert_(dst_len == olen, "FFTW::exec: dst.shape({}) != olen{}", dst_len, olen);
-  this->exec(in._data, out._data, DIR);
-}
+void FFT::fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) {
+  const auto [ibatch, ilen] = in._shape;
+  const auto [obatch, olen] = out._shape;
 
-template <class I, class O>
-void FFTW<I, O>::operator()(NdSlice<I, 2> src, NdSlice<O, 2> dst, int DIR) {
-  const auto ilen = this->ilen();
-  const auto olen = this->olen();
-  const auto [src_batch, src_len] = src._shape;
-  const auto [dst_batch, dst_len] = dst._shape;
+  sfc::assert_(in.is_contiguous(), "FFT::fft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "FFT::fft: out is not contiguous");
+  sfc::assert_(ilen == _len, "FFT::fft: in.shape({}) not match len(={})", in._shape, _len);
+  sfc::assert_(olen == _len, "FFT::fft: out.shape({}) not match len(={})", out._shape, _len);
+  sfc::assert_(ibatch == obatch, "FFT::fft: in.shape({}) not match out.shape({})", in._shape, out._shape);
 
-  sfc::assert_(src.is_contiguous(), "FFTW::exec: src is not contiguous");
-  sfc::assert_(dst.is_contiguous(), "FFTW::exec: dst is not contiguous");
-  sfc::assert_(src_len == ilen, "FFTW::exec: src.shape({}) != ilen{}", src_len, ilen);
-  sfc::assert_(dst_len == olen, "FFTW::exec: dst.shape({}) != olen{}", dst_len, olen);
-  sfc::assert_(src_batch == dst_batch, "FFTW::exec: src.batch({}) != dst.batch({})", src_batch, dst_batch);
+  auto& plan = in._data == out._data ? _fwd_inplace : _fwd_outplace;
+  if (plan == nullptr) {
+    plan = fftw_plan(_len, in[0]._data, out[0]._data, FFTW_FORWARD);
+  }
 
-  for (auto i = 0U; i < src_batch; ++i) {
-    auto src_col = src[i];
-    auto dst_col = dst[i];
-    this->exec(src_col._data, dst_col._data, DIR);
+  for (auto i = 0U; i < ibatch; ++i) {
+    auto tmp_in = in[i];
+    auto tmp_out = out[i];
+    fftw_exec(plan, tmp_in._data, tmp_out._data);
   }
 }
 
-template class FFTW<f32, c32>;
-template class FFTW<c32, f32>;
-template class FFTW<c32, c32>;
+void FFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) {
+  const auto [ibatch, ilen] = in._shape;
+  const auto [obatch, olen] = out._shape;
 
-}  // namespace sfc::math
+  sfc::assert_(in.is_contiguous(), "FFT::ifft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "FFT::ifft: out is not contiguous");
+  sfc::assert_(ilen == _len, "FFT::ifft: in.shape({}) not match len(={})", in._shape, _len);
+  sfc::assert_(olen == _len, "FFT::ifft: out.shape({}) not match len(={})", out._shape, _len);
+  sfc::assert_(ibatch == obatch, "FFT::ifft: in.shape({}) not match out.shape({})", in._shape, out._shape);
+
+  auto& plan = in._data == out._data ? _inv_inplace : _inv_outplace;
+  if (plan == nullptr) {
+    plan = fftw_plan(_len, in[0]._data, out[0]._data, FFTW_BACKWARD);
+  }
+
+  for (auto i = 0U; i < ibatch; ++i) {
+    auto tmp_in = in[i];
+    auto tmp_out = out[i];
+    fftw_exec(plan, tmp_in._data, tmp_out._data);
+  }
+}
+
+RFFT::RFFT() noexcept {}
+
+RFFT::~RFFT() {
+  fftw_drop(_r2c);
+  fftw_drop(_c2r);
+}
+
+RFFT::RFFT(RFFT&& other) noexcept
+    : _len{mem::take(other._len)}, _r2c{mem::take(other._r2c)}, _c2r{mem::take(other._c2r)} {}
+
+RFFT& RFFT::operator=(RFFT&& other) noexcept {
+  if (this == &other) return *this;
+  mem::swap(_len, other._len);
+  mem::swap(_r2c, other._r2c);
+  mem::swap(_c2r, other._c2r);
+  return *this;
+}
+
+auto RFFT::new_(u32 len) -> RFFT {
+  const auto r2c = fftw_plan(len, ptr::null<f32>(), ptr::null<c32>(), FFTW_FORWARD);
+  const auto c2r = fftw_plan(len, ptr::null<c32>(), ptr::null<f32>(), FFTW_BACKWARD);
+
+  auto res = RFFT{};
+  res._len = len;
+  res._r2c = r2c;
+  res._c2r = c2r;
+  return res;
+}
+
+void RFFT::fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) {
+  const auto full_len = _len;
+  const auto half_len = _len / 2 + 1;
+  sfc::assert_(in.is_contiguous(), "RFFT::fft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "RFFT::fft: out is not contiguous");
+  sfc::assert_(in._shape[0] == full_len, "RFFT::fft: in.shape({}) not match fft.len(={})", in._shape, _len);
+  sfc::assert_(out._shape[0] == half_len, "RFFT::fft: out.shape({}) not match fft.len(={})/2+1", out._shape, _len);
+
+  fftw_exec(_r2c, in._data, out._data);
+}
+
+void RFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) {
+  const auto full_len = _len;
+  const auto half_len = _len / 2 + 1;
+  sfc::assert_(in.is_contiguous(), "RFFT::ifft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "RFFT::ifft: out is not contiguous");
+  sfc::assert_(in._shape[0] == half_len, "RFFT::ifft: in.shape({}) not match fft.len(={})/2+1", in._shape, _len);
+  sfc::assert_(out._shape[0] == full_len, "RFFT::ifft: out.shape({}) not match fft.len(={})", out._shape, _len);
+
+  fftw_exec(_c2r, in._data, out._data);
+}
+
+void RFFT::fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) {
+  const auto full_len = _len;
+  const auto half_len = _len / 2 + 1;
+  const auto [ibatch, ilen] = in._shape;
+  const auto [obatch, olen] = out._shape;
+
+  sfc::assert_(in.is_contiguous(), "RFFT::fft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "RFFT::fft: out is not contiguous");
+  sfc::assert_(ilen == full_len, "RFFT::fft: in.shape({}) not match fft.len(={})", in._shape, _len);
+  sfc::assert_(olen == half_len, "RFFT::fft: out.shape({}) not match fft.len(={})/2+1", out._shape, _len);
+  sfc::assert_(ibatch == obatch, "RFFT::fft: in.shape({}) not match out.shape({})", in._shape, out._shape);
+
+  for (auto i = 0U; i < ibatch; ++i) {
+    auto tmp_in = in[i];
+    auto tmp_out = out[i];
+    fftw_exec(_r2c, tmp_in._data, tmp_out._data);
+  }
+}
+
+void RFFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) {
+  const auto full_len = _len;
+  const auto half_len = _len / 2 + 1;
+  const auto [ibatch, ilen] = in._shape;
+  const auto [obatch, olen] = out._shape;
+
+  sfc::assert_(in.is_contiguous(), "RFFT::ifft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "RFFT::ifft: out is not contiguous");
+  sfc::assert_(ilen == half_len, "RFFT::ifft: in.shape({}) not match fft.len(={})/2+1", in._shape, _len);
+  sfc::assert_(olen == full_len, "RFFT::ifft: out.shape({}) not match fft.len(={})", out._shape, _len);
+  sfc::assert_(ibatch == obatch, "RFFT::ifft: in.shape({}) not match out.shape({})", in._shape, out._shape);
+
+  for (auto i = 0U; i < ibatch; ++i) {
+    auto tmp_in = in[i];
+    auto tmp_out = out[i];
+    fftw_exec(_c2r, tmp_in._data, tmp_out._data);
+  }
+}
+
+}  // namespace sfc::math::fft

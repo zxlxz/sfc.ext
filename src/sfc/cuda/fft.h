@@ -3,9 +3,9 @@
 #include "sfc/math/complex.h"
 #include "sfc/math/ndarray.h"
 
-namespace sfc::cuda {
+namespace sfc::cuda::fft {
 
-enum class FFTError {
+enum class Error {
   Success = 0x0,
   InvalidPlan = 0x1,
   AllocFailed = 0x2,
@@ -27,36 +27,54 @@ enum class FFTError {
 };
 
 template <class T = Unit>
-using FFTResult = result::Result<T, FFTError>;
+using Result = result::Result<T, Error>;
 
-auto to_str(FFTError err) -> const char*;
+auto to_str(Error err) -> const char*;
 
-template <class I, class O>
-class CUFFT {
+class FFT {
   u32 _len{0};
   u32 _batch{0};
-  int _plan{-1};
+  int _plan{0};
 
  public:
-  CUFFT() noexcept;
-  ~CUFFT();
-  CUFFT(CUFFT&& other) noexcept;
-  CUFFT& operator=(CUFFT&& other) noexcept;
+  FFT() noexcept;
+  ~FFT();
+  FFT(FFT&& other) noexcept;
+  FFT& operator=(FFT&& other) noexcept;
 
-  static auto create(u32 len, u32 batch = 1) -> CUFFT;
+  static auto new_(u32 len, u32 batch = 1) -> FFT;
 
  public:
-  auto ilen() const -> usize;
-  auto olen() const -> usize;
-  auto exec(const I in[], O out[], int DIR) -> FFTResult<>;
+  auto len() const -> usize;
+  auto batch() const -> usize;
 
-  auto operator()(math::NdSlice<I, 1> in, math::NdSlice<O, 1> out, int DIR = -1) -> FFTResult<>;
-  auto operator()(math::NdSlice<I, 2> in, math::NdSlice<O, 2> out, int DIR = -1) -> FFTResult<>;
+  auto fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<>;
+  auto ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<>;
+
+  auto fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<>;
+  auto ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<>;
 };
 
-template <class I, class O>
-auto cufft(u32 len, u32 batch = 1) -> CUFFT<I, O> {
-  return CUFFT<I, O>::create(len, batch);
-}
+class RFFT {
+  u32 _len{0};
+  u32 _batch{0};
+  int _plan_r2c{0};
+  int _plan_c2r{0};
 
-}  // namespace sfc::cuda
+ public:
+  RFFT() noexcept;
+  ~RFFT();
+  RFFT(RFFT&& other) noexcept;
+  RFFT& operator=(RFFT&& other) noexcept;
+
+  static auto create(u32 len, u32 batch = 1) -> RFFT;
+
+ public:
+  auto fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) -> Result<>;
+  auto ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) -> Result<>;
+
+  auto fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) -> Result<>;
+  auto ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) -> Result<>;
+};
+
+}  // namespace sfc::cuda::fft

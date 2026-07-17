@@ -76,8 +76,14 @@ class [[nodiscard]] NdArray {
     return _inn.numel();
   }
 
-  auto shape() const -> const u32 (&)[N] {
+  using shape_t = u32[N];
+  auto shape() const -> const shape_t& {
     return _inn._shape;
+  }
+
+  using strides_t = u32[N];
+  auto strides() const -> const u32 (&)[N] {
+    return _inn._strides;
   }
 
   auto buf() const -> const Buf& {
@@ -143,10 +149,6 @@ class [[nodiscard]] NdArray {
     _inn._data = ptr::cast<T>(_buf.ptr());
   }
 
-  void for_each(auto&& f) const {
-    _inn.for_each(f);
-  }
-
   void for_each(auto&& f) {
     _inn.for_each(f);
   }
@@ -156,9 +158,16 @@ class [[nodiscard]] NdArray {
   }
 };
 
-template <class T, u32 N>
+template <class T = f32, u32 N = 1>
 auto array(const u32 (&shape)[N], MemLocation location = {}) -> NdArray<T, N> {
   return NdArray<T, N>::new_(shape, location);
+}
+
+template <class T = f32, u32 N = 1>
+auto zero(const u32 (&shape)[N], MemLocation location = {}) -> NdArray<T, N> {
+  auto a = NdArray<T, N>::new_(shape, location);
+  a.bzero();
+  return a;
 }
 
 }  // namespace sfc::math

@@ -3,30 +3,31 @@
 #include "sfc/core.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/fft.h"
+#include "sfc/math/vec.h"
 
-namespace sfc::cuda {
+namespace sfc::cuda::fft {
 
-auto to_str(FFTError e) -> cstr_t {
+auto to_str(Error e) -> cstr_t {
   switch (e) {
-    case FFTError::Success:           return "cufft::Success";
-    case FFTError::InvalidPlan:       return "cufft::InvalidPlan";
-    case FFTError::AllocFailed:       return "cufft::AllocFailed";
-    case FFTError::InvalidType:       return "cufft::InvalidType";
-    case FFTError::InvalidValue:      return "cufft::InvalidValue";
-    case FFTError::InternalError:     return "cufft::InternalError";
-    case FFTError::ExecFailed:        return "cufft::ExecFailed";
-    case FFTError::SetupFailed:       return "cufft::SetupFailed";
-    case FFTError::InvalidSize:       return "cufft::InvalidSize";
-    case FFTError::UnalignedData:     return "cufft::UnalignedData";
-    case FFTError::InvalidDevice:     return "cufft::InvalidDevice";
-    case FFTError::NoWorkspace:       return "cufft::NoWorkspace";
-    case FFTError::NotImplemented:    return "cufft::NotImplemented";
-    case FFTError::NotSupported:      return "cufft::NotSupported";
-    case FFTError::MissingDependency: return "cufft::MissingDependency";
-    case FFTError::NVRTCFailure:      return "cufft::NVRTCFailure";
-    case FFTError::NVJITLinkFailure:  return "cufft::NVJITLinkFailure";
-    case FFTError::NVSHMEMFailure:    return "cufft::NVSHMEMFailure";
-    default:                          return "cufft::Unknown";
+    case Error::Success:           return "cuda::fft::Success";
+    case Error::InvalidPlan:       return "cuda::fft::InvalidPlan";
+    case Error::AllocFailed:       return "cuda::fft::AllocFailed";
+    case Error::InvalidType:       return "cuda::fft::InvalidType";
+    case Error::InvalidValue:      return "cuda::fft::InvalidValue";
+    case Error::InternalError:     return "cuda::fft::InternalError";
+    case Error::ExecFailed:        return "cuda::fft::ExecFailed";
+    case Error::SetupFailed:       return "cuda::fft::SetupFailed";
+    case Error::InvalidSize:       return "cuda::fft::InvalidSize";
+    case Error::UnalignedData:     return "cuda::fft::UnalignedData";
+    case Error::InvalidDevice:     return "cuda::fft::InvalidDevice";
+    case Error::NoWorkspace:       return "cuda::fft::NoWorkspace";
+    case Error::NotImplemented:    return "cuda::fft::NotImplemented";
+    case Error::NotSupported:      return "cuda::fft::NotSupported";
+    case Error::MissingDependency: return "cuda::fft::MissingDependency";
+    case Error::NVRTCFailure:      return "cuda::fft::NVRTCFailure";
+    case Error::NVJITLinkFailure:  return "cuda::fft::NVJITLinkFailure";
+    case Error::NVSHMEMFailure:    return "cuda::fft::NVSHMEMFailure";
+    default:                       return "cuda::fft::Unknown";
   }
 }
 
@@ -52,69 +53,59 @@ static auto fft_type() -> cufftType {
   }
 }
 
-static auto fft_plan(u32 nx, u32 batch, cufftType type) -> FFTResult<cufftHandle> {
+static auto fft_plan(u32 nx, u32 batch, cufftType type) -> Result<cufftHandle> {
   auto plan = cufftHandle{};
   if (auto err = cufftPlan1d(&plan, int(nx), type, int(batch))) {
-    return FFTError(err);
+    return Error(err);
   }
   return Ok(plan);
 }
 
-static auto fft_drop(cufftHandle plan) -> FFTResult<> {
+static auto fft_drop(cufftHandle plan) -> Result<> {
   if (plan == 0) return Ok{};
   if (auto err = cufftDestroy(plan)) {
-    return FFTError(err);
+    return Error(err);
   }
   return Ok{};
 }
 
-static auto fft_exec(cufftHandle plan, c32* in, c32* out, int direction) -> FFTResult<> {
+static auto fft_exec(cufftHandle plan, c32* in, c32* out, int direction) -> Result<> {
   const auto idata = fft_cast(in);
   const auto odata = fft_cast(out);
   if (auto err = cufftExecC2C(plan, idata, odata, direction); err != CUFFT_SUCCESS) {
-    return FFTError(err);
+    return Error(err);
   }
   return Ok{};
 }
 
-static auto fft_exec(cufftHandle plan, f32* in, c32* out, [[maybe_unused]] int direction) -> FFTResult<> {
+static auto fft_exec(cufftHandle plan, f32* in, c32* out, [[maybe_unused]] int direction) -> Result<> {
   const auto idata = fft_cast(in);
   const auto odata = fft_cast(out);
   if (auto err = cufftExecR2C(plan, idata, odata)) {
-    return FFTError(err);
+    return Error(err);
   }
   return Ok{};
 }
 
-static auto fft_exec(cufftHandle plan, c32* in, f32* out, [[maybe_unused]] int direction) -> FFTResult<> {
+static auto fft_exec(cufftHandle plan, c32* in, f32* out, [[maybe_unused]] int direction) -> Result<> {
   const auto idata = fft_cast(in);
   const auto odata = fft_cast(out);
   if (auto err = cufftExecC2R(plan, idata, odata)) {
-    return FFTError(err);
+    return Error(err);
   }
   return Ok{};
 }
 
-template <class I, class O>
-CUFFT<I, O>::CUFFT() noexcept : _plan{0} {}
+FFT::FFT() noexcept : _plan{0} {}
 
-template <class I, class O>
-CUFFT<I, O>::~CUFFT() {
-  if (_plan == 0) {
-    return;
-  }
-  cuda::fft_drop(_plan).unwrap();
+FFT::~FFT() {
+  fft_drop(_plan).unwrap();
 }
 
-template <class I, class O>
-CUFFT<I, O>::CUFFT(CUFFT&& other) noexcept : _len{other._len}, _batch{other._batch}, _plan{other._plan} {
-  other._len = 0;
-  other._batch = 0;
-  other._plan = 0;
-}
+FFT::FFT(FFT&& other) noexcept
+    : _len{mem::take(other._len)}, _batch{mem::take(other._batch)}, _plan{mem::take(other._plan)} {}
 
-template <class I, class O>
-auto CUFFT<I, O>::operator=(CUFFT&& other) noexcept -> CUFFT& {
+auto FFT::operator=(FFT&& other) noexcept -> FFT& {
   if (this == &other) return *this;
   mem::swap(_len, other._len);
   mem::swap(_plan, other._plan);
@@ -122,79 +113,204 @@ auto CUFFT<I, O>::operator=(CUFFT&& other) noexcept -> CUFFT& {
   return *this;
 }
 
-template <class I, class O>
-auto CUFFT<I, O>::create(u32 len, u32 batch) -> CUFFT {
-  const auto type = cuda::fft_type<I, O>();
-  const auto plan = cuda::fft_plan(len, batch, type).unwrap();
+auto FFT::new_(u32 len, u32 batch) -> FFT {
+  const auto type = fft_type<c32, c32>();
+  const auto plan = fft_plan(len, batch, type).unwrap();
 
-  auto res = CUFFT{};
+  auto res = FFT{};
   res._len = len;
   res._batch = batch;
   res._plan = plan;
   return res;
 }
 
-template <class I, class O>
-auto CUFFT<I, O>::ilen() const -> usize {
-  const auto half_len = _len / 2 + 1;
-  return sizeof(I) <= sizeof(O) ? _len : half_len;
+auto FFT::len() const -> usize {
+  return _len;
 }
 
-template <class I, class O>
-auto CUFFT<I, O>::olen() const -> usize {
-  const auto half_len = _len / 2 + 1;
-  return sizeof(O) <= sizeof(I) ? _len : half_len;
+auto FFT::batch() const -> usize {
+  return _batch;
 }
 
-template <class I, class O>
-auto CUFFT<I, O>::exec(const I in[], O out[], int DIR) -> FFTResult<> {
-  auto res = cuda::fft_exec(_plan, (I*)in, out, DIR);
+auto FFT::fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<> {
+  const auto [ilen] = in._shape;
+  const auto [olen] = out._shape;
+
+  sfc::assert_(in.is_contiguous(), "FFT::fft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "FFT::fft: out is not contiguous");
+  sfc::assert_(ilen == _len, "FFT::fft: in.shape({}) not match fft.len(={})", ilen, _len);
+  sfc::assert_(olen == _len, "FFT::fft: out.shape({}) not match fft.len(={})", olen, _len);
+  sfc::assert_(_batch == 1, "FFT::fft: batch({}) != 1", _batch);
+
+  auto ret = fft_exec(_plan, in._data, out._data, CUFFT_FORWARD);
+  return ret;
+}
+
+auto FFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<> {
+  const auto [ilen] = in._shape;
+  const auto [olen] = out._shape;
+
+  sfc::assert_(in.is_contiguous(), "FFT::ifft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "FFT::ifft: out is not contiguous");
+
+  sfc::assert_(ilen == _len, "FFT::ifft: in.shape({}) not match fft.len(={})", ilen, _len);
+  sfc::assert_(olen == _len, "FFT::ifft: out.shape({}) not match fft.len(={})", olen, _len);
+  sfc::assert_(_batch == 1, "FFT::ifft: batch({}) != 1", _batch);
+
+  auto ret = fft_exec(_plan, in._data, out._data, CUFFT_INVERSE);
+  return ret;
+}
+
+auto FFT::fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<> {
+  const auto [ibatch, ilen] = in._shape;
+  const auto [obatch, olen] = out._shape;
+
+  sfc::assert_(in.is_contiguous(), "FFT::fft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "FFT::fft: out is not contiguous");
+  sfc::assert_(ilen == _len, "FFT::fft: in.shape({}) not match fft.len(={})", ilen, _len);
+  sfc::assert_(olen == _len, "FFT::fft: out.shape({}) not match fft.len(={})", olen, _len);
+  sfc::assert_(ibatch == obatch, "FFT::fft: in.batch({}) not match out.batch(={})", ibatch, obatch);
+  sfc::assert_(ibatch % _batch == 0, "FFT::fft: in.batch({}) not multiple of batch(={})", ibatch, _batch);
+  sfc::assert_(obatch % _batch == 0, "FFT::fft: out.batch({}) not multiple of batch(={})", obatch, _batch);
+
+  for (auto i = 0U; i < ibatch; i += _batch) {
+    auto s = in[i];
+    auto d = out[i];
+    _TRY(fft_exec(_plan, s._data, d._data, CUFFT_FORWARD));
+  }
+  return Ok{};
+}
+
+auto FFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<> {
+  const auto [ibatch, ilen] = in._shape;
+  const auto [obatch, olen] = out._shape;
+
+  sfc::assert_(in.is_contiguous(), "FFT::ifft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "FFT::ifft: out is not contiguous");
+  sfc::assert_(ibatch == obatch, "FFT::ifft: in.batch({}) not match out.batch(={})", ibatch, obatch);
+  sfc::assert_(ibatch % _batch == 0, "FFT::ifft: in.batch({}) not multiple of batch(={})", ibatch, _batch);
+  sfc::assert_(obatch % _batch == 0, "FFT::ifft: out.batch({}) not multiple of batch(={})", obatch, _batch);
+
+  for (auto i = 0U; i < ibatch; i += _batch) {
+    auto s = in[i];
+    auto d = out[i];
+    _TRY(fft_exec(_plan, s._data, d._data, CUFFT_INVERSE));
+  }
+  return Ok{};
+}
+
+RFFT::RFFT() noexcept {}
+
+RFFT::~RFFT() {
+  fft_drop(_plan_r2c).unwrap();
+  fft_drop(_plan_c2r).unwrap();
+}
+
+RFFT::RFFT(RFFT&& other) noexcept
+    : _len{mem::take(other._len)}
+    , _batch{mem::take(other._batch)}
+    , _plan_r2c{mem::take(other._plan_r2c)}
+    , _plan_c2r{mem::take(other._plan_c2r)} {}
+
+RFFT& RFFT::operator=(RFFT&& other) noexcept {
+  if (this == &other) return *this;
+  mem::swap(_len, other._len);
+  mem::swap(_batch, other._batch);
+  mem::swap(_plan_r2c, other._plan_r2c);
+  mem::swap(_plan_c2r, other._plan_c2r);
+  return *this;
+}
+
+auto RFFT::create(u32 len, u32 batch) -> RFFT {
+  const auto plan_r2c = fft_plan(len, batch, fft_type<f32, c32>()).unwrap();
+  const auto plan_c2r = fft_plan(len, batch, fft_type<c32, f32>()).unwrap();
+
+  auto res = RFFT{};
+  res._len = len;
+  res._batch = batch;
+  res._plan_r2c = plan_r2c;
+  res._plan_c2r = plan_c2r;
   return res;
 }
 
-template <class I, class O>
-auto CUFFT<I, O>::operator()(math::NdSlice<I, 1> src, math::NdSlice<O, 1> dst, int DIR) -> FFTResult<> {
-  const auto ilen = this->ilen();
-  const auto olen = this->olen();
-  const auto [src_len] = src._shape;
-  const auto [dst_len] = dst._shape;
-  sfc::assert_(src.is_contiguous(), "CUFFT::exec: src is not contiguous");
-  sfc::assert_(dst.is_contiguous(), "CUFFT::exec: dst is not contiguous");
-  sfc::assert_(src_len == ilen, "CUFFT::exec: src.shape({}) not match ilen(={})", src_len, ilen);
-  sfc::assert_(dst_len == olen, "CUFFT::exec: dst.shape({}) not match olen(={})", dst_len, olen);
+auto RFFT::fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) -> Result<> {
+  const auto full_len = _len;
+  const auto half_len = _len / 2 + 1;
 
-  sfc::assert_(_batch == 1, "CUFFT::exec: batch({}) != 1", _batch);
-  _TRY(this->exec(src._data, dst._data, DIR));
+  const auto [src_len] = in._shape;
+  const auto [dst_len] = out._shape;
 
-  return Ok{};
+  sfc::assert_(in.is_contiguous(), "RFFT::fft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "RFFT::fft: out is not contiguous");
+  sfc::assert_(src_len == full_len, "RFFT::fft: in.shape({}) not match len(={})", src_len, _len);
+  sfc::assert_(dst_len == half_len, "RFFT::fft: out.shape({}) not match len(={}/2+1)", dst_len, _len);
+  sfc::assert_(_batch == 1, "RFFT::fft: batch({}) != 1", _batch);
+
+  auto ret = fft_exec(_plan_r2c, in._data, out._data, CUFFT_FORWARD);
+  return ret;
 }
 
-template <class I, class O>
-auto CUFFT<I, O>::operator()(math::NdSlice<I, 2> src, math::NdSlice<O, 2> dst, int DIR) -> FFTResult<> {
-  const auto ilen = this->ilen();
-  const auto olen = this->olen();
-  const auto [src_batch, src_len] = src._shape;
-  const auto [dst_batch, dst_len] = dst._shape;
+auto RFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) -> Result<> {
+  const auto full_len = _len;
+  const auto half_len = _len / 2 + 1;
 
-  sfc::assert_(src.is_contiguous(), "CUFFT::exec: src is not contiguous");
-  sfc::assert_(dst.is_contiguous(), "CUFFT::exec: dst is not contiguous");
-  sfc::assert_(src_len == ilen, "CUFFT::exec: src.shape({}) not match ilen(={})", src._shape, ilen);
-  sfc::assert_(dst_len == olen, "CUFFT::exec: dst.shape({}) not match olen(={})", dst._shape, olen);
-  sfc::assert_(src_batch == dst_batch, "CUFFT::exec: src.batch({}) not match dst.batch(={})", src_batch, dst_batch);
-  sfc::assert_(src_batch % _batch == 0, "CUFFT::exec: src.batch({}) not multiple of batch(={})", src_batch, _batch);
+  const auto [ilen] = in._shape;
+  const auto [olen] = out._shape;
 
-  const auto loop_cnt = src_batch / _batch;
-  for (auto i = 0U; i < loop_cnt; ++i) {
-    auto src_col = src[i * _batch];
-    auto dst_col = dst[i * _batch];
-    _TRY(this->exec(src_col._data, dst_col._data, DIR));
+  sfc::assert_(in.is_contiguous(), "RFFT::ifft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "RFFT::ifft: out is not contiguous");
+  sfc::assert_(ilen == half_len, "RFFT::ifft: in.shape({}) not match fft.len(={})/2+1", ilen, _len);
+  sfc::assert_(olen == full_len, "RFFT::ifft: out.shape({}) not match fft.len(={})", olen, _len);
+  sfc::assert_(_batch == 1, "RFFT::ifft: batch({}) != 1", _batch);
+
+  auto ret = fft_exec(_plan_c2r, in._data, out._data, CUFFT_INVERSE);
+  return ret;
+}
+
+auto RFFT::fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) -> Result<> {
+  const auto full_len = _len;
+  const auto half_len = _len / 2 + 1;
+
+  const auto [ibatch, ilen] = in._shape;
+  const auto [obatch, olen] = out._shape;
+
+  sfc::assert_(in.is_contiguous(), "RFFT::fft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "RFFT::fft: out is not contiguous");
+  sfc::assert_(ilen == full_len, "RFFT::fft: in.shape({}) not match fft.len(={})", in._shape, _len);
+  sfc::assert_(olen == half_len, "RFFT::fft: out.shape({}) not match fft.len(={})/2+)", out._shape, _len);
+  sfc::assert_(ibatch == obatch, "RFFT::fft: in.batch({}) not match out.batch(={})", ibatch, obatch);
+  sfc::assert_(ibatch % _batch == 0, "RFFT::fft: in.batch({}) not multiple of batch(={})", ibatch, _batch);
+  sfc::assert_(obatch % _batch == 0, "RFFT::fft: out.batch({}) not multiple of batch(={})", obatch, _batch);
+
+  for (auto i = 0U; i < ibatch; i += _batch) {
+    auto s = in[i];
+    auto d = out[i];
+    _TRY(fft_exec(_plan_r2c, s._data, d._data, CUFFT_FORWARD));
   }
-
   return Ok{};
 }
 
-template class CUFFT<f32, c32>;
-template class CUFFT<c32, f32>;
-template class CUFFT<c32, c32>;
+auto RFFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) -> Result<> {
+  const auto full_len = _len;
+  const auto half_len = _len / 2 + 1;
 
-}  // namespace sfc::cuda
+  const auto [ibatch, ilen] = in._shape;
+  const auto [obatch, olen] = out._shape;
+
+  sfc::assert_(in.is_contiguous(), "RFFT::ifft: in is not contiguous");
+  sfc::assert_(out.is_contiguous(), "RFFT::ifft: out is not contiguous");
+  sfc::assert_(ilen == half_len, "RFFT::ifft: in.shape({}) not match fft.len(={})/2+1", ilen, _len);
+  sfc::assert_(olen == full_len, "RFFT::ifft: out.shape({}) not match fft.len(={})", olen, _len);
+  sfc::assert_(ibatch == obatch, "RFFT::ifft: in.batch({}) not match out.batch(={})", ibatch, obatch);
+  sfc::assert_(ibatch % _batch == 0, "RFFT::ifft: in.batch({}) not multiple of batch(={})", ibatch, _batch);
+  sfc::assert_(obatch % _batch == 0, "RFFT::ifft: out.batch({}) not multiple of batch(={})", obatch, _batch);
+
+  for (auto i = 0U; i < ibatch; i += _batch) {
+    auto s = in[i];
+    auto d = out[i];
+    _TRY(fft_exec(_plan_c2r, s._data, d._data, CUFFT_INVERSE));
+  }
+  return Ok{};
+}
+
+}  // namespace sfc::cuda::fft
