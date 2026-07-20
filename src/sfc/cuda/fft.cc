@@ -48,7 +48,11 @@ class CUFFT {
   ~CUFFT() = default;
 
   static auto instance() -> CUFFT& {
+#ifdef _WIN32
     static auto lib = ffi::Library::load("cufft64_12.dll");
+#else
+    static auto lib = ffi::Library::load("cufft64");
+#endif
     static auto res = CUFFT{lib};
     return res;
   }
@@ -291,7 +295,6 @@ auto RFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) -> Result<>
   sfc::assert_(ilen == half_len, "RFFT::ifft: in.shape({}) not match fft.len(={})/2+1", ilen, _len);
   sfc::assert_(olen == full_len, "RFFT::ifft: out.shape({}) not match fft.len(={})", olen, _len);
   sfc::assert_(_batch == 1, "RFFT::ifft: batch({}) != 1", _batch);
-
 
   auto& cufft = CUFFT::instance();
   auto ret = cufft.exec(_plan_c2r, in._data, out._data, CUFFT_INVERSE);
