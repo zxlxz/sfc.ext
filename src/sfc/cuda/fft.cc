@@ -1,6 +1,6 @@
 #include <cufft.h>
 
-#include "sfc/core.h"
+#include "sfc/ffi/library.h"
 #include "sfc/cuda/stream.h"
 #include "sfc/cuda/fft.h"
 #include "sfc/math/vec.h"
@@ -31,75 +31,97 @@ auto to_str(Error e) -> cstr_t {
   }
 }
 
-template <class T>
-static auto fft_cast(T* p) {
-  if constexpr (trait::same_<T, c32>) {
-    return ptr::cast<cufftComplex>(p);
-  } else if constexpr (trait::same_<T, f32>) {
-    return p;
-  }
-}
+using plan_t = cufftHandle;
 
-template <class I, class O>
-static auto fft_type() -> cufftType {
-  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
-    return CUFFT_C2C;
-  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
-    return CUFFT_R2C;
-  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
-    return CUFFT_C2R;
-  } else {
-    static_assert(false, "unsupported type combination");
-  }
-}
+class CUFFT {
+  const ffi::Library& _lib;
+#define X(f) decltype(f)* _##f = _lib.get_func<decltype(f)*>(#f)
+  X(cufftPlan1d);
+  X(cufftDestroy);
+  X(cufftExecC2C);
+  X(cufftExecR2C);
+  X(cufftExecC2R);
+#undef X
 
-static auto fft_plan(u32 nx, u32 batch, cufftType type) -> Result<cufftHandle> {
-  auto plan = cufftHandle{};
-  if (auto err = cufftPlan1d(&plan, int(nx), type, int(batch))) {
-    return Error(err);
-  }
-  return Ok(plan);
-}
+ public:
+  CUFFT(const ffi::Library& lib) noexcept : _lib{lib} {}
+  ~CUFFT() = default;
 
-static auto fft_drop(cufftHandle plan) -> Result<> {
-  if (plan == 0) return Ok{};
-  if (auto err = cufftDestroy(plan)) {
-    return Error(err);
+  static auto instance() -> CUFFT& {
+    static auto lib = ffi::Library::load("cufft64_12.dll");
+    static auto res = CUFFT{lib};
+    return res;
   }
-  return Ok{};
-}
 
-static auto fft_exec(cufftHandle plan, c32* in, c32* out, int direction) -> Result<> {
-  const auto idata = fft_cast(in);
-  const auto odata = fft_cast(out);
-  if (auto err = cufftExecC2C(plan, idata, odata, direction); err != CUFFT_SUCCESS) {
-    return Error(err);
+ public:
+  template <class T>
+  static auto cast(T* p) {
+    if constexpr (trait::same_<T, c32>) {
+      return ptr::cast<cufftComplex>(p);
+    } else if constexpr (trait::same_<T, f32>) {
+      return p;
+    }
   }
-  return Ok{};
-}
 
-static auto fft_exec(cufftHandle plan, f32* in, c32* out, [[maybe_unused]] int direction) -> Result<> {
-  const auto idata = fft_cast(in);
-  const auto odata = fft_cast(out);
-  if (auto err = cufftExecR2C(plan, idata, odata)) {
-    return Error(err);
+  template <class I, class O>
+  static auto type() -> cufftType {
+    if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
+      return CUFFT_C2C;
+    } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
+      return CUFFT_R2C;
+    } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
+      return CUFFT_C2R;
+    } else {
+      static_assert(false, "unsupported type combination");
+    }
   }
-  return Ok{};
-}
 
-static auto fft_exec(cufftHandle plan, c32* in, f32* out, [[maybe_unused]] int direction) -> Result<> {
-  const auto idata = fft_cast(in);
-  const auto odata = fft_cast(out);
-  if (auto err = cufftExecC2R(plan, idata, odata)) {
-    return Error(err);
+  template <class I, class O>
+  auto plan(u32 nx, u32 batch) -> Result<plan_t> {
+    const auto type = CUFFT::type<I, O>();
+    auto plan = plan_t{};
+    if (auto err = _cufftPlan1d(&plan, int(nx), type, int(batch))) {
+      return Error(err);
+    }
+    return Ok(plan);
   }
-  return Ok{};
-}
+
+  auto drop(plan_t p) -> Result<> {
+    if (p == 0) {
+      return Ok{};
+    }
+    const auto err = _cufftDestroy(p);
+    if (err != CUFFT_SUCCESS) {
+      return Error(err);
+    }
+    return Ok{};
+  }
+
+  auto exec(cufftHandle plan, const auto in[], auto out[], int dir) -> Result<> {
+    const auto idata = CUFFT::cast(ptr::cast_mut(in));
+    const auto odata = CUFFT::cast(out);
+
+    auto err = CUFFT_SUCCESS;
+    if constexpr (requires { _cufftExecC2C(plan, idata, odata, dir); }) {
+      err = _cufftExecC2C(plan, idata, odata, dir);
+    } else if constexpr (requires { _cufftExecR2C(plan, idata, odata); }) {
+      err = _cufftExecR2C(plan, idata, odata);
+    } else if constexpr (requires { _cufftExecC2R(plan, idata, odata); }) {
+      err = _cufftExecC2R(plan, idata, odata);
+    }
+
+    if (err != CUFFT_SUCCESS) {
+      return Error(err);
+    }
+    return Ok{};
+  }
+};
 
 FFT::FFT() noexcept : _plan{0} {}
 
 FFT::~FFT() {
-  fft_drop(_plan).unwrap();
+  auto& cufft = CUFFT::instance();
+  cufft.drop(_plan).unwrap();
 }
 
 FFT::FFT(FFT&& other) noexcept
@@ -114,8 +136,8 @@ auto FFT::operator=(FFT&& other) noexcept -> FFT& {
 }
 
 auto FFT::new_(u32 len, u32 batch) -> FFT {
-  const auto type = fft_type<c32, c32>();
-  const auto plan = fft_plan(len, batch, type).unwrap();
+  auto& cufft = CUFFT::instance();
+  const auto plan = cufft.plan<c32, c32>(len, batch).unwrap();
 
   auto res = FFT{};
   res._len = len;
@@ -142,7 +164,8 @@ auto FFT::fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<> {
   sfc::assert_(olen == _len, "FFT::fft: out.shape({}) not match fft.len(={})", olen, _len);
   sfc::assert_(_batch == 1, "FFT::fft: batch({}) != 1", _batch);
 
-  auto ret = fft_exec(_plan, in._data, out._data, CUFFT_FORWARD);
+  auto& cufft = CUFFT::instance();
+  auto ret = cufft.exec(_plan, in._data, out._data, CUFFT_FORWARD);
   return ret;
 }
 
@@ -157,7 +180,8 @@ auto FFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<> 
   sfc::assert_(olen == _len, "FFT::ifft: out.shape({}) not match fft.len(={})", olen, _len);
   sfc::assert_(_batch == 1, "FFT::ifft: batch({}) != 1", _batch);
 
-  auto ret = fft_exec(_plan, in._data, out._data, CUFFT_INVERSE);
+  auto& cufft = CUFFT::instance();
+  auto ret = cufft.exec(_plan, in._data, out._data, CUFFT_INVERSE);
   return ret;
 }
 
@@ -173,10 +197,11 @@ auto FFT::fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<> {
   sfc::assert_(ibatch % _batch == 0, "FFT::fft: in.batch({}) not multiple of batch(={})", ibatch, _batch);
   sfc::assert_(obatch % _batch == 0, "FFT::fft: out.batch({}) not multiple of batch(={})", obatch, _batch);
 
+  auto& cufft = CUFFT::instance();
   for (auto i = 0U; i < ibatch; i += _batch) {
     auto s = in[i];
     auto d = out[i];
-    _TRY(fft_exec(_plan, s._data, d._data, CUFFT_FORWARD));
+    _TRY(cufft.exec(_plan, s._data, d._data, CUFFT_FORWARD));
   }
   return Ok{};
 }
@@ -191,10 +216,11 @@ auto FFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<> 
   sfc::assert_(ibatch % _batch == 0, "FFT::ifft: in.batch({}) not multiple of batch(={})", ibatch, _batch);
   sfc::assert_(obatch % _batch == 0, "FFT::ifft: out.batch({}) not multiple of batch(={})", obatch, _batch);
 
+  auto& cufft = CUFFT::instance();
   for (auto i = 0U; i < ibatch; i += _batch) {
     auto s = in[i];
     auto d = out[i];
-    _TRY(fft_exec(_plan, s._data, d._data, CUFFT_INVERSE));
+    _TRY(cufft.exec(_plan, s._data, d._data, CUFFT_INVERSE));
   }
   return Ok{};
 }
@@ -202,8 +228,9 @@ auto FFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<> 
 RFFT::RFFT() noexcept {}
 
 RFFT::~RFFT() {
-  fft_drop(_plan_r2c).unwrap();
-  fft_drop(_plan_c2r).unwrap();
+  auto& cufft = CUFFT::instance();
+  cufft.drop(_plan_r2c).unwrap();
+  cufft.drop(_plan_c2r).unwrap();
 }
 
 RFFT::RFFT(RFFT&& other) noexcept
@@ -222,8 +249,9 @@ RFFT& RFFT::operator=(RFFT&& other) noexcept {
 }
 
 auto RFFT::create(u32 len, u32 batch) -> RFFT {
-  const auto plan_r2c = fft_plan(len, batch, fft_type<f32, c32>()).unwrap();
-  const auto plan_c2r = fft_plan(len, batch, fft_type<c32, f32>()).unwrap();
+  auto& cufft = CUFFT::instance();
+  const auto plan_r2c = cufft.plan<f32, c32>(len, batch).unwrap();
+  const auto plan_c2r = cufft.plan<c32, f32>(len, batch).unwrap();
 
   auto res = RFFT{};
   res._len = len;
@@ -246,7 +274,8 @@ auto RFFT::fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) -> Result<> 
   sfc::assert_(dst_len == half_len, "RFFT::fft: out.shape({}) not match len(={}/2+1)", dst_len, _len);
   sfc::assert_(_batch == 1, "RFFT::fft: batch({}) != 1", _batch);
 
-  auto ret = fft_exec(_plan_r2c, in._data, out._data, CUFFT_FORWARD);
+  auto& cufft = CUFFT::instance();
+  auto ret = cufft.exec(_plan_r2c, in._data, out._data, CUFFT_FORWARD);
   return ret;
 }
 
@@ -263,7 +292,9 @@ auto RFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) -> Result<>
   sfc::assert_(olen == full_len, "RFFT::ifft: out.shape({}) not match fft.len(={})", olen, _len);
   sfc::assert_(_batch == 1, "RFFT::ifft: batch({}) != 1", _batch);
 
-  auto ret = fft_exec(_plan_c2r, in._data, out._data, CUFFT_INVERSE);
+
+  auto& cufft = CUFFT::instance();
+  auto ret = cufft.exec(_plan_c2r, in._data, out._data, CUFFT_INVERSE);
   return ret;
 }
 
@@ -282,10 +313,11 @@ auto RFFT::fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) -> Result<> 
   sfc::assert_(ibatch % _batch == 0, "RFFT::fft: in.batch({}) not multiple of batch(={})", ibatch, _batch);
   sfc::assert_(obatch % _batch == 0, "RFFT::fft: out.batch({}) not multiple of batch(={})", obatch, _batch);
 
+  auto& cufft = CUFFT::instance();
   for (auto i = 0U; i < ibatch; i += _batch) {
     auto s = in[i];
     auto d = out[i];
-    _TRY(fft_exec(_plan_r2c, s._data, d._data, CUFFT_FORWARD));
+    _TRY(cufft.exec(_plan_r2c, s._data, d._data, CUFFT_FORWARD));
   }
   return Ok{};
 }
@@ -305,10 +337,11 @@ auto RFFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) -> Result<>
   sfc::assert_(ibatch % _batch == 0, "RFFT::ifft: in.batch({}) not multiple of batch(={})", ibatch, _batch);
   sfc::assert_(obatch % _batch == 0, "RFFT::ifft: out.batch({}) not multiple of batch(={})", obatch, _batch);
 
+  auto& cufft = CUFFT::instance();
   for (auto i = 0U; i < ibatch; i += _batch) {
     auto s = in[i];
     auto d = out[i];
-    _TRY(fft_exec(_plan_c2r, s._data, d._data, CUFFT_INVERSE));
+    _TRY(cufft.exec(_plan_c2r, s._data, d._data, CUFFT_INVERSE));
   }
   return Ok{};
 }
