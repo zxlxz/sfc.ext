@@ -5,7 +5,7 @@
 namespace sfc::cuda::device::test {
 
 SFC_TEST(device_query) {
-  const auto dev_cnt = cuda::device_count();
+  const auto dev_cnt = cuda::Device::count();
 
   io::println("cuda.dev: count={}", dev_cnt);
   for (auto i = 0U; i < dev_cnt; ++i) {

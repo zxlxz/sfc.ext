@@ -125,9 +125,12 @@ auto mem_allocate(usize size, MemLocation loc) -> void* {
     return nullptr;
   }
 
-  if (loc.kind == MemKind::GPU || loc.kind == MemKind::UVA) {
-    cuda::device_set(loc.device).unwrap();
+  if (loc.kind == MemKind::CPU) {
+    return HeapAllocator::allocate(size);
   }
+
+  auto dev = Device{loc.device};
+  auto scope = dev.scope();
 
   switch (loc.kind) {
     case MemKind::CPU: return HeapAllocator::allocate(size);
@@ -143,10 +146,12 @@ void mem_deallocate(void* ptr, MemLocation loc) {
     return;
   }
 
-  if (loc.kind == MemKind::GPU || loc.kind == MemKind::UVA) {
-    cuda::device_set(loc.device).unwrap();
+  if (loc.kind == MemKind::CPU) {
+    return HeapAllocator::deallocate(ptr);
   }
 
+  auto dev = Device{loc.device};
+  auto scope = dev.scope();
   switch (loc.kind) {
     case MemKind::CPU: return HeapAllocator::deallocate(ptr);
     case MemKind::RAM: return HostAllocator::deallocate(ptr);

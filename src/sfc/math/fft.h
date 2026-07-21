@@ -5,9 +5,9 @@
 
 struct fftwf_plan_s;
 
-namespace sfc::math::fft {
+namespace sfc::math {
 
-class FFT {
+class CFFT {
   using plan_t = struct fftwf_plan_s*;
 
   u32 _len{0};
@@ -17,12 +17,12 @@ class FFT {
   plan_t _inv_outplace{nullptr};
 
  public:
-  FFT() noexcept;
-  ~FFT();
-  FFT(FFT&& other) noexcept;
-  FFT& operator=(FFT&& other) noexcept;
+  CFFT() noexcept;
+  ~CFFT();
+  CFFT(CFFT&& other) noexcept;
+  CFFT& operator=(CFFT&& other) noexcept;
 
-  static auto new_(u32 len) -> FFT;
+  static auto new_(u32 len) -> CFFT;
 
  public:
   auto len() const -> usize;
@@ -36,6 +36,7 @@ class FFT {
 
 class RFFT {
   using plan_t = struct fftwf_plan_s*;
+
   u32 _len{0};
   plan_t _r2c{nullptr};
   plan_t _c2r{nullptr};
@@ -56,4 +57,6 @@ class RFFT {
   void ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out);
 };
 
-}  // namespace sfc::math::fft
+using FFT = CFFT;
+
+}  // namespace sfc::math

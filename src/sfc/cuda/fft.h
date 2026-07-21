@@ -3,46 +3,20 @@
 #include "sfc/math/complex.h"
 #include "sfc/math/ndarray.h"
 
-namespace sfc::cuda::fft {
+namespace sfc::cuda {
 
-enum class Error {
-  Success = 0x0,
-  InvalidPlan = 0x1,
-  AllocFailed = 0x2,
-  InvalidType = 0x3,
-  InvalidValue = 0x4,
-  InternalError = 0x5,
-  ExecFailed = 0x6,
-  SetupFailed = 0x7,
-  InvalidSize = 0x8,
-  UnalignedData = 0x9,
-  InvalidDevice = 0xB,
-  NoWorkspace = 0xD,
-  NotImplemented = 0xE,
-  NotSupported = 0x10,
-  MissingDependency = 0x11,
-  NVRTCFailure = 0x12,
-  NVJITLinkFailure = 0x13,
-  NVSHMEMFailure = 0x14,
-};
-
-template <class T = Unit>
-using Result = result::Result<T, Error>;
-
-auto to_str(Error err) -> const char*;
-
-class FFT {
+class CFFT {
   u32 _len{0};
   u32 _batch{0};
   int _plan{0};
 
  public:
-  FFT() noexcept;
-  ~FFT();
-  FFT(FFT&& other) noexcept;
-  FFT& operator=(FFT&& other) noexcept;
+  CFFT() noexcept;
+  ~CFFT();
+  CFFT(CFFT&& other) noexcept;
+  CFFT& operator=(CFFT&& other) noexcept;
 
-  static auto new_(u32 len, u32 batch = 1) -> FFT;
+  static auto new_(u32 len, u32 batch = 1) -> CFFT;
 
  public:
   auto len() const -> usize;
@@ -77,4 +51,6 @@ class RFFT {
   auto ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) -> Result<>;
 };
 
-}  // namespace sfc::cuda::fft
+using FFT = CFFT;
+
+}  // namespace sfc::cuda

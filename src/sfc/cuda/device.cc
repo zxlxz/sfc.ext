@@ -7,33 +7,51 @@
 
 namespace sfc::cuda {
 
-auto device_get() -> Result<u32> {
-  auto dev = 0;
-  if (auto err = ::cudaGetDevice(&dev)) {
-    return Err{Error(err)};
-  }
-  return Ok{num::cast_unsigned(dev)};
+void DeviceInfo::fmt(fmt::Formatter& f) const {
+  f.debug_struct("DeviceInfo")
+      .field("name", name)
+      .field("dev_id", dev_id)
+      .field("compute_capability", compute_capability)
+      .field("sm_count", sm_count)
+      .field("async_engine_count", async_engine_count)
+      .field("global_memory", global_memory)
+      .field("l2_cache_size", l2_cache_size);
 }
 
-auto device_set(u32 dev_id) -> Result<> {
-  const auto device = num::cast_signed(dev_id);
-  if (auto err = ::cudaSetDevice(device)) {
-    return Err{Error(err)};
+static auto get_device() -> Result<i32> {
+  auto dev = 0;
+  if (auto err = ::cudaGetDevice(&dev)) {
+    return Error(err);
+  }
+  return Ok{dev};
+}
+
+static auto set_device(int dev) -> Result<> {
+  if (auto err = ::cudaSetDevice(dev)) {
+    return Error(err);
   }
   return Ok{};
 }
 
-auto device_prop(u32 dev) -> Result<cudaDeviceProp> {
+static auto device_prop(u32 dev) -> Result<cudaDeviceProp> {
   const auto device = num::cast_signed(dev);
 
   auto prop = cudaDeviceProp{};
   if (auto err = ::cudaGetDeviceProperties(&prop, device)) {
-    return Err{Error(err)};
+    return Error(err);
   }
   return Ok{prop};
 }
 
-auto device_count() -> u32 {
+DeviceGuard::DeviceGuard(int enter, int exit) : _dev_enter{enter}, _dev_exit{exit} {
+  cuda::set_device(_dev_enter).unwrap();
+}
+
+DeviceGuard::~DeviceGuard() {
+  cuda::set_device(_dev_exit).unwrap();
+}
+
+auto Device::count() -> u32 {
   auto cnt = 0;
   if (auto err = ::cudaGetDeviceCount(&cnt); err != cudaSuccess) {
     return 0;
@@ -41,16 +59,17 @@ auto device_count() -> u32 {
   return num::cast_unsigned(cnt);
 }
 
-auto device_sync() -> Result<> {
-  if (auto err = ::cudaDeviceSynchronize()) {
-    return Err{Error(err)};
-  }
-  return Ok{};
+auto Device::current() -> Device {
+  auto dev = 0;
+  ::cudaGetDevice(&dev);
+  return Device{num::cast_unsigned(dev)};
 }
 
-auto Device::current() -> Device {
-  const auto id = cuda::device_get().unwrap();
-  return Device{id};
+auto Device::sync() -> Result<> {
+  if (auto err = ::cudaDeviceSynchronize()) {
+    return Error(err);
+  }
+  return Ok{};
 }
 
 auto Device::info() const -> DeviceInfo {
@@ -78,29 +97,10 @@ auto Device::info() const -> DeviceInfo {
   return info;
 }
 
-void DeviceInfo::fmt(fmt::Formatter& f) const {
-  f.debug_struct("DeviceInfo")
-      .field("name", name)
-      .field("dev_id", dev_id)
-      .field("compute_capability", compute_capability)
-      .field("sm_count", sm_count)
-      .field("async_engine_count", async_engine_count)
-      .field("global_memory", global_memory)
-      .field("l2_cache_size", l2_cache_size);
-}
-
-auto Device::scope() -> ScopeGuard {
-  const auto curr_id = cuda::device_get().unwrap();
-  const auto next_id = this->id;
-  return ScopeGuard{curr_id, next_id};
-}
-
-Device::ScopeGuard::ScopeGuard(u32 enter, u32 exit) : _dev_enter{enter}, _dev_exit{exit} {
-  cuda::device_set(_dev_enter).unwrap();
-}
-
-Device::ScopeGuard::~ScopeGuard() {
-  cuda::device_set(_dev_exit).unwrap();
+auto Device::scope() -> DeviceGuard {
+  const auto curr_id = cuda::get_device().unwrap();
+  const auto next_id = int(this->id);
+  return DeviceGuard{curr_id, next_id};
 }
 
 }  // namespace sfc::cuda

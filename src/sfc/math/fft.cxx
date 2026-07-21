@@ -3,14 +3,14 @@
 #include "sfc/math/ndarray.h"
 #include "sfc/math/fft.h"
 
-namespace sfc::math::fft::test {
+namespace sfc::math::test {
 
 SFC_TEST(fft_c2c_outplace) {
   const u32 lens[] = {2, 4, 8, 16, 32, 40};
   for (auto n : lens) {
     auto X = math::array<c32>({n});
     auto Y = math::array<c32>({n});
-    auto fft = FFT::new_(n);
+    auto fft = CFFT::new_(n);
     X.for_each([&](u32 i, c32& val) { val = c32{float(i), 0}; });
     fft.fft(X, Y);
     io::println("fft_c2[{}] Y={-5.2}", n, Y);
@@ -23,7 +23,7 @@ SFC_TEST(fft_c2c_inplace) {
   const u32 lens[] = {2, 4, 8, 16, 32, 40};
   for (auto n : lens) {
     auto X = math::array<c32>({n});
-    auto fft = FFT::new_(n);
+    auto fft = CFFT::new_(n);
     X.for_each([&](u32 i, c32& val) { val = c32{float(i), 0}; });
     fft.fft(X, X);
     fft.ifft(X, X);
