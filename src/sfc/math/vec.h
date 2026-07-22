@@ -13,7 +13,7 @@ struct vec<T, 1> {
   T x;
 
  public:
-  __hd vec() = default;
+  vec() = default;
   __hd vec(T x) : x{x} {}
   __hd vec(const T (&v)[1]) : x{v[0]} {}
 
@@ -29,7 +29,7 @@ struct vec<T, 2> {
   T x, y;
 
  public:
-  __hd vec() = default;
+  vec() = default;
   __hd vec(T x, T y) : x{x}, y{y} {}
   __hd vec(const T (&v)[2]) : x{v[0]}, y{v[1]} {}
 
@@ -45,7 +45,7 @@ struct vec<T, 3> {
   T x, y, z;
 
  public:
-  __hd vec() = default;
+  vec() = default;
   __hd vec(T x, T y, T z) : x{x}, y{y}, z{z} {}
   __hd vec(const T (&v)[3]) : x{v[0]}, y{v[1]}, z{v[2]} {}
 
@@ -61,7 +61,7 @@ struct vec<T, 4> {
   T x, y, z, w;
 
  public:
-  __hd vec() = default;
+  vec() = default;
   __hd vec(T x, T y, T z, T w) : x{x}, y{y}, z{z}, w{w} {}
   __hd vec(const T (&v)[4]) : x{v[0]}, y{v[1]}, z{v[2]}, w{v[3]} {}
 

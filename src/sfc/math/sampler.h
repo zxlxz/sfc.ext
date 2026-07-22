@@ -28,7 +28,7 @@ struct NearestSampler {
     if (ix < 0 || ix >= i32(nx)) return 0.0f;
     if (iy < 0 || iy >= i32(ny)) return 0.0f;
 
-    const auto val = _view.get(u32(ix), u32(iy));
+    const auto val = _view.get({u32(ix), u32(iy)});
     return val;
   }
 };
@@ -47,17 +47,17 @@ struct LinearSampler {
     const auto nx = _view._shape[0];
 
     if (x <= 0.5f) {
-      return x >= 0 ? _view.get(0) : 0.0f;
+      return x >= 0 ? _view.get({0}) : 0.0f;
     }
 
     if (x >= f32(nx) - 0.5f) {
-      return x <= f32(nx) ? _view.get(nx - 1) : 0.0f;
+      return x <= f32(nx) ? _view.get({nx - 1}) : 0.0f;
     }
 
     const auto fx = x - 0.5f;
     const auto ix = u32(fx);
-    const auto t0 = _view.get(ix);
-    const auto t1 = _view.get(ix + 1);
+    const auto t0 = _view.get({ix});
+    const auto t1 = _view.get({ix + 1});
 
     const auto px = fx - f32(ix);
     return (1.0f - px) * t0 + px * t1;
@@ -81,10 +81,10 @@ struct LinearSampler {
     const auto y0 = iy < 0 ? 0 : u32(iy);
     const auto y1 = iy + 1 >= i32(ny) ? ny - 1 : u32(iy + 1);
 
-    const auto t00 = _view.get(x0, y0);
-    const auto t01 = _view.get(x0, y1);
-    const auto t10 = _view.get(x1, y0);
-    const auto t11 = _view.get(x1, y1);
+    const auto t00 = _view.get({x0, y0});
+    const auto t01 = _view.get({x0, y1});
+    const auto t10 = _view.get({x1, y0});
+    const auto t11 = _view.get({x1, y1});
     const auto t0y = Self::interp(py, t00, t01);
     const auto t1y = Self::interp(py, t10, t11);
     const auto val = Self::interp(px, t0y, t1y);

@@ -3,7 +3,7 @@
 #include <math.h>
 #include <sfc/core/mod.h>
 
-#ifdef __CUDACC_
+#ifdef __CUDACC__
 #define __hd __host__ __device__
 #else
 #define __hd
