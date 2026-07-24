@@ -170,4 +170,11 @@ auto zero(const u32 (&shape)[N], MemLocation location = {}) -> NdArray<T, N> {
   return a;
 }
 
+template <class T, u32 N>
+auto array_like(const NdArray<T, N>& array) -> NdArray<T, N> {
+  const auto& shape = array.shape();
+  const auto location = array.mem_location();
+  return NdArray<T, N>::new_(shape, location);
+}
+
 }  // namespace sfc::math
