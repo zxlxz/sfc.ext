@@ -1,4 +1,5 @@
 #include <cufft.h>
+#include <cuda_runtime_api.h>
 
 #include "sfc/ffi/library.h"
 #include "sfc/cuda/stream.h"
@@ -7,7 +8,7 @@
 
 namespace sfc::cuda {
 
-auto to_cuda_err(cufftResult_t fft_err) -> Error {
+auto to_cuda_err(cufftResult fft_err) -> Error {
   switch (fft_err) {
     case CUFFT_SUCCESS:            return Error(cudaSuccess);
     case CUFFT_INVALID_PLAN:       return Error(cudaErrorInvalidValue);
@@ -49,10 +50,11 @@ class CUFFT {
 
   static auto instance() -> CUFFT& {
 #ifdef _WIN32
-    static auto lib = ffi::Library::load("cufft64_12.dll");
+    static const auto lib_path = Str{"cufft64_12.dll"};
 #else
-    static auto lib = ffi::Library::load("cufft64");
+    static const auto lib_path = Str{"cufft64"};
 #endif
+    static auto lib = ffi::Library::load(lib_path).unwrap();
     static auto res = CUFFT{lib};
     return res;
   }

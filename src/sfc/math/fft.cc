@@ -23,7 +23,7 @@ class FFTW3F {
   ~FFTW3F() = default;
 
   static auto instance() -> FFTW3F& {
-    static auto lib = ffi::Library::load("libfftw3f");
+    static auto lib = ffi::Library::load("fftw3f").unwrap();
     static auto res = FFTW3F{lib};
     return res;
   }

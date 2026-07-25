@@ -5,8 +5,6 @@ if(APPLE)
   find_path(CUDAToolkit_INCLUDE_DIRECTORIES "cuda_runtime_api.h"
     PATHS
       "/opt/cuda/include"
-      "/usr/local/cuda/include"
-      "/usr/local/include"
   )
 
   get_filename_component(CUDAToolkit_TARGET_DIR "${CUDAToolkit_INCLUDE_DIRECTORIES}" DIRECTORY)
