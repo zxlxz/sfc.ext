@@ -5,7 +5,7 @@
 namespace sfc::math::ndarray::test {
 
 SFC_TEST(ndarray_1d_shape) {
-  auto a = math::array({4U});
+  auto a = math::array<int>({4U});
 
   sfc::assert_eq(a.numel(), 4U);
   sfc::assert_eq(a.shape()[0], 4U);
@@ -13,7 +13,7 @@ SFC_TEST(ndarray_1d_shape) {
 }
 
 SFC_TEST(ndarray_2d_shape) {
-  auto a = math::array({3U, 4U});
+  auto a = math::array<int>({3U, 4U});
 
   sfc::assert_eq(a.numel(), 12U);
   sfc::assert_eq(a.shape()[0], 3U);
@@ -21,7 +21,7 @@ SFC_TEST(ndarray_2d_shape) {
 }
 
 SFC_TEST(ndarray_get_set) {
-  auto a = math::array({3U});
+  auto a = math::array<int>({3U});
 
   a.set({0}, 10);
   a.set({1}, 20);
@@ -36,7 +36,7 @@ SFC_TEST(ndarray_get_set) {
 }
 
 SFC_TEST(ndarray_2d_get_set) {
-  auto a = math::array({2U, 3U});
+  auto a = math::array<int>({2U, 3U});
 
   a[{0, 0}] = 1;
   a[{1, 2}] = 7;
@@ -46,7 +46,7 @@ SFC_TEST(ndarray_2d_get_set) {
 }
 
 SFC_TEST(ndarray_index_op) {
-  auto a = math::array({2U, 2U});
+  auto a = math::array<int>({2U, 2U});
   a[{0, 0}] = 1;
   a[{0, 1}] = 2;
   a[{1, 0}] = 3;

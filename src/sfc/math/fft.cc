@@ -7,7 +7,7 @@ namespace sfc::math {
 class FFTW3F {
   using plan_t = fftwf_plan_s*;
 
-  const ffi::Library& _lib;
+  ffi::Library _lib;
 #define X(f) decltype(f)* _##f = _lib.get_func<decltype(f)*>(#f)
   X(fftwf_destroy_plan);
   X(fftwf_plan_dft_1d);
@@ -19,13 +19,18 @@ class FFTW3F {
 #undef X
 
  public:
-  FFTW3F(const ffi::Library& lib) noexcept : _lib{lib} {}
-  ~FFTW3F() = default;
+  static auto load(Str path) -> Option<FFTW3F> {
+    auto lib = _TRY(ffi::Library::load(path));
+
+    auto res = FFTW3F{};
+    res._lib = mem::move(lib);
+    return res;
+  }
 
   static auto instance() -> FFTW3F& {
-    static auto lib = ffi::Library::load("fftw3f").unwrap();
-    static auto res = FFTW3F{lib};
-    return res;
+    static auto res = FFTW3F::load("libfftw3f-3");
+    sfc::assert_(res.is_some(), "math::FFT: failed to load `fftw3f-3`");
+    return *res;
   }
 
  public:

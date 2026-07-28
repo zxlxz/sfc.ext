@@ -26,7 +26,7 @@ struct NdSlice<T, 1> {
     return _shape[0];
   }
 
-  __hd auto data() const -> const T* {
+  __hd auto data() const -> T* {
     return _data;
   }
 
@@ -124,7 +124,7 @@ struct NdSlice {
   __hd NdSlice() noexcept : _data{nullptr}, _shape{0, 0}, _strides{0, 0} {}
 
   __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM]) : _data{data} {
-    for (auto i = 0; i < NDIM; ++i) {
+    for (auto i = 0U; i < NDIM; ++i) {
       _shape[i] = shape[i];
       _strides[i] = strides[i];
     }
@@ -134,12 +134,8 @@ struct NdSlice {
     return _shape[0];
   }
 
-  __hd auto data() const -> const T* {
+  __hd auto data() const -> T* {
     return _data;
-  }
-
-  __hd auto numel() const -> u32 {
-    return _shape[0] * _shape[1];
   }
 
   __hd auto operator[](u32 x) const -> NdSlice<T, NDIM - 1> {
@@ -193,8 +189,20 @@ struct NdSlice {
 
  public:
 #ifndef __CUDACC__
+  __hd auto numel() const -> u32 {
+    auto res = 1U;
+    for (auto i = 0U; i < NDIM; ++i) {
+      res *= _shape[i];
+    }
+    return res;
+  }
+
   auto is_contiguous() const -> bool {
-    return _strides[0] == _shape[1] && _strides[1] == 1;
+    if (_strides[NDIM - 1] != 1) return false;
+    for (auto i = NDIM - 1; i > 0; --i) {
+      if (_strides[i - 1] != _shape[i] * _strides[i]) return false;
+    }
+    return true;
   }
 
   void for_each(auto&& f, auto... args) {
@@ -212,8 +220,6 @@ struct NdSlice {
   }
 
   void fmt(auto& f) const {
-    auto& self = *this;
-
     f.write_str("[");
     for (auto i = 0U; i < _shape[0]; ++i) {
       const auto row = (*this)[i];

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(sfc)
+project(sfc.ext)
 
 include(cmake/config.cmake)
 

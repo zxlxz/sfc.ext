@@ -13,12 +13,14 @@ struct Rot {
     return {1.0f, 0.0f};
   }
 
-  static auto from_rad(f32 angle) -> Rot {
-    return {math::cosf(angle), math::sinf(angle)};
+  static auto from_rad(f64 angle) -> Rot {
+    const auto c = math::cos(angle);
+    const auto s = math::sin(angle);
+    return {f32(c), f32(s)};
   }
 
-  static auto from_deg(f32 deg) -> Rot {
-    const auto a = deg * (math::PI / 180.0f);
+  static auto from_deg(f64 deg) -> Rot {
+    const auto a = deg * (math::PI / 180.0);
     return Rot::from_rad(a);
   }
 

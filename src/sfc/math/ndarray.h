@@ -158,12 +158,12 @@ class [[nodiscard]] NdArray {
   }
 };
 
-template <class T = f32, u32 N = 1>
+template <class T, u32 N = 1>
 auto array(const u32 (&shape)[N], MemLocation location = {}) -> NdArray<T, N> {
   return NdArray<T, N>::new_(shape, location);
 }
 
-template <class T = f32, u32 N = 1>
+template <class T, u32 N = 1>
 auto zero(const u32 (&shape)[N], MemLocation location = {}) -> NdArray<T, N> {
   auto a = NdArray<T, N>::new_(shape, location);
   a.bzero();

@@ -60,7 +60,7 @@ SFC_TEST(complex_expj) {
   sfc::assert_flt_eq(e0.imag, 0.0f);
 
   // expj(pi/2) = 0 + 1j
-  const auto e90 = expj(math::PI / 2.0f);
+  const auto e90 = expj(f32(math::PI) / 2.0f);
   sfc::assert_flt_eq(e90.real, 0.0f, 1e-6);
   sfc::assert_flt_eq(e90.imag, 1.0f, 1e-6);
 }
