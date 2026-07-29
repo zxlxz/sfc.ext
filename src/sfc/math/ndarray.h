@@ -149,6 +149,17 @@ class [[nodiscard]] NdArray {
     _inn._data = ptr::cast<T>(_buf.ptr());
   }
 
+  void copy_from(const NdArray& other) {
+    _buf.copy_from(other._buf);
+  }
+
+  auto clone() const -> NdArray {
+    auto res = NdArray::new_(_inn._shape, _buf.mem_location());
+    res.copy_from(*this);
+    return res;
+  }
+
+ public:
   void for_each(auto&& f) {
     _inn.for_each(f);
   }

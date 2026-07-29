@@ -19,11 +19,11 @@ class FFTW3F {
 #undef X
 
  public:
+  FFTW3F(ffi::Library lib) : _lib{mem::move(lib)} {}
+
   static auto load(Str path) -> Option<FFTW3F> {
     auto lib = _TRY(ffi::Library::load(path));
-
-    auto res = FFTW3F{};
-    res._lib = mem::move(lib);
+    auto res = FFTW3F{mem::move(lib)};
     return res;
   }
 

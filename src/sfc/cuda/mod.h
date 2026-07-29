@@ -2,7 +2,7 @@
 
 #include "sfc/core/mod.h"
 
-#ifdef __INTELLISENSE__
+#if defined(__INTELLISENSE__) || defined(__clang_analyzer__)
 #ifndef __device__
 #define __device__
 #endif

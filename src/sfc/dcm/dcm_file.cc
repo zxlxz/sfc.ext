@@ -156,12 +156,7 @@ auto DcmFile::read_elmt() -> DcmElmt {
 }
 
 void DcmFile::write_meta(const DcmMeta& meta) {
-  auto meta_ver = List<u8>{};
-  meta_ver.push(0);
-  meta_ver.push(1);
-
   const DcmElmt elmts[] = {
-      DcmElmt::from_buf(tag::MetaVersion, mem::move(meta_ver)),
       DcmElmt::from_str(tag::MetaSOPClassUID, String::from(meta.SOPClassUID)),
       DcmElmt::from_str(tag::TransferSyntaxUID, String::from(meta.TransferSyntaxUID)),
   };
