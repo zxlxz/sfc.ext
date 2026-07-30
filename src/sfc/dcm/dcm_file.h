@@ -11,8 +11,11 @@ class NdArray;
 namespace sfc::dcm {
 
 struct DcmMeta {
-  Str SOPClassUID = "1.2.840.10008.5.1.4.1.1.2";  // CT
-  Str TransferSyntaxUID = "1.2.840.10008.1.2.1";  // Little Endian
+  Str SOPClassUID;
+  Str TransferSyntaxUID;
+
+ public:
+  static auto CT() -> DcmMeta;
 };
 
 class DcmFile {

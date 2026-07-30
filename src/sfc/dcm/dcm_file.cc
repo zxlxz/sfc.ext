@@ -11,9 +11,16 @@ struct TVRL {
 };
 
 struct FileHead {
-  char _null[124] = {};  // zero
+  char _null[128] = {};  // zero
   char _dicm[4] = {};    // DICM
 };
+
+auto DcmMeta::CT() -> DcmMeta {
+  return DcmMeta{
+      .SOPClassUID = "1.2.840.10008.5.1.4.1.1.2",
+      .TransferSyntaxUID = "1.2.840.10008.1.2.1",
+  };
+}
 
 template <class T>
 static auto pixel_tvr() -> DcmTVR {
