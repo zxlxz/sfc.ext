@@ -35,9 +35,6 @@ struct DcmTag {
 struct DcmTVR {
   DcmTag tag;
   DcmVR vr;
-
-  template <class T>
-  static auto PixelData() -> DcmTVR;
 };
 
 inline namespace vr {
@@ -131,17 +128,12 @@ static const DcmTVR RescaleIntercept          = {{0x0028, 0x1052}, DS};  // DS 0
 static const DcmTVR RescaleSlope              = {{0x0028, 0x1053}, DS};  // DS 0028:1053
 
 // Pixel Data [7FE0]
-template<class T>
-extern const DcmTVR PixelData;
+static const DcmTVR PixelOB                   = {{0x7FE0, 0x0010}, OB};  // OB 7FE0:0010
+static const DcmTVR PixelOW                   = {{0x7FE0, 0x0010}, OW};  // OW 7FE0:0010
+static const DcmTVR PixelOL                   = {{0x7FE0, 0x0010}, OL};  // OW 7FE0:0010
+static const DcmTVR PixelOV                   = {{0x7FE0, 0x0010}, OV};  // OW 7FE0:0010
+static const DcmTVR PixelOF                   = {{0x7FE0, 0x0008}, OF};  // OF 7FE0:0008
 
-template<>
-inline const DcmTVR PixelData<f32>              = {{0x7FE0, 0x0008}, OF};  // OF 7FE0:0008
-
-template<>
-inline const DcmTVR PixelData<u8>               = {{0x7FE0, 0x0010}, OB};  // OB 7FE0:0010
-
-template<>
-inline const DcmTVR PixelData<u16>              = {{0x7FE0, 0x0010}, OW};  // OW 7FE0:0010
 }
 // clang-format on
 

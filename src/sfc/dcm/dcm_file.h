@@ -5,7 +5,7 @@
 
 namespace sfc::math {
 template <class T, u32 N>
-struct NdSlice;
+class NdArray;
 }
 
 namespace sfc::dcm {
@@ -15,24 +15,11 @@ struct DcmMeta {
   Str TransferSyntaxUID = "1.2.840.10008.1.2.1";  // Little Endian
 };
 
-struct DcmHead {
-  u8 _buff[128] = {};
-  char _dicm[4] = {};
-
-  auto is_valid() const noexcept -> bool {
-    return Str{_dicm, 4} == "DICM";
-  }
-};
-
 class DcmFile {
+  static constexpr u32 kHeadSize = 128U;
   fs::File _file;
 
  public:
-  DcmFile() noexcept;
-  ~DcmFile() noexcept;
-  DcmFile(DcmFile&&) noexcept = default;
-  DcmFile& operator=(DcmFile&&) noexcept = default;
-
   static auto open(Str path) -> io::Result<DcmFile>;
   static auto create(Str path) -> io::Result<DcmFile>;
 
@@ -48,10 +35,13 @@ class DcmFile {
   void write_meta(const DcmMeta& meta);
 
   template <class T>
-  void write_image(math::NdSlice<T, 2> img);
+  void write_data(const u32 (&shape)[3], Slice<const T> buf);
 
   template <class T>
-  void write_image(math::NdSlice<T, 3> vol);
+  void write_data(const math::NdArray<T, 3>& data) {
+    const auto buf = Slice{data.as_ptr(), data.numel()};
+    this->write_data(data.shape(), buf);
+  }
 };
 
 }  // namespace sfc::dcm

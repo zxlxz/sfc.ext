@@ -9,7 +9,7 @@ SFC_TEST(ndarray_1d_shape) {
 
   sfc::assert_eq(a.numel(), 4U);
   sfc::assert_eq(a.shape()[0], 4U);
-  sfc::assert_ne(a.data(), nullptr);
+  sfc::assert_ne(a.as_ptr(), nullptr);
 }
 
 SFC_TEST(ndarray_2d_shape) {
@@ -99,7 +99,7 @@ SFC_TEST(ndarray_mem_location) {
 SFC_TEST(ndarray_fmt) {
   auto a = math::array<i32>({2U, 3U});
 
-  auto p = a.data();
+  auto p = a.as_mut_ptr();
   for (auto i : ops::Range{a.numel()}) {
     p[i] = i32(i);
   }

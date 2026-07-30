@@ -27,19 +27,4 @@ auto DcmVR::use_len32() const -> bool {
   return Slice{v}.contains(*this);
 }
 
-template <>
-auto DcmTVR::PixelData<u8>() -> DcmTVR {
-  return {{0x7FE0, 0x0010}, OB};
-}
-
-template <>
-auto DcmTVR::PixelData<u16>() -> DcmTVR {
-  return {{0x7FE0, 0x0010}, OW};
-}
-
-template <>
-auto DcmTVR::PixelData<f32>() -> DcmTVR {
-  return {{0x7FE0, 0x0008}, OF};
-}
-
 }  // namespace sfc::dcm

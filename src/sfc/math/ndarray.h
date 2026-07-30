@@ -68,7 +68,11 @@ class [[nodiscard]] NdArray {
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
-  auto data() const -> T* {
+  auto as_ptr() const -> const T* {
+    return _inn._data;
+  }
+
+  auto as_mut_ptr() -> T* {
     return _inn._data;
   }
 
@@ -96,14 +100,6 @@ class [[nodiscard]] NdArray {
 
   auto mem_location() const -> MemLocation {
     return _buf.mem_location();
-  }
-
-  auto as_bytes() const -> slice::Slice<const u8> {
-    return _buf.as_bytes();
-  }
-
-  auto as_mut_bytes() -> slice::Slice<u8> {
-    return _buf.as_mut_bytes();
   }
 
  public:

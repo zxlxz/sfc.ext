@@ -10,13 +10,25 @@ struct TVRL {
   u16 len;
 };
 
-DcmFile::DcmFile() noexcept {}
+struct FileHead {
+  char _null[124] = {};  // zero
+  char _dicm[4] = {};    // DICM
+};
 
-DcmFile::~DcmFile() noexcept {}
+template <class T>
+static auto pixel_tvr() -> DcmTVR {
+  if (sfc::int_<T> && sizeof(T) == 1) return tag::PixelOB;
+  if (sfc::int_<T> && sizeof(T) == 2) return tag::PixelOW;
+  if (sfc::int_<T> && sizeof(T) == 4) return tag::PixelOL;
+  if (sfc::float_<T> && sizeof(T) == 4) return tag::PixelOF;
+  if (sfc::float_<T> && sizeof(T) == 8) return tag::PixelOV;
+  return tag::PixelOB;
+}
 
 auto DcmFile::open(Str path) -> io::Result<DcmFile> {
   auto file = _TRY(fs::File::open(path));
-  auto head = DcmHead{};
+
+  auto head = FileHead{};
   _TRY(file.read_exact(mem::as_mut_bytes(head)));
 
   auto res = DcmFile{};
@@ -26,7 +38,8 @@ auto DcmFile::open(Str path) -> io::Result<DcmFile> {
 
 auto DcmFile::create(Str path) -> io::Result<DcmFile> {
   auto file = _TRY(fs::File::create(path));
-  const auto head = DcmHead{{}, {'D', 'I', 'C', 'M'}};
+
+  auto head = FileHead{{}, {'D', 'I', 'C', 'M'}};
   _TRY(file.write_all(mem::as_bytes(head)));
 
   auto res = DcmFile{};
@@ -174,58 +187,25 @@ void DcmFile::write_meta(const DcmMeta& meta) {
 }
 
 template <class T>
-void DcmFile::write_image(math::NdSlice<T, 2> img) {
-  sfc::assert_(img.is_contiguous(), "DcmFile::write_img: img must be contiguous");
-
-  const auto nframe = 1U;
-  const auto [nrow, ncol] = img._shape;
-  const auto pixel_representation = sfc::trait::sint_<T> ? 1 : 0;
+void DcmFile::write_data(const u32 (&shape)[3], Slice<const T> buf) {
+  const auto nbits = sizeof(T) * 8;
+  const auto pixel_tvr = dcm::pixel_tvr<T>();
+  const auto [nframe, nrow, ncol] = shape;
 
   this->write_int(tag::SamplesPerPixel, 1);                        // gray
   this->write_str(tag::PhotometricInterpretation, "MONOCHROME2");  // gray
   this->write_int(tag::NumFrames, nframe);
   this->write_int(tag::Rows, nrow);
   this->write_int(tag::Columns, ncol);
-  this->write_int(tag::BitsAllocated, 8 * sizeof(T));
-  this->write_int(tag::BitsStored, 8 * sizeof(T));
-  this->write_int(tag::HighBit, 8 * sizeof(T) - 1);
-  this->write_int(tag::PixelRepresentation, pixel_representation);
-
-  const auto pixel_data_tvr = DcmTVR::PixelData<T>();
-
-  auto buf = Slice{img._data, img.numel()};
-  this->write_buf(pixel_data_tvr, buf.as_bytes());
+  this->write_int(tag::BitsAllocated, nbits);
+  this->write_int(tag::BitsStored, nbits);
+  this->write_int(tag::HighBit, nbits - 1);
+  this->write_int(tag::PixelRepresentation, sfc::sint_<T> ? 1 : 0);
+  this->write_buf(pixel_tvr, buf.as_bytes());
 }
 
-template <class T>
-void DcmFile::write_image(math::NdSlice<T, 3> vol) {
-  sfc::assert_(vol.is_contiguous(), "DcmFile::write_img: img must be contiguous");
-
-  const auto [nframe, nrow, ncol] = vol._shape;
-  const auto pixel_representation = sfc::trait::sint_<T> ? 1 : 0;
-
-  this->write_int(tag::SamplesPerPixel, 1);                        // gray
-  this->write_str(tag::PhotometricInterpretation, "MONOCHROME2");  // gray
-  this->write_int(tag::NumFrames, nframe);
-  this->write_int(tag::Rows, nrow);
-  this->write_int(tag::Columns, ncol);
-  this->write_int(tag::BitsAllocated, 8 * sizeof(T));
-  this->write_int(tag::BitsStored, 8 * sizeof(T));
-  this->write_int(tag::HighBit, 8 * sizeof(T) - 1);
-  this->write_int(tag::PixelRepresentation, pixel_representation);
-
-  const auto pixel_data_tvr = DcmTVR::PixelData<T>();
-
-  auto buf = Slice{vol._data, vol.numel()};
-  this->write_buf(pixel_data_tvr, buf.as_bytes());
-}
-
-template void DcmFile::write_image(math::NdSlice<u8, 2>);
-template void DcmFile::write_image(math::NdSlice<u16, 2>);
-template void DcmFile::write_image(math::NdSlice<f32, 2>);
-
-template void DcmFile::write_image(math::NdSlice<u8, 3>);
-template void DcmFile::write_image(math::NdSlice<u16, 3>);
-template void DcmFile::write_image(math::NdSlice<f32, 3>);
+template void DcmFile::write_data<u8>(const u32 (&shape)[3], Slice<const u8> buf);
+template void DcmFile::write_data<u16>(const u32 (&shape)[3], Slice<const u16> buf);
+template void DcmFile::write_data<f32>(const u32 (&shape)[3], Slice<const f32> buf);
 
 }  // namespace sfc::dcm
