@@ -75,7 +75,7 @@ SFC_TEST(vec_scalar_mul_div) {
   const auto v = vec{10, 20};
 
   sfc::assert_eq(2 * v, vec{20, 40});
-  sfc::assert_eq(20 / v, vec{2, 1});
+  sfc::assert_eq(v / 2, vec{5, 10});
 }
 
 SFC_TEST(vec_cast) {

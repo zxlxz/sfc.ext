@@ -102,7 +102,7 @@ template <class T, u32 N>
 vec(const T (&arr)[N]) -> vec<T, N>;
 
 template <class T, u32 N>
-__hd inline auto operator==(const vec<T, N>& a, const vec<T, N>& b) -> bool {
+__hd inline auto operator==(vec<T, N> a, vec<T, N> b) -> bool {
   if constexpr (N == 1) return a.x == b.x;
   if constexpr (N == 2) return a.x == b.x && a.y == b.y;
   if constexpr (N == 3) return a.x == b.x && a.y == b.y && a.z == b.z;
@@ -110,7 +110,7 @@ __hd inline auto operator==(const vec<T, N>& a, const vec<T, N>& b) -> bool {
 }
 
 template <class T, u32 N>
-__hd inline auto operator+(const vec<T, N>& a) -> vec<T, N> {
+__hd inline auto operator+(vec<T, N> a) -> vec<T, N> {
   if constexpr (N == 1) return {a.x};
   if constexpr (N == 2) return {a.x, a.y};
   if constexpr (N == 3) return {a.x, a.y, a.z};
@@ -118,7 +118,7 @@ __hd inline auto operator+(const vec<T, N>& a) -> vec<T, N> {
 }
 
 template <class T, u32 N>
-__hd inline auto operator-(const vec<T, N>& a) -> vec<T, N> {
+__hd inline auto operator-(vec<T, N> a) -> vec<T, N> {
   if constexpr (N == 1) return {-a.x};
   if constexpr (N == 2) return {-a.x, -a.y};
   if constexpr (N == 3) return {-a.x, -a.y, -a.z};
@@ -126,7 +126,7 @@ __hd inline auto operator-(const vec<T, N>& a) -> vec<T, N> {
 }
 
 template <class T, u32 N>
-__hd inline auto operator+(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> {
+__hd inline auto operator+(vec<T, N> a, vec<T, N> b) -> vec<T, N> {
   if constexpr (N == 1) return {a.x + b.x};
   if constexpr (N == 2) return {a.x + b.x, a.y + b.y};
   if constexpr (N == 3) return {a.x + b.x, a.y + b.y, a.z + b.z};
@@ -134,7 +134,7 @@ __hd inline auto operator+(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> 
 }
 
 template <class T, u32 N>
-__hd inline auto operator-(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> {
+__hd inline auto operator-(vec<T, N> a, vec<T, N> b) -> vec<T, N> {
   if constexpr (N == 1) return {a.x - b.x};
   if constexpr (N == 2) return {a.x - b.x, a.y - b.y};
   if constexpr (N == 3) return {a.x - b.x, a.y - b.y, a.z - b.z};
@@ -142,7 +142,7 @@ __hd inline auto operator-(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> 
 }
 
 template <class T, u32 N>
-__hd inline auto operator*(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> {
+__hd inline auto operator*(vec<T, N> a, vec<T, N> b) -> vec<T, N> {
   if constexpr (N == 1) return {a.x * b.x};
   if constexpr (N == 2) return {a.x * b.x, a.y * b.y};
   if constexpr (N == 3) return {a.x * b.x, a.y * b.y, a.z * b.z};
@@ -150,7 +150,7 @@ __hd inline auto operator*(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> 
 }
 
 template <class T, u32 N>
-__hd inline auto operator/(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> {
+__hd inline auto operator/(vec<T, N> a, vec<T, N> b) -> vec<T, N> {
   if constexpr (N == 1) return {a.x / b.x};
   if constexpr (N == 2) return {a.x / b.x, a.y / b.y};
   if constexpr (N == 3) return {a.x / b.x, a.y / b.y, a.z / b.z};
@@ -158,7 +158,7 @@ __hd inline auto operator/(const vec<T, N>& a, const vec<T, N>& b) -> vec<T, N> 
 }
 
 template <class T, u32 N>
-__hd inline auto operator*(T s, const vec<T, N>& v) -> vec<T, N> {
+__hd inline auto operator*(T s, vec<T, N> v) -> vec<T, N> {
   if constexpr (N == 1) return {s * v.x};
   if constexpr (N == 2) return {s * v.x, s * v.y};
   if constexpr (N == 3) return {s * v.x, s * v.y, s * v.z};
@@ -166,15 +166,27 @@ __hd inline auto operator*(T s, const vec<T, N>& v) -> vec<T, N> {
 }
 
 template <class T, u32 N>
-__hd inline auto operator/(T s, const vec<T, N>& v) -> vec<T, N> {
-  if constexpr (N == 1) return {s / v.x};
-  if constexpr (N == 2) return {s / v.x, s / v.y};
-  if constexpr (N == 3) return {s / v.x, s / v.y, s / v.z};
-  if constexpr (N == 4) return {s / v.x, s / v.y, s / v.z, s / v.w};
+__hd inline auto operator/(vec<T, N> v, T k) -> vec<T, N> {
+  if constexpr (N == 1) return {v.x / k};
+  if constexpr (N == 2) return {v.x / k, v.y / k};
+  if constexpr (N == 3) return {v.x / k, v.y / k, v.z / k};
+  if constexpr (N == 4) return {v.x / k, v.y / k, v.z / k, v.w / k};
+}
+
+template <class T, u32 N>
+__hd inline auto operator+=(vec<T, N>& self, vec<T, N> other) -> vec<T, N>& {
+  self = self + other;
+  return self;
+}
+
+template <class T, u32 N>
+__hd inline auto operator-=(vec<T, N>& self, vec<T, N> other) -> vec<T, N>& {
+  self = self - other;
+  return self;
 }
 
 template <class T, class F, u32 N>
-__hd inline auto cast(const vec<F, N>& v) -> vec<T, N> {
+__hd inline auto cast(vec<F, N> v) -> vec<T, N> {
   if constexpr (N == 1) return {(T)(v.x)};
   if constexpr (N == 2) return {(T)(v.x), (T)(v.y)};
   if constexpr (N == 3) return {(T)(v.x), (T)(v.y), (T)(v.z)};
@@ -182,7 +194,7 @@ __hd inline auto cast(const vec<F, N>& v) -> vec<T, N> {
 }
 
 template <u32 N>
-__hd inline auto len(const vec<f32, N>& a) -> float {
+__hd inline auto len(vec<f32, N> a) -> float {
   if constexpr (N == 1) return math::fabsf(a.x);
   if constexpr (N == 2) return math::sqrtf(a.x * a.x + a.y * a.y);
   if constexpr (N == 3) return math::sqrtf(a.x * a.x + a.y * a.y + a.z * a.z);
@@ -190,7 +202,7 @@ __hd inline auto len(const vec<f32, N>& a) -> float {
 }
 
 template <class T, u32 N>
-__hd inline auto reduce_add(const vec<T, N>& v) -> T {
+__hd inline auto reduce_add(vec<T, N> v) -> T {
   if constexpr (N == 1) return v.x;
   if constexpr (N == 2) return v.x + v.y;
   if constexpr (N == 3) return v.x + v.y + v.z;
@@ -198,7 +210,7 @@ __hd inline auto reduce_add(const vec<T, N>& v) -> T {
 }
 
 template <class T, u32 N>
-__hd inline auto reduce_mul(const vec<T, N>& v) -> T {
+__hd inline auto reduce_mul(vec<T, N> v) -> T {
   if constexpr (N == 1) return v.x;
   if constexpr (N == 2) return v.x * v.y;
   if constexpr (N == 3) return v.x * v.y * v.z;
@@ -206,7 +218,7 @@ __hd inline auto reduce_mul(const vec<T, N>& v) -> T {
 }
 
 template <class T, u32 N>
-__hd inline auto dot(const vec<T, N>& a, const vec<T, N>& b) -> T {
+__hd inline auto dot(vec<T, N> a, vec<T, N> b) -> T {
   if constexpr (N == 1) return a.x * b.x;
   if constexpr (N == 2) return a.x * b.x + a.y * b.y;
   if constexpr (N == 3) return a.x * b.x + a.y * b.y + a.z * b.z;

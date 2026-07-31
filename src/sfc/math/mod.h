@@ -13,6 +13,15 @@ namespace sfc::math {
 
 static constexpr f64 PI = 3.14159265358979323846;
 
+using ::round;
+using ::roundf;
+
+using ::ceil;
+using ::ceilf;
+
+using ::floor;
+using ::floorf;
+
 using ::fabs;
 using ::fabsf;
 
@@ -27,6 +36,15 @@ using ::expf;
 
 using ::pow;
 using ::powf;
+
+using ::log;
+using ::logf;
+
+using ::log2;
+using ::log2f;
+
+using ::log10;
+using ::log10f;
 
 using ::sin;
 using ::sinf;
