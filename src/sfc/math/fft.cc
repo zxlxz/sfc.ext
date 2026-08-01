@@ -28,9 +28,14 @@ class FFTW3F {
   }
 
   static auto instance() -> FFTW3F& {
-    static auto res = FFTW3F::load("libfftw3f-3");
-    sfc::assert_(res.is_some(), "math::FFT: failed to load `fftw3f-3`");
-    return *res;
+#ifdef _WIN32
+    const auto path = Str{"libfftw3f-3.dll"};
+#else
+    const auto path = Str{"libfftw3f"};
+#endif
+    static auto lib = FFTW3F::load(path);
+    sfc::assert_(lib.is_some(), "math::FFT: failed to load `{}`", path);
+    return *lib;
   }
 
  public:
