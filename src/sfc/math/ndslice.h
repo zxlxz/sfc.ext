@@ -73,36 +73,24 @@ struct NdSlice<T, 1> {
     return _strides[0] == 1;
   }
 
-  void for_each(auto&& f, auto... args) {
+  void for_each(auto&& f) const {
     for (auto i = 0U; i < _shape[0]; ++i) {
-      auto& t = (*this)[i];
-      if constexpr (requires { f(args..., i, t); }) {
-        f(args..., i, t);
-      } else if constexpr (requires { f({i}, t); }) {
-        f({args..., i}, t);
-      } else {
-        f(t);
-      }
+      const auto& t = (*this)[i];
+      f(t, i);
     }
   }
 
-  void for_each(auto&& f, auto... args) const {
+  void for_each_mut(auto&& f) {
     for (auto i = 0U; i < _shape[0]; ++i) {
-      const auto& t = (*this)[i];
-      if constexpr (requires { f(args..., i, t); }) {
-        f(args..., i, t);
-      } else if constexpr (requires { f({i}, t); }) {
-        f({args..., i}, t);
-      } else {
-        f(t);
-      }
+      auto& t = (*this)[i];
+      f(t, i);
     }
   }
 
   void fmt(auto& f) const {
     auto self = *this;
     f.write_str("[");
-    self.for_each([&](u32 i, const T& val) {
+    self.for_each_mut([&](const T& val, u32 i) {
       if (i != 0) f.write_str(", ");
       f.write_val(val);
     });
@@ -205,17 +193,17 @@ struct NdSlice {
     return true;
   }
 
-  void for_each(auto&& f, auto... args) {
+  void for_each(auto&& f) const {
     for (auto i = 0U; i < _shape[0]; ++i) {
-      auto v = (*this)[i];
-      v.for_each(f, args..., i);
+      const auto v = (*this)[i];
+      v.for_each([=, &f](const T& val, auto... j) { f(val, i, j...); });
     }
   }
 
-  void for_each(auto&& f, auto... args) const {
+  void for_each_mut(auto&& f) {
     for (auto i = 0U; i < _shape[0]; ++i) {
-      const auto v = (*this)[i];
-      v.for_each(f, args..., i);
+      auto v = (*this)[i];
+      v.for_each_mut([=, &f](T& val, auto... j) { f(val, i, j...); });
     }
   }
 

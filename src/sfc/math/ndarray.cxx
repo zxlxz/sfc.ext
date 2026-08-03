@@ -70,7 +70,7 @@ SFC_TEST(ndarray_bzero) {
 
 SFC_TEST(ndarray_for_each) {
   auto a = math::array<i32>({4U});
-  a.for_each([](u32 i, i32& val) { val = i32(i) * i32(i); });
+  a.for_each_mut([](i32& val, u32 i) { val = i32(i) * i32(i); });
   sfc::assert_eq(a.get({0}), 0);
   sfc::assert_eq(a.get({1}), 1);
   sfc::assert_eq(a.get({2}), 4);

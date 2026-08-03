@@ -156,8 +156,12 @@ class [[nodiscard]] NdArray {
   }
 
  public:
-  void for_each(auto&& f) {
+  void for_each(auto&& f) const {
     _inn.for_each(f);
+  }
+
+  void for_each_mut(auto&& f) {
+    _inn.for_each_mut(f);
   }
 
   void fmt(auto& f) const {

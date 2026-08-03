@@ -18,7 +18,7 @@ SFC_TEST(fft_c2c) {
   for (auto cnt : cnts) {
     auto in = math::array<c32>({cnt, fft_len}, MemKind::RAM);
     auto out = math::array<c32>({cnt, fft_len}, MemKind::RAM);
-    in.for_each([](auto i, auto j, auto& x) { x = c32{f32(i), f32(j)}; });
+    in.for_each_mut([](auto& y, auto... i) { y = c32{f32(i)...}; });
     io::println("in = \n {:+5.2}", in);
     fft.fft(in, out).unwrap();
     io::println("out = \n {:+5.2}", out);

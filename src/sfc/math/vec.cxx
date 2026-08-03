@@ -81,7 +81,7 @@ SFC_TEST(vec_scalar_mul_div) {
 SFC_TEST(vec_cast) {
   const auto v = vec{1.1, 2.2};
 
-  sfc::assert_eq(cast<i32>(v), vec{1, 2});
+  sfc::assert_eq(vec2i(v), vec{1, 2});
 }
 
 SFC_TEST(vec_len) {

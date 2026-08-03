@@ -17,6 +17,11 @@ struct vec<T, 1> {
   __hd vec(T x) : x{x} {}
   __hd vec(const T (&v)[1]) : x{v[0]} {}
 
+  template <class U>
+  explicit __hd operator vec<U, 1>() const {
+    return {static_cast<U>(x)};
+  }
+
  public:
   void fmt(auto& f) const {
     f.debug_tuple("").field(x);
@@ -32,6 +37,11 @@ struct vec<T, 2> {
   vec() = default;
   __hd vec(T x, T y) : x{x}, y{y} {}
   __hd vec(const T (&v)[2]) : x{v[0]}, y{v[1]} {}
+
+  template <class U>
+  explicit __hd operator vec<U, 2>() const {
+    return {static_cast<U>(x), static_cast<U>(y)};
+  }
 
  public:
   void fmt(auto& f) const {
@@ -49,6 +59,11 @@ struct vec<T, 3> {
   __hd vec(T x, T y, T z) : x{x}, y{y}, z{z} {}
   __hd vec(const T (&v)[3]) : x{v[0]}, y{v[1]}, z{v[2]} {}
 
+  template <class U>
+  explicit __hd operator vec<U, 3>() const {
+    return {static_cast<U>(x), static_cast<U>(y), static_cast<U>(z)};
+  }
+
  public:
   void fmt(auto& f) const {
     f.debug_tuple("").field(x).field(y).field(z);
@@ -64,6 +79,11 @@ struct vec<T, 4> {
   vec() = default;
   __hd vec(T x, T y, T z, T w) : x{x}, y{y}, z{z}, w{w} {}
   __hd vec(const T (&v)[4]) : x{v[0]}, y{v[1]}, z{v[2]}, w{v[3]} {}
+
+  template <class U>
+  explicit __hd operator vec<U, 4>() const {
+    return {static_cast<U>(x), static_cast<U>(y), static_cast<U>(z), static_cast<U>(w)};
+  }
 
  public:
   void fmt(auto& f) const {
@@ -183,14 +203,6 @@ template <class T, u32 N>
 __hd inline auto operator-=(vec<T, N>& self, vec<T, N> other) -> vec<T, N>& {
   self = self - other;
   return self;
-}
-
-template <class T, class F, u32 N>
-__hd inline auto cast(vec<F, N> v) -> vec<T, N> {
-  if constexpr (N == 1) return {(T)(v.x)};
-  if constexpr (N == 2) return {(T)(v.x), (T)(v.y)};
-  if constexpr (N == 3) return {(T)(v.x), (T)(v.y), (T)(v.z)};
-  if constexpr (N == 4) return {(T)(v.x), (T)(v.y), (T)(v.z), (T)(v.w)};
 }
 
 template <u32 N>

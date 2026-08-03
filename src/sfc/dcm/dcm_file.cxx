@@ -7,10 +7,9 @@ namespace sfc::dcm::test {
 auto make_vol(const u32 (&shape)[3]) {
   const auto [nz, ny, nx] = shape;
   auto vol = math::zero<f32>(shape);
-  vol.for_each([&](u32 n, u32 y, u32 x, f32& val) {
-    (void)n;
-    const auto fx = 2 * (f32(x) / f32(nx) - 0.5f);
-    const auto fy = 2 * (f32(y) / f32(ny) - 0.5f);
+  vol.for_each_mut([&](f32& val, u32 i, u32 j, [[maybe_unused]] u32 k) {
+    const auto fx = 2 * (f32(i) / f32(nx) - 0.5f);
+    const auto fy = 2 * (f32(j) / f32(ny) - 0.5f);
     const auto r = 1 - math::sqrtf(fx * fx + fy * fy);
     val = r;
   });
