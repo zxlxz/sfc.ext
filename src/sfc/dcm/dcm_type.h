@@ -2,7 +2,7 @@
 
 #include "sfc/core.h"
 
-namespace sfc::dcm {
+namespace nct::dcm {
 
 struct DcmVR {
   char _inn[2] = {};
@@ -137,4 +137,4 @@ static const DcmTVR PixelOF                   = {{0x7FE0, 0x0008}, OF};  // OF 7
 }
 // clang-format on
 
-}  // namespace sfc::dcm
+}  // namespace nct::dcm

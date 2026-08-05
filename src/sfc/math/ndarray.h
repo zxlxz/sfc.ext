@@ -1,43 +1,14 @@
 #pragma once
 
+#include "sfc/alloc.h"
 #include "sfc/math/ndslice.h"
 #include "sfc/math/alloc.h"
 
 namespace sfc::math {
 
-class RawBuf {
-  using A = PoolAllocator;
-  u8* _ptr{nullptr};
-  usize _size{0};
-  MemLocation _location{MemKind::CPU, 0};
-  [[no_unique_address]] A _alloc{};
-
- public:
-  explicit RawBuf() noexcept;
-  ~RawBuf();
-
-  RawBuf(RawBuf&& other) noexcept;
-  RawBuf& operator=(RawBuf&& other) noexcept;
-
-  static auto new_(usize size, MemLocation location) -> RawBuf;
-
- public:
-  auto ptr() const -> u8*;
-  auto capacity() const -> usize;
-  auto mem_location() const -> MemLocation;
-
-  auto as_bytes() const -> slice::Slice<const u8>;
-  auto as_mut_bytes() -> slice::Slice<u8>;
-
- public:
-  void bzero();
-  void sync(MemLocation location);
-  void copy_from(const RawBuf& other);
-};
-
-template <class T, u32 N = 1>
+template <class T, u32 N = 1, class A = alloc::Global>
 class [[nodiscard]] NdArray {
-  using Buf = RawBuf;
+  using Buf = alloc::RawBuf<A>;
   using Inn = NdSlice<T, N>;
   Buf _buf{};
   Inn _inn{};
@@ -62,9 +33,15 @@ class [[nodiscard]] NdArray {
     return res;
   }
 
-  static auto new_(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray {
+  static auto new_(const u32 (&shape)[N], A alloc = {}) -> NdArray {
     const auto numel = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::new_(numel * sizeof(T), loc);
+    auto buf = Buf::with_capacity(numel * sizeof(T), alloc);
+    return NdArray::from_buf(mem::move(buf), shape);
+  }
+
+  static auto new_zeroed(const u32 (&shape)[N], A alloc = {}) -> NdArray {
+    const auto numel = Inn{nullptr, shape, {}}.numel();
+    auto buf = Buf::with_capacity_zeroed(numel * sizeof(T), alloc);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
@@ -96,10 +73,6 @@ class [[nodiscard]] NdArray {
 
   auto buf_mut() -> Buf& {
     return _buf;
-  }
-
-  auto mem_location() const -> MemLocation {
-    return _buf.mem_location();
   }
 
  public:
@@ -136,15 +109,6 @@ class [[nodiscard]] NdArray {
   }
 
  public:
-  void bzero() {
-    _buf.bzero();
-  }
-
-  void sync(MemLocation location) {
-    _buf.sync(location);
-    _inn._data = ptr::cast<T>(_buf.ptr());
-  }
-
   void copy_from(const NdArray& other) {
     _buf.copy_from(other._buf);
   }
@@ -170,22 +134,20 @@ class [[nodiscard]] NdArray {
 };
 
 template <class T, u32 N = 1>
-auto array(const u32 (&shape)[N], MemLocation location = {}) -> NdArray<T, N> {
-  return NdArray<T, N>::new_(shape, location);
+auto array(const u32 (&shape)[N]) -> NdArray<T, N> {
+  return NdArray<T, N>::new_(shape);
 }
 
 template <class T, u32 N = 1>
-auto zero(const u32 (&shape)[N], MemLocation location = {}) -> NdArray<T, N> {
-  auto a = NdArray<T, N>::new_(shape, location);
-  a.bzero();
+auto zero(const u32 (&shape)[N]) -> NdArray<T, N> {
+  auto a = NdArray<T, N>::new_zeroed(shape);
   return a;
 }
 
 template <class T, u32 N>
 auto array_like(const NdArray<T, N>& array) -> NdArray<T, N> {
   const auto& shape = array.shape();
-  const auto location = array.mem_location();
-  return NdArray<T, N>::new_(shape, location);
+  return NdArray<T, N>::new_(shape);
 }
 
 }  // namespace sfc::math

@@ -31,4 +31,3 @@ endif()
 
 add_subdirectory(sfc/math)
 add_subdirectory(sfc/cuda)
-add_subdirectory(sfc/dcm)

@@ -1,6 +1,6 @@
-#include "sfc/dcm/dcm_type.h"
+#include "nct/dcm/dcm_type.h"
 
-namespace sfc::dcm {
+namespace nct::dcm {
 
 auto DcmVR::is_int() const -> bool {
   static const DcmVR v[] = {US, UL, UV, SS, SL, SV};
@@ -27,4 +27,4 @@ auto DcmVR::use_len32() const -> bool {
   return Slice{v}.contains(*this);
 }
 
-}  // namespace sfc::dcm
+}  // namespace nct::dcm

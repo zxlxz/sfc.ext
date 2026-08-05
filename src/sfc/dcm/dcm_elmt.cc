@@ -1,6 +1,6 @@
-#include "sfc/dcm/dcm_elmt.h"
+#include "nct/dcm/dcm_elmt.h"
 
-namespace sfc::dcm {
+namespace nct::dcm {
 
 DcmElmt::DcmElmt(DcmTVR tvr, DcmVar var) noexcept : _tvr{tvr}, _var{mem::move(var)} {}
 
@@ -58,4 +58,4 @@ auto DcmElmt::serialize_size() const -> usize {
   return 4U + 2U + len_field_size + buf_len;
 }
 
-}  // namespace sfc::dcm
+}  // namespace nct::dcm

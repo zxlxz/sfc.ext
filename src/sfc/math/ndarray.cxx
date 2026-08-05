@@ -57,17 +57,6 @@ SFC_TEST(ndarray_index_op) {
   sfc::assert_eq(a[1][1], 4);
 }
 
-SFC_TEST(ndarray_bzero) {
-  auto a = math::array<i32>({3});
-  a.set({0}, 5);
-  a.set({1}, 5);
-  a.set({2}, 5);
-  a.bzero();
-  sfc::assert_eq(a.get({0}), 0);
-  sfc::assert_eq(a.get({1}), 0);
-  sfc::assert_eq(a.get({2}), 0);
-}
-
 SFC_TEST(ndarray_for_each) {
   auto a = math::array<i32>({4U});
   a.for_each_mut([](i32& val, u32 i) { val = i32(i) * i32(i); });
@@ -88,12 +77,6 @@ SFC_TEST(ndarray_move) {
   sfc::assert_eq(b.get({0}), 1);
   sfc::assert_eq(b.get({1}), 2);
   sfc::assert_eq(b.get({2}), 3);
-}
-
-SFC_TEST(ndarray_mem_location) {
-  const auto a = math::array<f32>({2U});
-  const auto loc = a.mem_location();
-  sfc::assert_eq(int(loc.kind), int(MemKind::CPU));
 }
 
 SFC_TEST(ndarray_fmt) {

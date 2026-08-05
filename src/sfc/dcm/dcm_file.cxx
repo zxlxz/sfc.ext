@@ -1,8 +1,8 @@
 #include "sfc/test.h"
-#include "sfc/dcm/dcm_file.h"
+#include "nct/dcm/dcm_file.h"
 #include "sfc/math/ndarray.h"
 
-namespace sfc::dcm::test {
+namespace nct::dcm::test {
 
 auto make_vol(const u32 (&shape)[3]) {
   const auto [nz, ny, nx] = shape;
@@ -23,4 +23,4 @@ SFC_TEST(dcm_file_read_write) {
   dcm.write_data(vol);
 }
 
-}  // namespace sfc::dcm::test
+}  // namespace nct::dcm::test

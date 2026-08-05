@@ -1,14 +1,14 @@
 #pragma once
 
 #include "sfc/fs.h"
-#include "sfc/dcm/dcm_elmt.h"
+#include "nct/dcm/dcm_elmt.h"
 
 namespace sfc::math {
 template <class T, u32 N>
 class NdArray;
 }
 
-namespace sfc::dcm {
+namespace nct::dcm {
 
 struct DcmMeta {
   Str SOPClassUID;
@@ -47,4 +47,4 @@ class DcmFile {
   }
 };
 
-}  // namespace sfc::dcm
+}  // namespace nct::dcm

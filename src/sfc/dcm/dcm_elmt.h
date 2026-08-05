@@ -1,9 +1,9 @@
 #pragma once
 
 #include "sfc/alloc.h"
-#include "sfc/dcm/dcm_type.h"
+#include "nct/dcm/dcm_type.h"
 
-namespace sfc::dcm {
+namespace nct::dcm {
 
 using DcmLen = u32;
 using DcmVar = sfc::Variant<i64, f64, String, List<u8>>;
@@ -43,4 +43,4 @@ class DcmElmt {
   }
 };
 
-}  // namespace sfc::dcm
+}  // namespace nct::dcm

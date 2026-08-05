@@ -1,8 +1,8 @@
 #include "sfc/fs.h"
 #include "sfc/math/ndslice.h"
-#include "sfc/dcm/dcm_file.h"
+#include "nct/dcm/dcm_file.h"
 
-namespace sfc::dcm {
+namespace nct::dcm {
 
 struct TVRL {
   DcmTag tag;
@@ -215,4 +215,4 @@ template void DcmFile::write_data<u8>(const u32 (&shape)[3], Slice<const u8> buf
 template void DcmFile::write_data<u16>(const u32 (&shape)[3], Slice<const u16> buf);
 template void DcmFile::write_data<f32>(const u32 (&shape)[3], Slice<const f32> buf);
 
-}  // namespace sfc::dcm
+}  // namespace nct::dcm

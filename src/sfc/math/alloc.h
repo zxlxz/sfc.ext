@@ -8,7 +8,23 @@ namespace sfc::math {
 using cuda::MemKind;
 using cuda::MemLocation;
 
-class MemPool;
+template <class A>
+class MemPool {
+  class Inn;
+  Box<Inn> _inn;
+
+ public:
+  MemPool();
+  ~MemPool();
+  MemPool(MemPool&& other) noexcept;
+  MemPool& operator=(MemPool&& other) noexcept;
+
+  static auto new_(A alloc = {}) -> MemPool;
+
+ public:
+  auto allocate(usize size) -> void*;
+  void deallocate(void* ptr, usize size);
+};
 
 struct PoolAllocator {
   static auto pool(MemLocation location) -> MemPool&;
