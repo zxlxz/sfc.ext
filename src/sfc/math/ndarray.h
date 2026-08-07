@@ -6,7 +6,10 @@
 
 namespace sfc::math {
 
-template <class T, u32 N = 1, class A = mem_pool::Allocator<>>
+template <class T, u32 N, class A>
+class NdArray;
+
+template <class T, u32 N, class A = mem_pool::Allocator<>>
 class [[nodiscard]] NdArray {
   using Buf = Buffer<T, A>;
   using Inn = NdSlice<T, N>;
@@ -68,6 +71,10 @@ class [[nodiscard]] NdArray {
 
   auto buf_mut() -> Buf& {
     return _buf;
+  }
+
+  auto allocator() -> A& {
+    return _buf.allocator();
   }
 
  public:
@@ -135,8 +142,7 @@ auto array(const u32 (&shape)[N]) -> NdArray<T, N> {
 
 template <class T, u32 N = 1>
 auto zero(const u32 (&shape)[N]) -> NdArray<T, N> {
-  auto a = NdArray<T, N>::new_zeroed(shape);
-  return a;
+  return NdArray<T, N>::new_zeroed(shape);
 }
 
 template <class T, u32 N>

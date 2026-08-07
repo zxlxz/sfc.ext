@@ -33,14 +33,20 @@ static auto set_device(int dev) -> Result<> {
   return Ok{};
 }
 
-static auto device_prop(u32 dev) -> Result<cudaDeviceProp> {
-  const auto device = i32(dev);
-
-  auto prop = cudaDeviceProp{};
-  if (auto err = ::cudaGetDeviceProperties(&prop, device)) {
-    return Error(err);
+static auto device_prop(u32 dev) -> Result<const cudaDeviceProp&> {
+  static const auto MAX_DEV_COUNT = 16U;
+  static cudaDeviceProp props[MAX_DEV_COUNT] = {};
+  if (dev >= MAX_DEV_COUNT) {
+    return Error(cudaErrorInvalidDevice);
   }
-  return Ok{prop};
+
+  auto& prop = props[dev];
+  if (prop.totalGlobalMem == 0) {  // check if the properties have been initialized
+    if (auto err = ::cudaGetDeviceProperties(&props[dev], i32(dev))) {
+      return Error(err);
+    }
+  }
+  return props[dev];
 }
 
 DeviceGuard::DeviceGuard(int enter, int exit) : _dev_enter{enter}, _dev_exit{exit} {
@@ -53,10 +59,10 @@ DeviceGuard::~DeviceGuard() {
 
 auto Device::count() -> u32 {
   auto cnt = 0;
-  if (auto err = ::cudaGetDeviceCount(&cnt); err != cudaSuccess) {
+  if (auto err = ::cudaGetDeviceCount(&cnt); err != 0) {
     return 0;
   }
-  return num::cast_unsigned(cnt);
+  return u32(cnt);
 }
 
 auto Device::current() -> Device {
@@ -73,18 +79,8 @@ auto Device::sync() -> Result<> {
 }
 
 auto Device::info() const -> DeviceInfo {
-  static const auto MAX_DEV_COUNT = 16U;
-  static cudaDeviceProp props[MAX_DEV_COUNT];
-  if (id >= MAX_DEV_COUNT) {
-    return {};
-  }
+  const auto& p = cuda::device_prop(this->id).unwrap();
 
-  if (props[id].totalGlobalMem == 0) {
-    const auto p = cuda::device_prop(id).unwrap();
-    props[id] = p;
-  }
-
-  const auto& p = props[id];
   const auto info = DeviceInfo{
       .dev_id = id,
       .compute_capability = u32(p.major * 10 + p.minor),

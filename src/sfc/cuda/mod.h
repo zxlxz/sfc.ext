@@ -1,6 +1,7 @@
 #pragma once
 
-#include "sfc/core/mod.h"
+#include "sfc/core/mem.h"
+#include "sfc/core/ptr.h"
 
 #if defined(__INTELLISENSE__) || defined(__clang_analyzer__)
 #ifndef __device__
