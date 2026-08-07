@@ -52,7 +52,7 @@ class CUFFT {
 #ifdef _WIN32
     static const auto lib_path = Str{"cufft64_12.dll"};
 #else
-    static const auto lib_path = Str{"cufft64"};
+    static const auto lib_path = Str{"cufft"};
 #endif
     static auto lib = ffi::Library::load(lib_path).unwrap();
     static auto res = CUFFT{lib};

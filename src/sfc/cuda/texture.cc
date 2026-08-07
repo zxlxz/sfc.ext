@@ -117,7 +117,7 @@ static auto texture_new(buffer_t arr, TexFilt tex_filt, TexAddr tex_addr) -> Res
     return Error(err);
   }
 
-  return Ok{tex};
+  return u64{tex};
 }
 
 static auto texture_del(u64 tex) -> Result<> {
