@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sfc/cuda/mod.h"
 #include "sfc/math/complex.h"
 #include "sfc/math/ndarray.h"
 
@@ -50,7 +51,5 @@ class RFFT {
   auto fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) -> Result<>;
   auto ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) -> Result<>;
 };
-
-using FFT = CFFT;
 
 }  // namespace sfc::cuda

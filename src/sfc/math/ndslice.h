@@ -4,54 +4,37 @@
 
 namespace sfc::math {
 
-namespace _ops {
+template <u32... I>
+struct NdOps {
+  __hd static auto eq(const auto& a, const auto& b) -> bool {
+    return ((a[I] == b[I]) && ...);
+  }
+
+  __hd static auto lt(const auto& a, const auto& b) -> bool {
+    return ((a[I] < b[I]) && ...);
+  }
+
+  __hd static auto prod(const auto& a) {
+    return (a[I] * ...);
+  }
+
+  __hd static auto dot(const auto& a, const auto& b) {
+    return ((a[I] * b[I]) + ...);
+  }
+};
 
 template <u32 N>
-__hd auto prod(const u32 (&a)[N]) -> u32 {
-  static_assert(N <= 8);
-  auto ret = 1U;
-  if constexpr (N > 0) ret *= a[0];
-  if constexpr (N > 1) ret *= a[1];
-  if constexpr (N > 2) ret *= a[2];
-  if constexpr (N > 3) ret *= a[3];
-  if constexpr (N > 4) ret *= a[4];
-  if constexpr (N > 5) ret *= a[5];
-  if constexpr (N > 6) ret *= a[6];
-  if constexpr (N > 7) ret *= a[7];
-  return ret;
+auto ndops() {
+  static_assert(N > 0 && N < 8);
+  if constexpr (N == 1) return NdOps<0>{};
+  if constexpr (N == 2) return NdOps<0, 1>{};
+  if constexpr (N == 3) return NdOps<0, 1, 2>{};
+  if constexpr (N == 4) return NdOps<0, 1, 2, 3>{};
+  if constexpr (N == 5) return NdOps<0, 1, 2, 3, 4>{};
+  if constexpr (N == 6) return NdOps<0, 1, 2, 3, 4, 5>{};
+  if constexpr (N == 7) return NdOps<0, 1, 2, 3, 4, 5, 6>{};
+  if constexpr (N == 8) return NdOps<0, 1, 2, 3, 4, 5, 6, 7>{};
 }
-
-template <u32 N>
-__hd auto lt(const u32 (&a)[N], const u32 (&b)[N]) -> bool {
-  static_assert(N <= 8);
-  auto ret = true;
-  if constexpr (N > 0) ret &= a[0] < b[0];
-  if constexpr (N > 1) ret &= a[1] < b[1];
-  if constexpr (N > 2) ret &= a[2] < b[2];
-  if constexpr (N > 3) ret &= a[3] < b[3];
-  if constexpr (N > 4) ret &= a[4] < b[4];
-  if constexpr (N > 5) ret &= a[5] < b[5];
-  if constexpr (N > 6) ret &= a[6] < b[6];
-  if constexpr (N > 7) ret &= a[7] < b[7];
-  return ret;
-}
-
-template <u32 N>
-__hd auto dot(const u32 (&a)[N], const u32 (&b)[N]) -> u32 {
-  static_assert(N <= 8);
-  auto ret = 1U;
-  if constexpr (N > 0) ret += a[0] * b[0];
-  if constexpr (N > 1) ret += a[1] * b[1];
-  if constexpr (N > 2) ret += a[2] * b[2];
-  if constexpr (N > 3) ret += a[3] * b[3];
-  if constexpr (N > 4) ret += a[4] * b[4];
-  if constexpr (N > 5) ret += a[5] * b[5];
-  if constexpr (N > 6) ret += a[6] * b[6];
-  if constexpr (N > 7) ret += a[7] * b[7];
-  return ret;
-}
-
-}  // namespace _ops
 
 template <class T, u32 N = 1>
 struct NdSlice;
@@ -71,8 +54,10 @@ struct NdSlice<T, 1> {
   __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0]}, _strides{strides[0]} {}
 
-  template <u32 N>
-  __hd NdSlice(T (&data)[N]) : _data{data}, _shape{N}, _strides{1} {}
+  __hd static auto from_raw(T* data, const u32 (&shape)[NDIM]) -> NdSlice {
+    u32 strides[NDIM] = {1};
+    return NdSlice{data, shape, strides};
+  }
 
  public:
   __hd auto len() const -> u32 {
@@ -156,7 +141,7 @@ template <class T, u32 N>
 struct NdSlice {
   static constexpr u32 NDIM = N;
   using Item = T;
-
+  using NdOp = decltype(ndops<NDIM>());
   T* _data = nullptr;
   u32 _shape[NDIM] = {};
   u32 _strides[NDIM] = {};
@@ -164,11 +149,20 @@ struct NdSlice {
  public:
   __hd NdSlice() noexcept : _data{nullptr}, _shape{0, 0}, _strides{0, 0} {}
 
-  __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM]) : _data{data} {
-    for (auto i = 0U; i < NDIM; ++i) {
-      _shape[i] = shape[i];
-      _strides[i] = strides[i];
+  template <u32... I>
+  __hd NdSlice(T* data, const auto& shape, const auto& strides, NdOps<I...>)
+      : _data{data}, _shape{shape[I]...}, _strides{strides[I]...} {}
+
+  __hd NdSlice(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
+      : NdSlice{data, shape, strides, ndops<NDIM>()} {}
+
+  __hd static auto from_raw(T* data, const u32 (&shape)[NDIM]) -> NdSlice {
+    u32 strides[NDIM] = {};
+    strides[NDIM - 1] = 1;
+    for (auto i = NDIM - 1; i > 0; --i) {
+      strides[i - 1] = shape[i] * strides[i];
     }
+    return NdSlice{data, shape, strides};
   }
 
  public:
@@ -181,52 +175,51 @@ struct NdSlice {
   }
 
   __hd auto operator[](u32 x) const -> NdSlice<T, NDIM - 1> {
-    auto res = NdSlice<T, N - 1>{};
-    res._data = _data + x * _strides[0];
-    __builtin_memcpy(res._shape, _shape + 1, sizeof(u32) * (NDIM - 1));
-    __builtin_memcpy(res._strides, _strides + 1, sizeof(u32) * (NDIM - 1));
-    return res;
-    return res;
+    const auto data = _data + x * _strides[0];
+    const auto& shape = *ptr::cast<const u32[NDIM - 1]>(_shape + 1);
+    const auto& strides = *ptr::cast<const u32[NDIM - 1]>(_strides + 1);
+    const auto ret = NdSlice<T, NDIM - 1>{data, shape, strides};
+    return ret;
   }
 
   __hd auto operator[](const u32 (&idx)[NDIM]) const -> const T& {
-    const auto offset = _ops::dot(idx, _strides);
+    const auto offset = NdOp::dot(idx, _strides);
     return _data[offset];
   }
 
   __hd auto operator[](const u32 (&idx)[NDIM]) -> T& {
-    const auto offset = _ops::dot(idx, _strides);
+    const auto offset = NdOp::dot(idx, _strides);
     return _data[offset];
   }
 
  public:
+  __hd auto offset(const u32 (&idx)[NDIM]) const -> u32 {
+    return NdOp::dot(idx, _strides);
+  }
+
   __hd auto contains(const u32 (&idx)[NDIM]) const -> bool {
-    return _ops::lt(idx, _shape);
+    return NdOp::lt(idx, _shape);
   }
 
   __hd auto get(const u32 (&idx)[NDIM]) const -> T {
-    const auto offset = _ops::dot(idx, _strides);
+    const auto offset = NdOp::dot(idx, _strides);
     return _data[offset];
   }
 
   __hd void set(const u32 (&idx)[NDIM], const T& value) {
-    const auto offset = _ops::dot(idx, _strides);
+    const auto offset = NdOp::dot(idx, _strides);
     _data[offset] = value;
   }
 
  public:
 #ifndef __CUDACC__
   __hd auto numel() const -> u32 {
-    const auto res = _ops::prod(_shape);
-    return res;
+    return NdOp::prod(_shape);
   }
 
   auto is_contiguous() const -> bool {
-    if (_strides[NDIM - 1] != 1) return false;
-    for (auto i = NDIM - 1; i > 0; --i) {
-      if (_strides[i - 1] != _shape[i] * _strides[i]) return false;
-    }
-    return true;
+    const auto tmp = NdSlice::from_raw(_data, _shape);
+    return NdOp::eq(tmp._strides, _strides);
   }
 
   void for_each(auto&& f) const {

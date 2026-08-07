@@ -57,6 +57,4 @@ class RFFT {
   void ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out);
 };
 
-using FFT = CFFT;
-
 }  // namespace sfc::math

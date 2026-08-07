@@ -34,7 +34,7 @@ static auto set_device(int dev) -> Result<> {
 }
 
 static auto device_prop(u32 dev) -> Result<cudaDeviceProp> {
-  const auto device = num::cast_signed(dev);
+  const auto device = i32(dev);
 
   auto prop = cudaDeviceProp{};
   if (auto err = ::cudaGetDeviceProperties(&prop, device)) {

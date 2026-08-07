@@ -1,14 +1,14 @@
 #pragma once
 
 #include "sfc/alloc.h"
+#include "sfc/alloc/mem_pool.h"
 #include "sfc/math/ndslice.h"
-#include "sfc/math/alloc.h"
 
 namespace sfc::math {
 
-template <class T, u32 N = 1, class A = alloc::Global>
+template <class T, u32 N = 1, class A = mem_pool::Allocator<>>
 class [[nodiscard]] NdArray {
-  using Buf = alloc::RawBuf<A>;
+  using Buf = Buffer<T, A>;
   using Inn = NdSlice<T, N>;
   Buf _buf{};
   Inn _inn{};
@@ -21,15 +21,10 @@ class [[nodiscard]] NdArray {
   NdArray& operator=(NdArray&& other) noexcept = default;
 
   static auto from_buf(Buf buf, const u32 (&shape)[N]) -> NdArray {
-    u32 strides[N] = {};
-    for (auto i = N; i != 0; --i) {
-      strides[i - 1] = i == N ? 1 : shape[i] * strides[i];
-    }
-
     const auto ptr = ptr::cast<T>(buf.ptr());
     auto res = NdArray{};
     res._buf = mem::move(buf);
-    res._inn = Inn{ptr, shape, strides};
+    res._inn = Inn::from_raw(ptr, shape);
     return res;
   }
 
