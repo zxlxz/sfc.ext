@@ -6,11 +6,12 @@
 
 namespace sfc::math {
 
-template <class T, u32 N, class A>
+template <class T, u32 N>
 class NdArray;
 
-template <class T, u32 N, class A = mem_pool::Allocator<>>
+template <class T, u32 N>
 class [[nodiscard]] NdArray {
+  using A = mem_pool::Allocator;
   using Buf = Buffer<T, A>;
   using Inn = NdSlice<T, N>;
   Buf _buf{};
@@ -33,7 +34,7 @@ class [[nodiscard]] NdArray {
 
   static auto new_(const u32 (&shape)[N], A alloc = {}) -> NdArray {
     const auto numel = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::with_capacity(numel * sizeof(T), alloc);
+    auto buf = Buf::with_capacity(numel * sizeof(T), mem::move(alloc));
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
@@ -65,15 +66,11 @@ class [[nodiscard]] NdArray {
     return _inn._strides;
   }
 
-  auto buf() const -> const Buf& {
+  auto buf() -> Buf& {
     return _buf;
   }
 
-  auto buf_mut() -> Buf& {
-    return _buf;
-  }
-
-  auto allocator() -> A& {
+  auto allocator() -> mem_pool::Allocator& {
     return _buf.allocator();
   }
 

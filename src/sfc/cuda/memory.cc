@@ -18,15 +18,18 @@ auto to_str(MemKind kind) -> str::Str {
   }
 }
 
-auto Allocator::allocate(mem::Layout layout) -> void* {
+void MemLocation::fmt(fmt::Formatter& f) const {
+  f.write_fmt("{}:{}", to_str(kind), device);
+}
+
+auto MemLocation::allocate(mem::Layout layout) -> void* {
   const auto size = layout.size;
   if (layout.size == 0) {
     return nullptr;
   }
 
   auto f = [&](auto alloc_func, auto... args) -> Result<void*> {
-    auto dev = Device{this->device};
-    auto scope = dev.scope();
+    auto scope = Device{device}.scope();
 
     auto ptr = ptr::null();
     if (auto err = alloc_func(&ptr, args...)) {
@@ -44,15 +47,13 @@ auto Allocator::allocate(mem::Layout layout) -> void* {
   return nullptr;
 }
 
-void Allocator::deallocate(void* ptr, mem::Layout layout) {
+void MemLocation::deallocate(void* ptr, mem::Layout layout) {
   if (ptr == nullptr) {
     return;
   }
 
   auto f = [&](auto free_func, auto... args) -> Result<> {
-    auto dev = Device{this->device};
-    auto scope = dev.scope();
-
+    auto scope = Device{this->device}.scope();
     if (auto err = free_func(args...)) {
       return Error(err);
     }
@@ -67,8 +68,43 @@ void Allocator::deallocate(void* ptr, mem::Layout layout) {
   }
 }
 
-void Allocator::fmt(fmt::Formatter& f) const {
-  f.write_fmt("{}:{}", to_str(kind), device);
+auto MemLocation::pool() const -> mem_pool::Pool& {
+  using Pool = mem_pool::XPool<MemLocation>;
+  static Pool cpu_pool = Pool{{MemKind::CPU, 0}};
+  static Pool ram_pool = Pool{{MemKind::RAM, 0}};
+  static Pool gpu_pool[8] = {
+      Pool{{MemKind::GPU, 0}},
+      Pool{{MemKind::GPU, 1}},
+      Pool{{MemKind::GPU, 2}},
+      Pool{{MemKind::GPU, 3}},
+      Pool{{MemKind::GPU, 4}},
+      Pool{{MemKind::GPU, 5}},
+      Pool{{MemKind::GPU, 6}},
+      Pool{{MemKind::GPU, 7}},
+  };
+  static Pool uva_pool[8] = {
+      Pool{{MemKind::UVA, 0}},
+      Pool{{MemKind::UVA, 1}},
+      Pool{{MemKind::UVA, 2}},
+      Pool{{MemKind::UVA, 3}},
+      Pool{{MemKind::UVA, 4}},
+      Pool{{MemKind::UVA, 5}},
+      Pool{{MemKind::UVA, 6}},
+      Pool{{MemKind::UVA, 7}},
+  };
+
+  if (device >= kMaxDeviceCnt) {
+    return cpu_pool;
+  }
+
+  switch (kind) {
+    case MemKind::CPU: return cpu_pool;
+    case MemKind::RAM: return ram_pool;
+    case MemKind::GPU: return gpu_pool[device];
+    case MemKind::UVA: return uva_pool[device];
+  }
+
+  return cpu_pool;
 }
 
 auto fill_bytes(void* ptr, u8 val, usize size) -> Result<> {

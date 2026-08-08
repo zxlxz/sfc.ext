@@ -9,7 +9,7 @@ namespace sfc::cuda {
 
 void DeviceInfo::fmt(fmt::Formatter& f) const {
   f.debug_struct("DeviceInfo")
-      .field("name", name)
+      .field("name", Str::from_cstr(name))
       .field("dev_id", dev_id)
       .field("compute_capability", compute_capability)
       .field("sm_count", sm_count)
@@ -47,14 +47,6 @@ static auto device_prop(u32 dev) -> Result<const cudaDeviceProp&> {
     }
   }
   return props[dev];
-}
-
-DeviceGuard::DeviceGuard(int enter, int exit) : _dev_enter{enter}, _dev_exit{exit} {
-  cuda::set_device(_dev_enter).unwrap();
-}
-
-DeviceGuard::~DeviceGuard() {
-  cuda::set_device(_dev_exit).unwrap();
 }
 
 auto Device::count() -> u32 {
@@ -97,6 +89,14 @@ auto Device::scope() -> DeviceGuard {
   const auto curr_id = cuda::get_device().unwrap();
   const auto next_id = int(this->id);
   return DeviceGuard{curr_id, next_id};
+}
+
+DeviceGuard::DeviceGuard(int enter, int exit) : _dev_enter{enter}, _dev_exit{exit} {
+  cuda::set_device(_dev_enter).unwrap();
+}
+
+DeviceGuard::~DeviceGuard() {
+  cuda::set_device(_dev_exit).unwrap();
 }
 
 }  // namespace sfc::cuda
