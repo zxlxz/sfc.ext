@@ -7,19 +7,24 @@ namespace sfc::cuda {
 
 using mem::Layout;
 
-enum MemKind {
-  CPU = 0,
-  RAM = 1,
-  GPU = 2,
-  UVA = 3,
+enum class MemKind {
+  Heap = 0,
+  Host = 1,
+  Device = 2,
+  Managed = 3,
 };
 auto to_str(MemKind kind) -> str::Str;
 
 struct MemLocation {
   static const u32 kMaxDeviceCnt = 8U;
-
-  MemKind kind{MemKind::CPU};
+  MemKind kind{MemKind::Heap};
   u32 device{0};
+
+ public:
+  static auto Heap() -> MemLocation;
+  static auto Host() -> MemLocation;
+  static auto Device(u32 device = 0) -> MemLocation;
+  static auto Managed(u32 device = 0) -> MemLocation;
 
  public:
   auto pool() const -> mem_pool::Pool&;
@@ -41,8 +46,7 @@ auto array(const u32 (&shape)[N], MemLocation loc = {}) -> math::NdArray<T, N> {
 template <class T, u32 N = 1>
 auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> math::NdArray<T, N> {
   auto res = math::NdArray<T, N>::new_(shape, loc.pool());
-  auto& buf = res.buf();
-  cuda::fill_bytes(buf.ptr(), 0, buf.len() * sizeof(T));
+  cuda::fill_bytes(res.as_mut_ptr(), 0, res.numel() * sizeof(T)).unwrap();
   return res;
 }
 

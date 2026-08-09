@@ -36,7 +36,7 @@ class CUFFT {
   const ffi::Library& _lib;
 #define X(f)                  \
   using f##_t = decltype(f)*; \
-  f##_t _##f = _lib.get_func<decltype(f)*>(#f)
+  f##_t _##f = _lib.func<decltype(f)*>(#f).unwrap()
   X(cufftPlan1d);
   X(cufftDestroy);
   X(cufftExecC2C);

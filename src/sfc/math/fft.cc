@@ -8,7 +8,7 @@ class FFTW3F {
   using plan_t = fftwf_plan_s*;
 
   ffi::Library _lib;
-#define X(f) decltype(f)* _##f = _lib.get_func<decltype(f)*>(#f)
+#define X(f) decltype(f)* _##f = _lib.func<decltype(f)*>(#f).unwrap()
   X(fftwf_destroy_plan);
   X(fftwf_plan_dft_1d);
   X(fftwf_plan_dft_r2c_1d);

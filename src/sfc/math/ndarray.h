@@ -38,12 +38,6 @@ class [[nodiscard]] NdArray {
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
-  static auto new_zeroed(const u32 (&shape)[N], A alloc = {}) -> NdArray {
-    const auto numel = Inn{nullptr, shape, {}}.numel();
-    auto buf = Buf::with_capacity_zeroed(numel * sizeof(T), alloc);
-    return NdArray::from_buf(mem::move(buf), shape);
-  }
-
   auto as_ptr() const -> const T* {
     return _inn._data;
   }
@@ -139,7 +133,9 @@ auto array(const u32 (&shape)[N]) -> NdArray<T, N> {
 
 template <class T, u32 N = 1>
 auto zero(const u32 (&shape)[N]) -> NdArray<T, N> {
-  return NdArray<T, N>::new_zeroed(shape);
+  auto res = NdArray<T, N>::new_(shape);
+  __builtin_memset(res.as_mut_ptr(), 0, res.numel() * sizeof(T));
+  return res;
 }
 
 template <class T, u32 N>

@@ -11,15 +11,31 @@ namespace sfc::cuda {
 
 auto to_str(MemKind kind) -> str::Str {
   switch (kind) {
-    case MemKind::CPU: return "CPU";
-    case MemKind::RAM: return "RAM";
-    case MemKind::GPU: return "GPU";
-    case MemKind::UVA: return "UVA";
+    case MemKind::Heap:    return "Heap";
+    case MemKind::Host:    return "Host";
+    case MemKind::Device:  return "Device";
+    case MemKind::Managed: return "Managed";
   }
 }
 
 void MemLocation::fmt(fmt::Formatter& f) const {
   f.write_fmt("{}:{}", to_str(kind), device);
+}
+
+auto MemLocation::Heap() -> MemLocation {
+  return {.kind = MemKind::Heap, .device = 0};
+}
+
+auto MemLocation::Host() -> MemLocation {
+  return {.kind = MemKind::Host, .device = 0};
+}
+
+auto MemLocation::Device(u32 device) -> MemLocation {
+  return {.kind = MemKind::Device, .device = device};
+}
+
+auto MemLocation::Managed(u32 device) -> MemLocation {
+  return {.kind = MemKind::Managed, .device = device};
 }
 
 auto MemLocation::allocate(mem::Layout layout) -> void* {
@@ -29,7 +45,7 @@ auto MemLocation::allocate(mem::Layout layout) -> void* {
   }
 
   auto f = [&](auto alloc_func, auto... args) -> Result<void*> {
-    auto scope = Device{device}.scope();
+    auto scope = cuda::Device{device}.scope();
 
     auto ptr = ptr::null();
     if (auto err = alloc_func(&ptr, args...)) {
@@ -39,10 +55,10 @@ auto MemLocation::allocate(mem::Layout layout) -> void* {
   };
 
   switch (kind) {
-    case MemKind::CPU: return alloc::Global::allocate(layout); break;
-    case MemKind::RAM: return f(cudaHostAlloc, size, u32{cudaHostAllocDefault}).unwrap(); break;
-    case MemKind::GPU: return f(cudaMalloc, size).unwrap(); break;
-    case MemKind::UVA: return f(cudaMallocManaged, size, u32{cudaMemAttachGlobal}).unwrap(); break;
+    case MemKind::Heap:    return alloc::Global::allocate(layout); break;
+    case MemKind::Host:    return f(cudaHostAlloc, size, u32{cudaHostAllocDefault}).unwrap(); break;
+    case MemKind::Device:  return f(cudaMalloc, size).unwrap(); break;
+    case MemKind::Managed: return f(cudaMallocManaged, size, u32{cudaMemAttachGlobal}).unwrap(); break;
   }
   return nullptr;
 }
@@ -53,7 +69,7 @@ void MemLocation::deallocate(void* ptr, mem::Layout layout) {
   }
 
   auto f = [&](auto free_func, auto... args) -> Result<> {
-    auto scope = Device{this->device}.scope();
+    auto scope = cuda::Device{device}.scope();
     if (auto err = free_func(args...)) {
       return Error(err);
     }
@@ -61,36 +77,36 @@ void MemLocation::deallocate(void* ptr, mem::Layout layout) {
   };
 
   switch (kind) {
-    case MemKind::CPU: alloc::Global::deallocate(ptr, layout); break;
-    case MemKind::RAM: f(cudaFreeHost, ptr).unwrap(); break;
-    case MemKind::GPU: f(cudaFree, ptr).unwrap(); break;
-    case MemKind::UVA: f(cudaFree, ptr).unwrap(); break;
+    case MemKind::Heap:    alloc::Global::deallocate(ptr, layout); break;
+    case MemKind::Host:    f(cudaFreeHost, ptr).unwrap(); break;
+    case MemKind::Device:  f(cudaFree, ptr).unwrap(); break;
+    case MemKind::Managed: f(cudaFree, ptr).unwrap(); break;
   }
 }
 
 auto MemLocation::pool() const -> mem_pool::Pool& {
   using Pool = mem_pool::XPool<MemLocation>;
-  static Pool cpu_pool = Pool{{MemKind::CPU, 0}};
-  static Pool ram_pool = Pool{{MemKind::RAM, 0}};
+  static Pool cpu_pool = Pool{Heap()};
+  static Pool ram_pool = Pool{Host()};
   static Pool gpu_pool[8] = {
-      Pool{{MemKind::GPU, 0}},
-      Pool{{MemKind::GPU, 1}},
-      Pool{{MemKind::GPU, 2}},
-      Pool{{MemKind::GPU, 3}},
-      Pool{{MemKind::GPU, 4}},
-      Pool{{MemKind::GPU, 5}},
-      Pool{{MemKind::GPU, 6}},
-      Pool{{MemKind::GPU, 7}},
+      Pool{Device(0)},
+      Pool{Device(1)},
+      Pool{Device(2)},
+      Pool{Device(3)},
+      Pool{Device(4)},
+      Pool{Device(5)},
+      Pool{Device(6)},
+      Pool{Device(7)},
   };
   static Pool uva_pool[8] = {
-      Pool{{MemKind::UVA, 0}},
-      Pool{{MemKind::UVA, 1}},
-      Pool{{MemKind::UVA, 2}},
-      Pool{{MemKind::UVA, 3}},
-      Pool{{MemKind::UVA, 4}},
-      Pool{{MemKind::UVA, 5}},
-      Pool{{MemKind::UVA, 6}},
-      Pool{{MemKind::UVA, 7}},
+      Pool{Managed(0)},
+      Pool{Managed(1)},
+      Pool{Managed(2)},
+      Pool{Managed(3)},
+      Pool{Managed(4)},
+      Pool{Managed(5)},
+      Pool{Managed(6)},
+      Pool{Managed(7)},
   };
 
   if (device >= kMaxDeviceCnt) {
@@ -98,10 +114,10 @@ auto MemLocation::pool() const -> mem_pool::Pool& {
   }
 
   switch (kind) {
-    case MemKind::CPU: return cpu_pool;
-    case MemKind::RAM: return ram_pool;
-    case MemKind::GPU: return gpu_pool[device];
-    case MemKind::UVA: return uva_pool[device];
+    case MemKind::Heap:    return cpu_pool;
+    case MemKind::Host:    return ram_pool;
+    case MemKind::Device:  return gpu_pool[device];
+    case MemKind::Managed: return uva_pool[device];
   }
 
   return cpu_pool;
