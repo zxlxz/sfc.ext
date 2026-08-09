@@ -3,6 +3,7 @@
 #include "sfc/math/mod.h"
 #include "sfc/math/vec.h"
 #include "sfc/math/geo.h"
+#include "sfc/math/complex.h"
 #include "sfc/math/ndslice.h"
 
 #ifndef __CUDACC__
