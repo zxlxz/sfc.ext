@@ -28,6 +28,7 @@ struct MemLocation {
 
  public:
   auto pool() const -> mem_pool::Pool&;
+
   auto allocate(Layout layout) -> void*;
   void deallocate(void* ptr, Layout layout);
 
@@ -40,11 +41,17 @@ auto copy_bytes(const void* src, void* dst, usize size) -> Result<>;
 
 template <class T, u32 N = 1>
 auto array(const u32 (&shape)[N], MemLocation loc = {}) -> math::NdArray<T, N> {
+  if (loc.kind == MemKind::Heap) {
+    return math::array<T>(shape);
+  }
   return math::NdArray<T, N>::new_(shape, loc.pool());
 }
 
 template <class T, u32 N = 1>
 auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> math::NdArray<T, N> {
+  if (loc.kind == MemKind::Heap) {
+    return math::zero<T>(shape);
+  }
   auto res = math::NdArray<T, N>::new_(shape, loc.pool());
   cuda::fill_bytes(res.as_mut_ptr(), 0, res.numel() * sizeof(T)).unwrap();
   return res;
