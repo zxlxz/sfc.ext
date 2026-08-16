@@ -160,7 +160,7 @@ auto CFFT::batch() const -> usize {
   return _batch;
 }
 
-auto CFFT::fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<> {
+auto CFFT::fft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) -> Result<> {
   const auto [ilen] = in._shape;
   const auto [olen] = out._shape;
 
@@ -175,7 +175,7 @@ auto CFFT::fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<> 
   return ret;
 }
 
-auto CFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<> {
+auto CFFT::ifft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) -> Result<> {
   const auto [ilen] = in._shape;
   const auto [olen] = out._shape;
 
@@ -191,7 +191,7 @@ auto CFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<>
   return ret;
 }
 
-auto CFFT::fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<> {
+auto CFFT::fft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) -> Result<> {
   const auto [ibatch, ilen] = in._shape;
   const auto [obatch, olen] = out._shape;
 
@@ -212,7 +212,7 @@ auto CFFT::fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<> 
   return Ok{};
 }
 
-auto CFFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<> {
+auto CFFT::ifft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) -> Result<> {
   const auto [ibatch, ilen] = in._shape;
   const auto [obatch, olen] = out._shape;
 
@@ -267,7 +267,7 @@ auto RFFT::create(u32 len, u32 batch) -> RFFT {
   return res;
 }
 
-auto RFFT::fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) -> Result<> {
+auto RFFT::fft(math::NdView<f32, 1> in, math::NdView<c32, 1> out) -> Result<> {
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
 
@@ -285,7 +285,7 @@ auto RFFT::fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) -> Result<> 
   return ret;
 }
 
-auto RFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) -> Result<> {
+auto RFFT::ifft(math::NdView<c32, 1> in, math::NdView<f32, 1> out) -> Result<> {
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
 
@@ -303,7 +303,7 @@ auto RFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) -> Result<>
   return ret;
 }
 
-auto RFFT::fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) -> Result<> {
+auto RFFT::fft(math::NdView<f32, 2> in, math::NdView<c32, 2> out) -> Result<> {
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
 
@@ -327,7 +327,7 @@ auto RFFT::fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) -> Result<> 
   return Ok{};
 }
 
-auto RFFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) -> Result<> {
+auto RFFT::ifft(math::NdView<c32, 2> in, math::NdView<f32, 2> out) -> Result<> {
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
 

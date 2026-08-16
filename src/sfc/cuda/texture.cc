@@ -223,7 +223,7 @@ auto Texture<T, N>::new_(const u32 (&shape)[N], TexFilt filt, TexAddr addr) -> T
 }
 
 template <class T, int N>
-auto Texture<T, N>::set_data(math::NdSlice<T, N> src) -> Result<> {
+auto Texture<T, N>::set_data(math::NdView<T, N> src) -> Result<> {
   return _buf.set_data(src._data);
 }
 
@@ -264,7 +264,7 @@ auto LTexture<T, N>::new_(const u32 (&shape)[N], TexFilt filt, TexAddr addr) -> 
 }
 
 template <class T, int N>
-auto LTexture<T, N>::set_data(math::NdSlice<T, N> src) -> Result<> {
+auto LTexture<T, N>::set_data(math::NdView<T, N> src) -> Result<> {
   return _buf.set_data(src._data);
 }
 

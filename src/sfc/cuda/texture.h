@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sfc/cuda/tex.h"
-#include "sfc/math/ndslice.h"
+#include "sfc/math/ndview.h"
 
 namespace sfc::cuda {
 
@@ -66,7 +66,7 @@ class Texture {
     return {_tex};
   }
 
-  auto set_data(math::NdSlice<T, N> src) -> Result<>;
+  auto set_data(math::NdView<T, N> src) -> Result<>;
 };
 
 template <class T, int N = 3>
@@ -93,7 +93,7 @@ class LTexture {
     return {_tex};
   }
 
-  auto set_data(math::NdSlice<T, N> src) -> Result<>;
+  auto set_data(math::NdView<T, N> src) -> Result<>;
 };
 
 }  // namespace sfc::cuda

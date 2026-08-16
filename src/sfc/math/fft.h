@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sfc/math/complex.h"
-#include "sfc/math/ndarray.h"
+#include "sfc/math/tensor.h"
 
 struct fftwf_plan_s;
 
@@ -27,11 +27,11 @@ class CFFT {
  public:
   auto len() const -> usize;
 
-  void fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out);
-  void ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out);
+  void fft(math::NdView<c32, 1> in, math::NdView<c32, 1> out);
+  void ifft(math::NdView<c32, 1> in, math::NdView<c32, 1> out);
 
-  void fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out);
-  void ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out);
+  void fft(math::NdView<c32, 2> in, math::NdView<c32, 2> out);
+  void ifft(math::NdView<c32, 2> in, math::NdView<c32, 2> out);
 };
 
 class RFFT {
@@ -50,11 +50,11 @@ class RFFT {
   static auto new_(u32 len) -> RFFT;
 
  public:
-  void fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out);
-  void ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out);
+  void fft(math::NdView<f32, 1> in, math::NdView<c32, 1> out);
+  void ifft(math::NdView<c32, 1> in, math::NdView<f32, 1> out);
 
-  void fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out);
-  void ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out);
+  void fft(math::NdView<f32, 2> in, math::NdView<c32, 2> out);
+  void ifft(math::NdView<c32, 2> in, math::NdView<f32, 2> out);
 };
 
 }  // namespace sfc::math

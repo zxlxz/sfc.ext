@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sfc/cuda/mod.h"
-#include "sfc/math/ndarray.h"
+#include "sfc/math/tensor.h"
 
 namespace sfc::cuda {
 
@@ -40,27 +40,27 @@ auto fill_bytes(void* ptr, u8 val, usize size) -> Result<>;
 auto copy_bytes(const void* src, void* dst, usize size) -> Result<>;
 
 template <class T, u32 N = 1>
-auto array(const u32 (&shape)[N], MemLocation loc = {}) -> math::NdArray<T, N> {
+auto array(const u32 (&shape)[N], MemLocation loc = {}) -> math::Tensor<T, N> {
   if (loc.kind == MemKind::Heap) {
-    return math::array<T>(shape);
+    return math::empty<T>(shape);
   }
-  return math::NdArray<T, N>::new_(shape, loc.pool());
+  return math::Tensor<T, N>::new_(shape, loc.pool());
 }
 
 template <class T, u32 N = 1>
-auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> math::NdArray<T, N> {
+auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> math::Tensor<T, N> {
   if (loc.kind == MemKind::Heap) {
     return math::zero<T>(shape);
   }
-  auto res = math::NdArray<T, N>::new_(shape, loc.pool());
+  auto res = math::Tensor<T, N>::new_(shape, loc.pool());
   cuda::fill_bytes(res.as_mut_ptr(), 0, res.numel() * sizeof(T)).unwrap();
   return res;
 }
 
 template <class T, u32 N>
-auto array_like(const math::NdArray<T, N>& array) -> math::NdArray<T, N> {
+auto tensor_like(const math::Tensor<T, N>& array) -> math::Tensor<T, N> {
   const auto& shape = array.shape();
-  return math::NdArray<T, N>::new_(shape, array.allocator());
+  return math::Tensor<T, N>::new_(shape, array.allocator());
 }
 
 }  // namespace sfc::cuda

@@ -1,6 +1,6 @@
 #include "sfc/test.h"
 #include "sfc/io.h"
-#include "sfc/math/ndarray.h"
+#include "sfc/math/tensor.h"
 #include "sfc/math/fft.h"
 
 namespace sfc::math::test {
@@ -8,8 +8,8 @@ namespace sfc::math::test {
 SFC_TEST(fft_c2c_outplace) {
   const u32 lens[] = {2, 4, 8, 16, 32, 40};
   for (auto n : lens) {
-    auto X = math::array<c32>({n});
-    auto Y = math::array<c32>({n});
+    auto X = math::empty<c32>({n});
+    auto Y = math::empty<c32>({n});
     auto fft = CFFT::new_(n);
     X.for_each_mut([&](c32& val, u32 i) { val = c32{float(i), 0}; });
     fft.fft(X, Y);
@@ -22,7 +22,7 @@ SFC_TEST(fft_c2c_outplace) {
 SFC_TEST(fft_c2c_inplace) {
   const u32 lens[] = {2, 4, 8, 16, 32, 40};
   for (auto n : lens) {
-    auto X = math::array<c32>({n});
+    auto X = math::empty<c32>({n});
     auto fft = CFFT::new_(n);
     X.for_each_mut([&](c32& val, u32 i) { val = c32{float(i), 0}; });
     fft.fft(X, X);
@@ -34,8 +34,8 @@ SFC_TEST(fft_c2c_inplace) {
 SFC_TEST(fft_r2c) {
   const u32 lens[] = {2, 4, 8, 16, 32, 40};
   for (auto N : lens) {
-    auto R = math::array<f32>({N});
-    auto C = math::array<c32>({N / 2 + 1});
+    auto R = math::empty<f32>({N});
+    auto C = math::empty<c32>({N / 2 + 1});
     auto fft_r2c = RFFT::new_(N);
     auto fft_c2r = RFFT::new_(N);
     R.for_each_mut([&](f32& val, u32 i) { val = float(i); });

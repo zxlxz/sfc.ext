@@ -125,7 +125,7 @@ auto CFFT::len() const -> usize {
   return _len;
 }
 
-void CFFT::fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
+void CFFT::fft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
   auto& fftw = FFTW3F::instance();
   sfc::assert_(in.is_contiguous(), "CFFT::fft: in is not contiguous");
   sfc::assert_(out.is_contiguous(), "CFFT::fft: out is not contiguous");
@@ -140,7 +140,7 @@ void CFFT::fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
   fftw.exec(plan, in._data, out._data);
 }
 
-void CFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
+void CFFT::ifft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
   auto& fftw = FFTW3F::instance();
   sfc::assert_(in.is_contiguous(), "CFFT::ifft: in is not contiguous");
   sfc::assert_(out.is_contiguous(), "CFFT::ifft: out is not contiguous");
@@ -154,7 +154,7 @@ void CFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
   fftw.exec(plan, in._data, out._data);
 }
 
-void CFFT::fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) {
+void CFFT::fft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) {
   auto& fftw = FFTW3F::instance();
   const auto [ibatch, ilen] = in._shape;
   const auto [obatch, olen] = out._shape;
@@ -177,7 +177,7 @@ void CFFT::fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) {
   }
 }
 
-void CFFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) {
+void CFFT::ifft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) {
   auto& fftw = FFTW3F::instance();
   const auto [ibatch, ilen] = in._shape;
   const auto [obatch, olen] = out._shape;
@@ -232,7 +232,7 @@ auto RFFT::new_(u32 len) -> RFFT {
   return res;
 }
 
-void RFFT::fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) {
+void RFFT::fft(math::NdView<f32, 1> in, math::NdView<c32, 1> out) {
   auto& fftw = FFTW3F::instance();
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
@@ -244,7 +244,7 @@ void RFFT::fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) {
   fftw.exec(_r2c, in._data, out._data);
 }
 
-void RFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) {
+void RFFT::ifft(math::NdView<c32, 1> in, math::NdView<f32, 1> out) {
   auto& fftw = FFTW3F::instance();
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
@@ -256,7 +256,7 @@ void RFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) {
   fftw.exec(_c2r, in._data, out._data);
 }
 
-void RFFT::fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) {
+void RFFT::fft(math::NdView<f32, 2> in, math::NdView<c32, 2> out) {
   auto& fftw = FFTW3F::instance();
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
@@ -276,7 +276,7 @@ void RFFT::fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) {
   }
 }
 
-void RFFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) {
+void RFFT::ifft(math::NdView<c32, 2> in, math::NdView<f32, 2> out) {
   auto& fftw = FFTW3F::instance();
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;

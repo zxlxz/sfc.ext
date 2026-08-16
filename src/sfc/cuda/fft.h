@@ -2,7 +2,7 @@
 
 #include "sfc/cuda/mod.h"
 #include "sfc/math/complex.h"
-#include "sfc/math/ndarray.h"
+#include "sfc/math/tensor.h"
 
 namespace sfc::cuda {
 
@@ -23,11 +23,11 @@ class CFFT {
   auto len() const -> usize;
   auto batch() const -> usize;
 
-  auto fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<>;
-  auto ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) -> Result<>;
+  auto fft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) -> Result<>;
+  auto ifft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) -> Result<>;
 
-  auto fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<>;
-  auto ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) -> Result<>;
+  auto fft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) -> Result<>;
+  auto ifft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) -> Result<>;
 };
 
 class RFFT {
@@ -45,11 +45,11 @@ class RFFT {
   static auto create(u32 len, u32 batch = 1) -> RFFT;
 
  public:
-  auto fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) -> Result<>;
-  auto ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) -> Result<>;
+  auto fft(math::NdView<f32, 1> in, math::NdView<c32, 1> out) -> Result<>;
+  auto ifft(math::NdView<c32, 1> in, math::NdView<f32, 1> out) -> Result<>;
 
-  auto fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) -> Result<>;
-  auto ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) -> Result<>;
+  auto fft(math::NdView<f32, 2> in, math::NdView<c32, 2> out) -> Result<>;
+  auto ifft(math::NdView<c32, 2> in, math::NdView<f32, 2> out) -> Result<>;
 };
 
 }  // namespace sfc::cuda
