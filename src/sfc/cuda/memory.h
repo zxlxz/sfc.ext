@@ -40,7 +40,7 @@ auto fill_bytes(void* ptr, u8 val, usize size) -> Result<>;
 auto copy_bytes(const void* src, void* dst, usize size) -> Result<>;
 
 template <class T, u32 N = 1>
-auto array(const u32 (&shape)[N], MemLocation loc = {}) -> math::Tensor<T, N> {
+auto empty(const u32 (&shape)[N], MemLocation loc = {}) -> math::Tensor<T, N> {
   if (loc.kind == MemKind::Heap) {
     return math::empty<T>(shape);
   }
@@ -58,7 +58,7 @@ auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> math::Tensor<T, N> {
 }
 
 template <class T, u32 N>
-auto tensor_like(const math::Tensor<T, N>& array) -> math::Tensor<T, N> {
+auto empty_like(const math::Tensor<T, N>& array) -> math::Tensor<T, N> {
   const auto& shape = array.shape();
   return math::Tensor<T, N>::new_(shape, array.allocator());
 }

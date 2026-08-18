@@ -4,10 +4,10 @@
 
 namespace sfc::cuda {
 
-using lib_t = struct CUlib_st*;
-using kernel_t = struct CUkern_st*;
+using lib_t = CUmodule;
+using kernel_t = CUfunction;
 
-auto launch_kernel(kernel_t f, void* args[]) -> Result<>;
+auto launch_kernel(kernel_t f, void** args) -> Result<>;
 
 template <class>
 struct Kernel;
@@ -19,7 +19,7 @@ struct Kernel<void(T...)> {
  public:
   auto operator()(const T&... args) -> Result<> {
     void* argv[] = {&args...};
-    return cuda::launch_kernel(_kernel, &argv);
+    return cuda::launch_kernel(_kernel, argv);
   }
 };
 

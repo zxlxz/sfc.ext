@@ -52,7 +52,7 @@ SFC_TEST(tensor_index_op) {
   a[{1, 0}] = 3;
   a[{1, 1}] = 4;
 
-  // operator[](u32) returns a row NdSlice
+  // operator[](u32) returns a row NdView
   sfc::assert_eq(a[0][0], 1);
   sfc::assert_eq(a[1][1], 4);
 }

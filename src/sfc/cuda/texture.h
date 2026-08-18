@@ -24,28 +24,28 @@ struct Extent {
 };
 
 template <class T>
-class Buffer {
-  using buf_t = struct cudaArray*;
-  buf_t _arr = nullptr;
+class Array {
+  using arr_t = struct CUarray_st*;
+  arr_t _arr = nullptr;
 
  public:
-  Buffer() noexcept;
-  ~Buffer();
-  Buffer(Buffer&& other) noexcept;
-  Buffer& operator=(Buffer&& other) noexcept;
+  Array() noexcept;
+  ~Array();
+  Array(Array&& other) noexcept;
+  Array& operator=(Array&& other) noexcept;
 
-  static auto new_(Extent ext) -> Buffer;
-  static auto new_layered(Extent ext) -> Buffer;
+  static auto new_(Extent ext) -> Array;
+  static auto new_layered(Extent ext) -> Array;
 
  public:
-  auto as_ptr() const -> buf_t;
+  auto as_ptr() const -> arr_t;
   auto set_data(const T* src) -> Result<>;
 };
 
 template <class T, int N = 3>
 class Texture {
   using Tex = cuda::Tex<T, N>;
-  using Buf = cuda::Buffer<T>;
+  using Buf = cuda::Array<T>;
   u64 _tex = {};
   Buf _buf = {};
 
@@ -72,7 +72,7 @@ class Texture {
 template <class T, int N = 3>
 class LTexture {
   using Tex = cuda::LTex<T, N>;
-  using Buf = cuda::Buffer<T>;
+  using Buf = cuda::Array<T>;
   u64 _tex = {};
   Buf _buf = {};
 

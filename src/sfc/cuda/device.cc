@@ -1,11 +1,160 @@
-
-#include <cuda_runtime_api.h>
-
+#include <cuda.h>
 #include "sfc/core.h"
 #include "sfc/cuda/device.h"
 #include "sfc/cuda/stream.h"
 
 namespace sfc::cuda {
+
+struct DeviceProp {
+  int major;
+  int minor;
+  int sm_count;
+  int async_engine_count;
+  int l2_cache_size;
+  size_t global_memory;
+  char name[64];
+};
+
+static auto init() -> Result<> {
+  static auto ret = cuInit(0);
+  if (ret != CUDA_SUCCESS) {
+    return Error(ret);
+  }
+  return Ok{};
+}
+
+static auto get_current() -> Result<u32> {
+  _TRY(cuda::init());
+
+  CUdevice dev{};
+  if (auto err = cuCtxGetDevice(&dev); err != CUDA_SUCCESS) {
+    return Error(err);
+  }
+
+  const auto dev_id = u32(dev);
+  return dev_id;
+}
+
+static auto set_current(u32 dev_id) -> Result<> {
+  _TRY(cuda::init());
+
+  CUdevice dev{};
+  if (auto err = cuDeviceGet(&dev, int(dev_id)); err != CUDA_SUCCESS) {
+    return Error(err);
+  }
+
+  CUcontext ctx{};
+  if (auto err = cuDevicePrimaryCtxRetain(&ctx, dev); err != CUDA_SUCCESS) {
+    return Error(err);
+  }
+
+  if (auto err = cuCtxSetCurrent(ctx); err != CUDA_SUCCESS) {
+    return Error(err);
+  }
+  return Ok{};
+}
+
+static auto device_prop(u32 dev_id) -> Result<DeviceProp> {
+  CUdevice dev{};
+  if (auto err = cuDeviceGet(&dev, int(dev_id)); err != CUDA_SUCCESS) {
+    return Error(err);
+  }
+
+  auto prop = DeviceProp{};
+  if (auto err = cuDeviceGetAttribute(&prop.major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, dev)) {
+    return Error(err);
+  }
+  if (auto err = cuDeviceGetAttribute(&prop.minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, dev)) {
+    return Error(err);
+  }
+  if (auto err = cuDeviceGetAttribute(&prop.sm_count, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, dev)) {
+    return Error(err);
+  }
+  if (auto err = cuDeviceGetAttribute(&prop.async_engine_count, CU_DEVICE_ATTRIBUTE_ASYNC_ENGINE_COUNT, dev)) {
+    return Error(err);
+  }
+  if (auto err = cuDeviceGetAttribute(&prop.l2_cache_size, CU_DEVICE_ATTRIBUTE_L2_CACHE_SIZE, dev)) {
+    return Error(err);
+  }
+  if (auto err = cuDeviceTotalMem_v2(&prop.global_memory, dev)) {
+    return Error(err);
+  }
+  if (auto err = cuDeviceGetName(prop.name, sizeof(prop.name), dev)) {
+    return Error(err);
+  }
+  return prop;
+}
+
+auto Device::count() -> Result<u32> {
+  _TRY(cuda::init());
+
+  int cnt = 0;
+  if (auto err = cuDeviceGetCount(&cnt)) {
+    return Error(err);
+  }
+
+  return u32(cnt);
+}
+
+auto Device::current() -> Result<Device> {
+  const auto dev_id = _TRY(cuda::get_current());
+  return Device{dev_id};
+}
+
+auto Device::sync() -> Result<> {
+  _TRY(cuda::init());
+
+  if (auto err = cuCtxSynchronize()) {
+    return Error(err);
+  }
+  return Ok{};
+}
+
+auto Device::info() const -> Result<DeviceInfo> {
+  static constexpr u32 kMaxDevCount = 16U;
+  static DeviceProp props[kMaxDevCount]{};
+
+  if (id >= kMaxDevCount) {
+    return Error{CUDA_ERROR_INVALID_DEVICE};
+  }
+
+  auto& prop = props[id];
+  if (prop.major == 0 && prop.minor == 0) {
+    prop = _TRY(cuda::device_prop(id));
+  }
+
+  auto info = DeviceInfo{};
+  info.dev_id = id;
+  info.compute_capability = u32(prop.major * 10 + prop.minor);
+  info.sm_count = u32(prop.sm_count);
+  info.async_engine_count = u32(prop.async_engine_count);
+  info.l2_cache_size = u64(prop.l2_cache_size);
+  info.global_memory = u64(prop.global_memory);
+  info.name = prop.name;
+  return info;
+}
+
+auto Device::scope() -> Device::Guard {
+  return Device::Guard{id};
+}
+
+Device::Guard::Guard(u32 id) : _dev_in{0}, _dev_out{0} {
+  (void)cuda::init();
+
+  auto dev_out = cuda::get_current().ok();
+  if (dev_out != Option{id}) {
+    cuda::set_current(id).unwrap();
+  }
+
+  _dev_in = id;
+  _dev_out = dev_out.unwrap_or(_dev_in);
+}
+
+Device::Guard::~Guard() {
+  if (_dev_in != _dev_out) {
+    cuda::set_current(_dev_out).unwrap();
+  }
+}
 
 void DeviceInfo::fmt(fmt::Formatter& f) const {
   f.debug_struct("DeviceInfo")
@@ -16,87 +165,6 @@ void DeviceInfo::fmt(fmt::Formatter& f) const {
       .field("async_engine_count", async_engine_count)
       .field("global_memory", global_memory)
       .field("l2_cache_size", l2_cache_size);
-}
-
-static auto get_device() -> Result<i32> {
-  auto dev = 0;
-  if (auto err = ::cudaGetDevice(&dev)) {
-    return Error(err);
-  }
-  return Ok{dev};
-}
-
-static auto set_device(int dev) -> Result<> {
-  if (auto err = ::cudaSetDevice(dev)) {
-    return Error(err);
-  }
-  return Ok{};
-}
-
-static auto device_prop(u32 dev) -> Result<const cudaDeviceProp&> {
-  static const auto MAX_DEV_COUNT = 16U;
-  static cudaDeviceProp props[MAX_DEV_COUNT] = {};
-  if (dev >= MAX_DEV_COUNT) {
-    return Error(cudaErrorInvalidDevice);
-  }
-
-  auto& prop = props[dev];
-  if (prop.totalGlobalMem == 0) {  // check if the properties have been initialized
-    if (auto err = ::cudaGetDeviceProperties(&props[dev], i32(dev))) {
-      return Error(err);
-    }
-  }
-  return props[dev];
-}
-
-auto Device::count() -> u32 {
-  auto cnt = 0;
-  if (auto err = ::cudaGetDeviceCount(&cnt); err != 0) {
-    return 0;
-  }
-  return u32(cnt);
-}
-
-auto Device::current() -> Device {
-  auto dev = 0;
-  ::cudaGetDevice(&dev);
-  return Device{num::cast_unsigned(dev)};
-}
-
-auto Device::sync() -> Result<> {
-  if (auto err = ::cudaDeviceSynchronize()) {
-    return Error(err);
-  }
-  return Ok{};
-}
-
-auto Device::info() const -> DeviceInfo {
-  const auto& p = cuda::device_prop(this->id).unwrap();
-
-  const auto info = DeviceInfo{
-      .dev_id = id,
-      .compute_capability = u32(p.major * 10 + p.minor),
-      .sm_count = u32(p.multiProcessorCount),
-      .async_engine_count = u32(p.asyncEngineCount),
-      .global_memory = p.totalGlobalMem,
-      .l2_cache_size = u32(p.l2CacheSize),
-      .name = p.name,
-  };
-  return info;
-}
-
-auto Device::scope() -> DeviceGuard {
-  const auto curr_id = cuda::get_device().unwrap();
-  const auto next_id = int(this->id);
-  return DeviceGuard{curr_id, next_id};
-}
-
-DeviceGuard::DeviceGuard(int enter, int exit) : _dev_enter{enter}, _dev_exit{exit} {
-  cuda::set_device(_dev_enter).unwrap();
-}
-
-DeviceGuard::~DeviceGuard() {
-  cuda::set_device(_dev_exit).unwrap();
 }
 
 }  // namespace sfc::cuda

@@ -3,5 +3,5 @@ if (NOT APPLE)
 endif()
 
 add_sfc_mod(cuda)
-target_link_libraries(sfc_cuda CUDA::cudart)
+target_link_libraries(sfc_cuda CUDA::cuda_driver)
 target_link_libraries(sfc-cuda-test sfc_math)

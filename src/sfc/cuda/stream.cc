@@ -1,6 +1,5 @@
-#include <cuda_runtime_api.h>
+#include <cuda.h>
 
-#include "sfc/core.h"
 #include "sfc/cuda/device.h"
 #include "sfc/cuda/stream.h"
 
@@ -8,7 +7,7 @@ namespace sfc::cuda {
 
 static auto stream_new(unsigned int flags) -> Result<stream_t> {
   auto stream = stream_t{nullptr};
-  if (auto err = ::cudaStreamCreateWithFlags(&stream, flags); err != cudaSuccess) {
+  if (auto err = cuStreamCreate(&stream, flags); err != CUDA_SUCCESS) {
     return Err{Error(err)};
   }
   return Ok{stream};
@@ -19,7 +18,7 @@ static auto stream_del(stream_t s) -> Result<> {
     return Ok{};
   }
 
-  if (auto err = ::cudaStreamDestroy(s); err != cudaSuccess) {
+  if (auto err = cuStreamDestroy(s); err != CUDA_SUCCESS) {
     return Err{Error(err)};
   }
   return Ok{};
@@ -30,7 +29,7 @@ static auto stream_sync(stream_t s) -> Result<> {
     return Ok{};
   }
 
-  if (auto err = ::cudaStreamSynchronize(s); err != cudaSuccess) {
+  if (auto err = cuStreamSynchronize(s); err != CUDA_SUCCESS) {
     return Err{Error(err)};
   }
   return Ok{};

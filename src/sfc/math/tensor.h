@@ -142,20 +142,26 @@ class [[nodiscard]] Tensor {
   }
 };
 
-template <class T, u32 N = 1>
+template <class T, u32 N>
 auto empty(const u32 (&shape)[N]) -> Tensor<T, N> {
   return Tensor<T, N>::new_(shape);
 }
 
-template <class T, u32 N = 1>
+template <class T, u32 N>
+auto empty_like(const Tensor<T, N>& array) -> Tensor<T, N> {
+  const auto& shape = array.shape();
+  return Tensor<T, N>::new_(shape);
+}
+
+template <class T, u32 N>
 auto zero(const u32 (&shape)[N]) -> Tensor<T, N> {
   return Tensor<T, N>::new_zeroerd(shape);
 }
 
 template <class T, u32 N>
-auto tensor_like(const Tensor<T, N>& array) -> Tensor<T, N> {
+auto zero_like(const Tensor<T, N>& array) -> Tensor<T, N> {
   const auto& shape = array.shape();
-  return Tensor<T, N>::new_(shape);
+  return Tensor<T, N>::new_zeroerd(shape);
 }
 
 }  // namespace sfc::math

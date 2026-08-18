@@ -1,5 +1,5 @@
+#include <cuda.h>
 #include <cufft.h>
-#include <cuda_runtime_api.h>
 
 #include "sfc/ffi/library.h"
 #include "sfc/cuda/stream.h"
@@ -10,25 +10,25 @@ namespace sfc::cuda {
 
 auto to_cuda_err(cufftResult fft_err) -> Error {
   switch (fft_err) {
-    case CUFFT_SUCCESS:            return Error(cudaSuccess);
-    case CUFFT_INVALID_PLAN:       return Error(cudaErrorInvalidValue);
-    case CUFFT_ALLOC_FAILED:       return Error(cudaErrorMemoryAllocation);
-    case CUFFT_INVALID_TYPE:       return Error(cudaErrorInvalidValue);
-    case CUFFT_INVALID_VALUE:      return Error(cudaErrorInvalidValue);
-    case CUFFT_INTERNAL_ERROR:     return Error(cudaErrorUnknown);
-    case CUFFT_EXEC_FAILED:        return Error(cudaErrorLaunchFailure);
-    case CUFFT_SETUP_FAILED:       return Error(cudaErrorInitializationError);
-    case CUFFT_INVALID_SIZE:       return Error(cudaErrorInvalidValue);
-    case CUFFT_UNALIGNED_DATA:     return Error(cudaErrorMisalignedAddress);
-    case CUFFT_INVALID_DEVICE:     return Error(cudaErrorInvalidDevice);
-    case CUFFT_NO_WORKSPACE:       return Error(cudaErrorInvalidConfiguration);
-    case CUFFT_NOT_IMPLEMENTED:    return Error(cudaErrorNotYetImplemented);
-    case CUFFT_NOT_SUPPORTED:      return Error(cudaErrorNotSupported);
-    case CUFFT_MISSING_DEPENDENCY: return Error(cudaErrorUnknown);
-    case CUFFT_NVRTC_FAILURE:      return Error(cudaErrorUnknown);
-    case CUFFT_NVJITLINK_FAILURE:  return Error(cudaErrorUnknown);
-    case CUFFT_NVSHMEM_FAILURE:    return Error(cudaErrorUnknown);
-    default:                       return Error(cudaErrorUnknown);
+    case CUFFT_SUCCESS:            return Error(CUDA_SUCCESS);
+    case CUFFT_INVALID_PLAN:       return Error(CUDA_ERROR_INVALID_HANDLE);
+    case CUFFT_ALLOC_FAILED:       return Error(CUDA_ERROR_OUT_OF_MEMORY);
+    case CUFFT_INVALID_TYPE:       return Error(CUDA_ERROR_INVALID_VALUE);
+    case CUFFT_INVALID_VALUE:      return Error(CUDA_ERROR_INVALID_VALUE);
+    case CUFFT_INTERNAL_ERROR:     return Error(CUDA_ERROR_UNKNOWN);
+    case CUFFT_EXEC_FAILED:        return Error(CUDA_ERROR_LAUNCH_FAILED);
+    case CUFFT_SETUP_FAILED:       return Error(CUDA_ERROR_NOT_INITIALIZED);
+    case CUFFT_INVALID_SIZE:       return Error(CUDA_ERROR_INVALID_VALUE);
+    case CUFFT_UNALIGNED_DATA:     return Error(CUDA_ERROR_MISALIGNED_ADDRESS);
+    case CUFFT_INVALID_DEVICE:     return Error(CUDA_ERROR_INVALID_DEVICE);
+    case CUFFT_NO_WORKSPACE:       return Error(CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES);
+    case CUFFT_NOT_IMPLEMENTED:    return Error(CUDA_ERROR_NOT_SUPPORTED);
+    case CUFFT_NOT_SUPPORTED:      return Error(CUDA_ERROR_NOT_SUPPORTED);
+    case CUFFT_MISSING_DEPENDENCY: return Error(CUDA_ERROR_UNKNOWN);
+    case CUFFT_NVRTC_FAILURE:      return Error(CUDA_ERROR_UNKNOWN);
+    case CUFFT_NVJITLINK_FAILURE:  return Error(CUDA_ERROR_UNKNOWN);
+    case CUFFT_NVSHMEM_FAILURE:    return Error(CUDA_ERROR_UNKNOWN);
+    default:                       return Error(CUDA_ERROR_UNKNOWN);
   }
 }
 

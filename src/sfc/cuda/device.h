@@ -17,29 +17,34 @@ struct DeviceInfo {
   void fmt(fmt::Formatter& f) const;
 };
 
-class DeviceGuard {
-  int _dev_enter;
-  int _dev_exit;
-
- public:
-  DeviceGuard(int enter_id, int exit_id);
-  ~DeviceGuard();
-
-  DeviceGuard(const DeviceGuard&) = delete;
-  DeviceGuard& operator=(const DeviceGuard&) = delete;
-};
+class DeviceGuard;
 
 struct Device {
   u32 id = 0;
 
  public:
-  static auto count() -> u32;
-  static auto current() -> Device;
+  static auto count() -> Result<u32>;
+  static auto current() -> Result<Device>;
   static auto sync() -> Result<>;
 
  public:
-  auto info() const -> DeviceInfo;
-  auto scope() -> DeviceGuard;
+  auto info() const -> Result<DeviceInfo>;
+
+ public:
+  class Guard;
+  auto scope() -> Guard;
+};
+
+class Device::Guard {
+  u32 _dev_in;   // in scope
+  u32 _dev_out;  // out scope
+
+ public:
+  Guard(u32 id);
+  ~Guard();
+
+  Guard(const Guard&) = delete;
+  Guard& operator=(const Guard&) = delete;
 };
 
 }  // namespace sfc::cuda
