@@ -87,13 +87,25 @@ struct NdView<T, 1> {
     const auto x0 = i32(math::floorf(x - 0.5f));
     const auto x1 = x0 + 1;
 
-    if (x1 < 0 || x0 > nx - 1) return 0;
-    if (x1 == 0) return (*this)[0];
-    if (x0 == nx - 1) return (*this)[nx - 1];
+    if (x1 < 0 || x0 > nx - 1) {
+      return 0;
+    }
+
+    if (x1 == 0) {
+      const auto p = x + 0.5f;  // line[0, x+0.5]
+      const auto t = (*this)[0];
+      return p * t;
+    }
+
+    if (x0 == nx - 1) {
+      const auto p = f32(nx) - (x - 0.5f);  // line[x-0.5 , nx]
+      const auto t = (*this)[nx - 1];
+      return p * t;
+    }
 
     const auto t0 = (*this)[u32(x0)];
     const auto t1 = (*this)[u32(x1)];
-    const auto p = x - (f32(x0) + 0.5f);
+    const auto p = x - 0.5f - f32(x0);
     const auto t = (1 - p) * t0 + p * t1;
     return t;
   }
@@ -206,6 +218,36 @@ struct NdView<T, 2> {
   __hd void set(const u32 (&idx)[NDIM], const T& value) {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
     _data[offset] = value;
+  }
+
+  __hd auto get_interp(const f32 (&pos)[NDIM]) const -> T {
+    const auto [fy, fx] = pos;
+    const auto [ny, nx] = _shape;
+
+    const auto y0 = i32(math::floorf(fy - 0.5f));
+    const auto y1 = y0 + 1;
+
+    if (y1 < 0 || y0 > ny - 1) {
+      return 0;
+    }
+
+    if (y1 == 0) {
+      const auto p = fy + 0.5f;  // line[0, fy+0.5]
+      const auto t = (*this)[0].get_interp(fx);
+      return p * t;
+    }
+
+    if (y0 == ny - 1) {
+      const auto p = f32(ny) - (fy - 0.5f);  // line[fy-0.5 , ny]
+      const auto t = (*this)[ny - 1].get_interp(fx);
+      return p * t;
+    }
+
+    const auto t0 = (*this)[u32(y0)].get_interp(fx);
+    const auto t1 = (*this)[u32(y1)].get_interp(fx);
+    const auto p = fy - 0.5f - f32(y0);
+    const auto t = (1 - p) * t0 + p * t1;
+    return t;
   }
 
  public:
