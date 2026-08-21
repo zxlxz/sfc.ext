@@ -8,21 +8,45 @@ namespace sfc::cuda {
 
 namespace detail {
 
-auto lib_load(Str path,
-              Slice<CUjit_option> jit_opts,
-              Slice<void*> jit_opt_vals,
-              Slice<CUlibraryOption> lib_opts,
-              Slice<void*> lib_opt_vals) -> Result<lib_t> {
-  const auto c_path = ffi::CString::from(path);
+struct JITOption {
+  CUjit_option opt;
+  void* val;
+};
+
+struct LibOption {
+  CUlibraryOption opt;
+  void* val;
+};
+
+auto lib_load(const char* path, Slice<JITOption> jit_opt_list, Slice<LibOption> lib_opt_list) -> Result<lib_t> {
+  const auto kMaxJItOptCnt = 32U;
+  const auto kMaxLibOptCnt = 8U;
+  if (jit_opt_list.len() > kMaxJItOptCnt) {
+    return Error(CUDA_ERROR_INVALID_VALUE);
+  }
+  if (lib_opt_list.len() > kMaxLibOptCnt) {
+    return Error(CUDA_ERROR_INVALID_VALUE);
+  }
+
+  auto jit_opt_cnt = u32(jit_opt_list.len());
+  CUjit_option jit_opts[kMaxJItOptCnt]{};
+  void* jit_opt_vals[kMaxJItOptCnt]{};
+  for (auto i = 0U; i < jit_opt_cnt; ++i) {
+    jit_opts[i] = jit_opt_list[i].opt;
+    jit_opt_vals[i] = jit_opt_list[i].val;
+  }
+
+  auto lib_opt_cnt = u32(lib_opt_list.len());
+  CUlibraryOption lib_opts[kMaxLibOptCnt]{};
+  void* lib_opt_vals[kMaxLibOptCnt]{};
+  for (auto i = 0U; i < lib_opt_cnt; ++i) {
+    lib_opts[i] = lib_opt_list[i].opt;
+    lib_opt_vals[i] = lib_opt_list[i].val;
+  }
+
   auto lib = lib_t{nullptr};
-  if (auto err = cuLibraryLoadFromFile(&lib,
-                                       c_path.as_ptr(),
-                                       jit_opts._ptr,
-                                       jit_opt_vals._ptr,
-                                       u32(jit_opts.len()),
-                                       lib_opts._ptr,
-                                       lib_opt_vals._ptr,
-                                       u32(lib_opts.len()))) {
+  if (auto err =
+          cuLibraryLoadFromFile(&lib, path, jit_opts, jit_opt_vals, jit_opt_cnt, lib_opts, lib_opt_vals, lib_opt_cnt)) {
     return Error(err);
   }
   return Ok{lib};
@@ -90,13 +114,15 @@ Library::~Library() noexcept {
 Library::Library(Library&& other) noexcept : _lib{mem::take(other._lib)} {}
 
 auto Library::load(Str path) -> Result<Library> {
+  const auto c_path = ffi::CString::from(path);
+
   auto to_lib = [](lib_t lib) {
     auto res = Library{};
     res._lib = lib;
     return res;
   };
 
-  auto lib = detail::lib_load(path, {}, {}, {}, {}).map(to_lib);
+  auto lib = detail::lib_load(c_path.as_ptr(), {}, {}).map(to_lib);
   return lib;
 }
 
