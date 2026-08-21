@@ -4,47 +4,49 @@
 
 namespace sfc::cuda {
 
-struct DeviceInfo {
-  u32 dev_id;
-  u32 compute_capability;
-  u32 sm_count;
-  u32 async_engine_count;
-  u64 global_memory;
-  u64 l2_cache_size;
-  const char* name;
-
- public:
-  void fmt(fmt::Formatter& f) const;
-};
-
-class DeviceGuard;
+auto init() -> Result<>;
 
 struct Device {
-  u32 id = 0;
+  int _dev = -1;
 
  public:
   static auto count() -> Result<u32>;
   static auto current() -> Result<Device>;
   static auto sync() -> Result<>;
+  static auto of(u32 id) -> Result<Device>;
 
  public:
-  auto info() const -> Result<DeviceInfo>;
+  struct Info;
+  auto info() const -> Result<Info>;
 
  public:
-  class Guard;
-  auto scope() -> Guard;
+  class ScopeGuard;
+  auto scope() -> ScopeGuard;
 };
 
-class Device::Guard {
-  u32 _dev_in;   // in scope
-  u32 _dev_out;  // out scope
+struct Device::Info {
+  i32 device;
+  u32 compute_capability;
+  u32 sm_count;
+  u32 async_engine_count;
+  u32 l2_cache_size;
+  u64 global_memory;
+  Str name;
 
  public:
-  Guard(u32 id);
-  ~Guard();
+  void fmt(fmt::Formatter& f) const;
+};
 
-  Guard(const Guard&) = delete;
-  Guard& operator=(const Guard&) = delete;
+class Device::ScopeGuard {
+  int _dev_in;   // in scope
+  int _dev_out;  // out scope
+
+ public:
+  explicit ScopeGuard(const Device& dev);
+  ~ScopeGuard();
+
+  ScopeGuard(const ScopeGuard&) = delete;
+  ScopeGuard& operator=(const ScopeGuard&) = delete;
 };
 
 }  // namespace sfc::cuda

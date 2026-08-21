@@ -5,10 +5,12 @@
 
 namespace sfc::cuda {
 
+namespace detail {
+
 static auto stream_new(unsigned int flags) -> Result<stream_t> {
   auto stream = stream_t{nullptr};
-  if (auto err = cuStreamCreate(&stream, flags); err != CUDA_SUCCESS) {
-    return Err{Error(err)};
+  if (auto err = cuStreamCreate(&stream, flags)) {
+    return Error(err);
   }
   return Ok{stream};
 }
@@ -18,8 +20,8 @@ static auto stream_del(stream_t s) -> Result<> {
     return Ok{};
   }
 
-  if (auto err = cuStreamDestroy(s); err != CUDA_SUCCESS) {
-    return Err{Error(err)};
+  if (auto err = cuStreamDestroy_v2(s)) {
+    return Error(err);
   }
   return Ok{};
 }
@@ -29,25 +31,13 @@ static auto stream_sync(stream_t s) -> Result<> {
     return Ok{};
   }
 
-  if (auto err = cuStreamSynchronize(s); err != CUDA_SUCCESS) {
-    return Err{Error(err)};
+  if (auto err = cuStreamSynchronize(s)) {
+    return Error(err);
   }
   return Ok{};
 }
 
-static thread_local stream_t _tls_stream = nullptr;
-
-void stream_set(stream_t s) {
-  _tls_stream = s;
-}
-
-auto stream_current() -> stream_t {
-  return _tls_stream;
-}
-
-auto stream_sync() -> Result<> {
-  return cuda::stream_sync(_tls_stream);
-}
+}  // namespace detail
 
 Stream::Stream() noexcept {}
 
@@ -55,7 +45,7 @@ Stream::~Stream() noexcept {
   if (_raw == nullptr) {
     return;
   }
-  (void)cuda::stream_del(_raw).unwrap();
+  detail::stream_del(_raw).unwrap();
   _raw = nullptr;
 }
 
@@ -72,26 +62,34 @@ Stream& Stream::operator=(Stream&& other) noexcept {
 
 auto Stream::create(u32 flags) -> Stream {
   auto res = Stream{};
-  res._raw = cuda::stream_new(flags).unwrap();
+  res._raw = detail::stream_new(flags).unwrap();
   return res;
 }
 
 auto Stream::sync() -> Result<> {
-  return cuda::stream_sync(_raw);
+  return detail::stream_sync(_raw);
 }
 
 auto Stream::scope() -> ScopeGuard {
-  const auto curr = cuda::stream_current();
-  const auto next = _raw;
-  return ScopeGuard{curr, next};
+  return ScopeGuard{*this};
 }
 
-Stream::ScopeGuard::ScopeGuard(stream_t enter, stream_t exit) : _enter{enter}, _exit{exit} {
-  cuda::stream_set(_enter);
+static thread_local stream_t _tls_stream = nullptr;
+
+Stream::ScopeGuard::ScopeGuard(const Stream& stream) : _stream_in{stream._raw}, _stream_out{_tls_stream} {
+  _tls_stream = _stream_in;
 }
 
 Stream::ScopeGuard::~ScopeGuard() {
-  cuda::stream_set(_exit);
+  _tls_stream = _stream_out;
+}
+
+auto stream_current() -> stream_t {
+  return _tls_stream;
+}
+
+auto stream_sync() -> Result<> {
+  return detail::stream_sync(_tls_stream);
 }
 
 }  // namespace sfc::cuda

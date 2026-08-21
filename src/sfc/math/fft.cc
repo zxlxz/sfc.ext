@@ -4,89 +4,141 @@
 
 namespace sfc::math {
 
-class FFTW3F {
-  using plan_t = fftwf_plan_s*;
+namespace detail {
 
-  ffi::Library _lib;
-#define X(f) decltype(f)* _##f = _lib.func<decltype(f)*>(#f).unwrap()
-  X(fftwf_destroy_plan);
-  X(fftwf_plan_dft_1d);
-  X(fftwf_plan_dft_r2c_1d);
-  X(fftwf_plan_dft_c2r_1d);
-  X(fftwf_execute_dft);
-  X(fftwf_execute_dft_r2c);
-  X(fftwf_execute_dft_c2r);
-#undef X
+using fft_plan_t = fftwf_plan;
+
+class FFTW3F {
+  decltype(fftwf_destroy_plan)* _fftwf_destroy_plan = nullptr;
+  decltype(fftwf_plan_dft_1d)* _fftwf_plan_dft_1d = nullptr;
+  decltype(fftwf_plan_dft_r2c_1d)* _fftwf_plan_dft_r2c_1d = nullptr;
+  decltype(fftwf_plan_dft_c2r_1d)* _fftwf_plan_dft_c2r_1d = nullptr;
+  decltype(fftwf_execute_dft)* _fftwf_execute_dft = nullptr;
+  decltype(fftwf_execute_dft_r2c)* _fftwf_execute_dft_r2c = nullptr;
+  decltype(fftwf_execute_dft_c2r)* _fftwf_execute_dft_c2r = nullptr;
 
  public:
-  FFTW3F(ffi::Library lib) : _lib{mem::move(lib)} {}
-
-  static auto load(Str path) -> Option<FFTW3F> {
-    auto lib = _TRY(ffi::Library::load(path));
-    auto res = FFTW3F{mem::move(lib)};
+  static auto from(ffi::Library& lib) {
+    auto res = FFTW3F{};
+    res._fftwf_destroy_plan = lib.func("fftwf_destroy_plan");
+    res._fftwf_plan_dft_1d = lib.func("fftwf_plan_dft_1d");
+    res._fftwf_plan_dft_r2c_1d = lib.func("fftwf_plan_dft_r2c_1d");
+    res._fftwf_plan_dft_c2r_1d = lib.func("fftwf_plan_dft_c2r_1d");
+    res._fftwf_execute_dft = lib.func("fftwf_execute_dft");
+    res._fftwf_execute_dft_r2c = lib.func("fftwf_execute_dft_r2c");
+    res._fftwf_execute_dft_c2r = lib.func("fftwf_execute_dft_c2r");
     return res;
   }
 
-  static auto instance() -> FFTW3F& {
-#ifdef _WIN32
-    const auto path = Str{"libfftw3f-3.dll"};
-#else
-    const auto path = Str{"libfftw3f"};
-#endif
-    static auto lib = FFTW3F::load(path);
-    sfc::assert_(lib.is_some(), "math::FFT: failed to load `{}`", path);
-    return *lib;
-  }
-
  public:
-  template <class T>
-  static auto cast(T* p) {
-    if constexpr (trait::same_<T, c32>) {
-      return ptr::cast<fftwf_complex>(p);
-    } else if constexpr (trait::same_<T, f32>) {
-      return p;
-    }
-  }
-
-  void drop(plan_t p) {
-    if (p == nullptr) return;
+  void destroy(fftwf_plan p) {
     _fftwf_destroy_plan(p);
   }
 
-  auto plan(int N, const auto in[], auto out[], int SIGN) -> plan_t {
-    const auto idata = FFTW3F::cast(ptr::cast_mut(in));
-    const auto odata = FFTW3F::cast(out);
-    if constexpr (requires { _fftwf_plan_dft_1d(N, idata, odata, SIGN, 0); }) {
-      return _fftwf_plan_dft_1d(N, idata, odata, SIGN, FFTW_ESTIMATE);
-    } else if constexpr (requires { _fftwf_plan_dft_r2c_1d(N, idata, odata, 0); }) {
-      return _fftwf_plan_dft_r2c_1d(N, idata, odata, FFTW_ESTIMATE);
-    } else if constexpr (requires { _fftwf_plan_dft_c2r_1d(N, idata, odata, 0); }) {
-      return _fftwf_plan_dft_c2r_1d(N, idata, odata, FFTW_ESTIMATE);
-    }
-    return nullptr;
+  auto plan_1d_c2c(int len, c32 in[], c32 out[], int sign) -> fftwf_plan {
+    const auto idata = ptr::cast<fftwf_complex>(in);
+    const auto odata = ptr::cast<fftwf_complex>(out);
+    return _fftwf_plan_dft_1d(len, idata, odata, sign, FFTW_ESTIMATE);
   }
 
-  void exec(plan_t plan, const auto in[], auto out[]) {
-    auto idata = FFTW3F::cast(ptr::cast_mut(in));
-    auto odata = FFTW3F::cast(out);
-    if constexpr (requires { _fftwf_execute_dft(plan, idata, odata); }) {
-      _fftwf_execute_dft(plan, idata, odata);
-    } else if constexpr (requires { _fftwf_execute_dft_r2c(plan, idata, odata); }) {
-      _fftwf_execute_dft_r2c(plan, idata, odata);
-    } else if constexpr (requires { _fftwf_execute_dft_c2r(plan, idata, odata); }) {
-      _fftwf_execute_dft_c2r(plan, idata, odata);
-    }
+  auto plan_1d_r2c(int len, f32 in[], c32 out[]) -> fftwf_plan {
+    const auto idata = in;
+    const auto odata = ptr::cast<fftwf_complex>(out);
+    return _fftwf_plan_dft_r2c_1d(len, idata, odata, FFTW_ESTIMATE);
+  }
+
+  auto plan_1d_c2r(int len, c32 in[], f32 out[]) -> fftwf_plan {
+    const auto idata = ptr::cast<fftwf_complex>(in);
+    const auto odata = out;
+    return _fftwf_plan_dft_c2r_1d(len, idata, odata, FFTW_ESTIMATE);
+  }
+
+  void exec_c2c(fftwf_plan plan, c32 in[], c32 out[]) {
+    const auto idata = ptr::cast<fftwf_complex>(in);
+    const auto odata = ptr::cast<fftwf_complex>(out);
+    _fftwf_execute_dft(plan, idata, odata);
+  }
+
+  void exec_r2c(fftwf_plan plan, f32 in[], c32 out[]) {
+    const auto idata = in;
+    const auto odata = ptr::cast<fftwf_complex>(out);
+    _fftwf_execute_dft_r2c(plan, idata, odata);
+  }
+
+  void exec_c2r(fftwf_plan plan, c32 in[], f32 out[]) {
+    const auto idata = ptr::cast<fftwf_complex>(in);
+    const auto odata = out;
+    _fftwf_execute_dft_c2r(plan, idata, odata);
   }
 };
+
+auto fft_lib() -> FFTW3F& {
+#ifdef _WIN32
+  const auto path = Str{"libfftw3f-3.dll"};
+#else
+  const auto path = Str{"libfftw3f"};
+#endif
+  static auto lib = ffi::Library::load(path).unwrap();
+  static auto fft = FFTW3F::from(lib);
+  return fft;
+}
+
+void fft_destroy(fftwf_plan plan) {
+  if (plan == nullptr) {
+    return;
+  }
+
+  auto& lib = fft_lib();
+  lib.destroy(plan);
+}
+
+template <class I, class O>
+auto fft_plan_1d(u32 len, I in[], O out[], int sign) -> fftwf_plan {
+  auto& lib = fft_lib();
+
+  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
+    return lib.plan_1d_c2c(int(len), in, out, sign);
+  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
+    return lib.plan_1d_r2c(int(len), in, out);
+  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
+    return lib.plan_1d_c2r(int(len), in, out);
+  } else {
+    static_assert(false, "unsupported type combination");
+  }
+}
+
+template <class I, class O>
+void fft_exec(fftwf_plan plan, I in[], O out[]) {
+  auto& lib = fft_lib();
+  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
+    lib.exec_c2c(plan, in, out);
+  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
+    lib.exec_r2c(plan, in, out);
+  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
+    lib.exec_c2r(plan, in, out);
+  } else {
+    static_assert(false, "unsupported type combination");
+  }
+}
+
+template <class I, class O>
+void fft_exec_batch(fftwf_plan plan, math::NdView<I, 2> in, math::NdView<O, 2> out, u32 batch) {
+  for (auto i = 0U; i < batch; ++i) {
+    auto idata = in[i]._data;
+    auto odata = out[i]._data;
+    detail::fft_exec(plan, idata, odata);
+  }
+}
+
+}  // namespace detail
 
 CFFT::CFFT() noexcept {}
 
 CFFT::~CFFT() {
-  auto& fftw = FFTW3F::instance();
-  fftw.drop(_fwd_inplace);
-  fftw.drop(_inv_inplace);
-  fftw.drop(_fwd_outplace);
-  fftw.drop(_inv_outplace);
+  detail::fft_destroy(_fwd_inplace);
+  detail::fft_destroy(_inv_inplace);
+  detail::fft_destroy(_fwd_outplace);
+  detail::fft_destroy(_inv_outplace);
 }
 
 CFFT::CFFT(CFFT&& other) noexcept
@@ -108,11 +160,8 @@ CFFT& CFFT::operator=(CFFT&& other) noexcept {
 }
 
 CFFT CFFT::new_(u32 len) {
-  auto& fftw = FFTW3F::instance();
-
-  const auto n = num::saturating_cast<int>(len);
-  const auto fwd_inplace = fftw.plan(n, ptr::null<c32>(), ptr::null<c32>(), FFTW_FORWARD);
-  const auto inv_inplace = fftw.plan(n, ptr::null<c32>(), ptr::null<c32>(), FFTW_BACKWARD);
+  const auto fwd_inplace = detail::fft_plan_1d(len, ptr::null<c32>(), ptr::null<c32>(), FFTW_FORWARD);
+  const auto inv_inplace = detail::fft_plan_1d(len, ptr::null<c32>(), ptr::null<c32>(), FFTW_BACKWARD);
 
   auto res = CFFT{};
   res._len = len;
@@ -126,7 +175,6 @@ auto CFFT::len() const -> usize {
 }
 
 void CFFT::fft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
-  auto& fftw = FFTW3F::instance();
   sfc::assert_(in.is_contiguous(), "CFFT::fft: in is not contiguous");
   sfc::assert_(out.is_contiguous(), "CFFT::fft: out is not contiguous");
   sfc::assert_(in._shape[0] == _len, "CFFT::fft: in.shape({}) not match len(={})", in._shape, _len);
@@ -134,14 +182,13 @@ void CFFT::fft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
 
   auto& plan = in._data == out._data ? _fwd_inplace : _fwd_outplace;
   if (plan == nullptr) {
-    plan = fftw.plan(int(_len), in._data, out._data, FFTW_FORWARD);
+    plan = detail::fft_plan_1d(_len, in._data, out._data, FFTW_FORWARD);
   }
 
-  fftw.exec(plan, in._data, out._data);
+  detail::fft_exec(plan, in._data, out._data);
 }
 
 void CFFT::ifft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
-  auto& fftw = FFTW3F::instance();
   sfc::assert_(in.is_contiguous(), "CFFT::ifft: in is not contiguous");
   sfc::assert_(out.is_contiguous(), "CFFT::ifft: out is not contiguous");
   sfc::assert_(in._shape[0] == _len, "CFFT::ifft: in.shape({}) not match len(={})", in._shape, _len);
@@ -149,13 +196,12 @@ void CFFT::ifft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
 
   auto& plan = in._data == out._data ? _inv_inplace : _inv_outplace;
   if (plan == nullptr) {
-    plan = fftw.plan(int(_len), in._data, out._data, FFTW_BACKWARD);
+    plan = detail::fft_plan_1d(_len, in._data, out._data, FFTW_BACKWARD);
   }
-  fftw.exec(plan, in._data, out._data);
+  detail::fft_exec(plan, in._data, out._data);
 }
 
 void CFFT::fft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) {
-  auto& fftw = FFTW3F::instance();
   const auto [ibatch, ilen] = in._shape;
   const auto [obatch, olen] = out._shape;
 
@@ -167,18 +213,13 @@ void CFFT::fft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) {
 
   auto& plan = in._data == out._data ? _fwd_inplace : _fwd_outplace;
   if (plan == nullptr) {
-    plan = fftw.plan(int(_len), in[0]._data, out[0]._data, FFTW_FORWARD);
+    plan = detail::fft_plan_1d(_len, in[0]._data, out[0]._data, FFTW_FORWARD);
   }
 
-  for (auto i = 0U; i < ibatch; ++i) {
-    auto tmp_in = in[i];
-    auto tmp_out = out[i];
-    fftw.exec(plan, tmp_in._data, tmp_out._data);
-  }
+  detail::fft_exec_batch(plan, in, out, u32(ibatch));
 }
 
 void CFFT::ifft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) {
-  auto& fftw = FFTW3F::instance();
   const auto [ibatch, ilen] = in._shape;
   const auto [obatch, olen] = out._shape;
 
@@ -190,22 +231,17 @@ void CFFT::ifft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) {
 
   auto& plan = in._data == out._data ? _inv_inplace : _inv_outplace;
   if (plan == nullptr) {
-    plan = fftw.plan(int(_len), in[0]._data, out[0]._data, FFTW_BACKWARD);
+    plan = detail::fft_plan_1d(_len, in[0]._data, out[0]._data, FFTW_BACKWARD);
   }
 
-  for (auto i = 0U; i < ibatch; ++i) {
-    auto tmp_in = in[i];
-    auto tmp_out = out[i];
-    fftw.exec(plan, tmp_in._data, tmp_out._data);
-  }
+  detail::fft_exec_batch(plan, in, out, u32(ibatch));
 }
 
 RFFT::RFFT() noexcept {}
 
 RFFT::~RFFT() {
-  auto& fftw = FFTW3F::instance();
-  fftw.drop(_r2c);
-  fftw.drop(_c2r);
+  detail::fft_destroy(_r2c);
+  detail::fft_destroy(_c2r);
 }
 
 RFFT::RFFT(RFFT&& other) noexcept
@@ -220,10 +256,8 @@ RFFT& RFFT::operator=(RFFT&& other) noexcept {
 }
 
 auto RFFT::new_(u32 len) -> RFFT {
-  auto& fftw = FFTW3F::instance();
-  const auto n = num::saturating_cast<int>(len);
-  const auto r2c = fftw.plan(n, ptr::null<f32>(), ptr::null<c32>(), FFTW_FORWARD);
-  const auto c2r = fftw.plan(n, ptr::null<c32>(), ptr::null<f32>(), FFTW_BACKWARD);
+  const auto r2c = detail::fft_plan_1d(len, ptr::null<f32>(), ptr::null<c32>(), FFTW_FORWARD);
+  const auto c2r = detail::fft_plan_1d(len, ptr::null<c32>(), ptr::null<f32>(), FFTW_BACKWARD);
 
   auto res = RFFT{};
   res._len = len;
@@ -233,7 +267,6 @@ auto RFFT::new_(u32 len) -> RFFT {
 }
 
 void RFFT::fft(math::NdView<f32, 1> in, math::NdView<c32, 1> out) {
-  auto& fftw = FFTW3F::instance();
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
   sfc::assert_(in.is_contiguous(), "RFFT::fft: in is not contiguous");
@@ -241,11 +274,10 @@ void RFFT::fft(math::NdView<f32, 1> in, math::NdView<c32, 1> out) {
   sfc::assert_(in._shape[0] == full_len, "RFFT::fft: in.shape({}) not match fft.len(={})", in._shape, _len);
   sfc::assert_(out._shape[0] == half_len, "RFFT::fft: out.shape({}) not match fft.len(={})/2+1", out._shape, _len);
 
-  fftw.exec(_r2c, in._data, out._data);
+  detail::fft_exec(_r2c, in._data, out._data);
 }
 
 void RFFT::ifft(math::NdView<c32, 1> in, math::NdView<f32, 1> out) {
-  auto& fftw = FFTW3F::instance();
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
   sfc::assert_(in.is_contiguous(), "RFFT::ifft: in is not contiguous");
@@ -253,11 +285,10 @@ void RFFT::ifft(math::NdView<c32, 1> in, math::NdView<f32, 1> out) {
   sfc::assert_(in._shape[0] == half_len, "RFFT::ifft: in.shape({}) not match fft.len(={})/2+1", in._shape, _len);
   sfc::assert_(out._shape[0] == full_len, "RFFT::ifft: out.shape({}) not match fft.len(={})", out._shape, _len);
 
-  fftw.exec(_c2r, in._data, out._data);
+  detail::fft_exec(_c2r, in._data, out._data);
 }
 
 void RFFT::fft(math::NdView<f32, 2> in, math::NdView<c32, 2> out) {
-  auto& fftw = FFTW3F::instance();
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
   const auto [ibatch, ilen] = in._shape;
@@ -269,15 +300,10 @@ void RFFT::fft(math::NdView<f32, 2> in, math::NdView<c32, 2> out) {
   sfc::assert_(olen == half_len, "RFFT::fft: out.shape({}) not match fft.len(={})/2+1", out._shape, _len);
   sfc::assert_(ibatch == obatch, "RFFT::fft: in.shape({}) not match out.shape({})", in._shape, out._shape);
 
-  for (auto i = 0U; i < ibatch; ++i) {
-    auto tmp_in = in[i];
-    auto tmp_out = out[i];
-    fftw.exec(_r2c, tmp_in._data, tmp_out._data);
-  }
+  detail::fft_exec_batch(_r2c, in, out, ibatch);
 }
 
 void RFFT::ifft(math::NdView<c32, 2> in, math::NdView<f32, 2> out) {
-  auto& fftw = FFTW3F::instance();
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
   const auto [ibatch, ilen] = in._shape;
@@ -289,11 +315,7 @@ void RFFT::ifft(math::NdView<c32, 2> in, math::NdView<f32, 2> out) {
   sfc::assert_(olen == full_len, "RFFT::ifft: out.shape({}) not match fft.len(={})", out._shape, _len);
   sfc::assert_(ibatch == obatch, "RFFT::ifft: in.shape({}) not match out.shape({})", in._shape, out._shape);
 
-  for (auto i = 0U; i < ibatch; ++i) {
-    auto tmp_in = in[i];
-    auto tmp_out = out[i];
-    fftw.exec(_c2r, tmp_in._data, tmp_out._data);
-  }
+  detail::fft_exec_batch(_c2r, in, out, ibatch);
 }
 
 }  // namespace sfc::math

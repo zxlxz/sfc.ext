@@ -5,6 +5,16 @@
 
 namespace sfc::cuda {
 
+namespace detail {
+
+auto err_name(CUresult err) -> const char* {
+  const char* name = "CUDA_ERROR_UNKNOWN";
+  (void)cuGetErrorName(err, &name);
+  return name;
+}
+
+}  // namespace detail
+
 static thread_local dim3_t _tls_work_size{1, 1, 1};
 static thread_local dim3_t _tls_block_size{1, 1, 1};
 
@@ -29,9 +39,9 @@ void set_worksize(dim3_t ws, dim3_t bs) {
 }
 
 auto to_str(Error err) -> str::Str {
-  const char* err_name = nullptr;
-  cuGetErrorName(static_cast<CUresult>(err), &err_name);
-  return str::Str(err_name ? err_name : "CUDA_ERROR_UNKNOWN");
+  const auto err_code = static_cast<CUresult>(err);
+  const auto err_name = detail::err_name(err_code);
+  return err_name;
 }
 
 }  // namespace sfc::cuda

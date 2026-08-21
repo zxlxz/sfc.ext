@@ -4,24 +4,16 @@
 
 namespace sfc::cuda {
 
-using lib_t = CUmodule;
-using kernel_t = CUfunction;
+using lib_t = struct CUlib_st*;
+using ker_t = struct CUkern_st*;
+using fun_t = struct CUfunc_st*;
 
-auto launch_kernel(kernel_t f, void** args) -> Result<>;
+auto launch(fun_t func, Slice<void*> args) -> Result<>;
 
-template <class>
 struct Kernel;
 
-template <class... T>
-struct Kernel<void(T...)> {
-  kernel_t _kernel;
-
- public:
-  auto operator()(const T&... args) -> Result<> {
-    void* argv[] = {&args...};
-    return cuda::launch_kernel(_kernel, argv);
-  }
-};
+template <class>
+struct Function;
 
 class Library {
   lib_t _lib{nullptr};
@@ -33,10 +25,32 @@ class Library {
   Library(Library&& other) noexcept;
   Library& operator=(Library&& other) noexcept;
 
-  static auto load(const char* path) -> Library;
+  static auto load(Str path) -> Result<Library>;
 
  public:
-  auto get_kernel(const char* name) const -> Result<kernel_t>;
+  auto get_kern(const char* name) const -> Result<Kernel>;
+};
+
+struct Kernel {
+  ker_t _ker;
+  fun_t _func;
+
+ public:
+  template <class F>
+  auto as_func() -> Function<F> {
+    return Function<F>{_func};
+  }
+};
+
+template <class... T>
+struct Function<void(T...)> {
+  fun_t _func;
+
+ public:
+  auto operator()(const T&... args) -> Result<> {
+    void* argv[] = {&args...};
+    return cuda::launch(_func, argv);
+  }
 };
 
 }  // namespace sfc::cuda

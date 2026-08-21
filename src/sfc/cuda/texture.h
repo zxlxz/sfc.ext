@@ -45,9 +45,9 @@ class Array {
 template <class T, int N = 3>
 class Texture {
   using Tex = cuda::Tex<T, N>;
-  using Buf = cuda::Array<T>;
+  using Arr = cuda::Array<T>;
   u64 _tex = {};
-  Buf _buf = {};
+  Arr _arr = {};
 
  public:
   Texture() noexcept;
@@ -72,9 +72,9 @@ class Texture {
 template <class T, int N = 3>
 class LTexture {
   using Tex = cuda::LTex<T, N>;
-  using Buf = cuda::Array<T>;
+  using Arr = cuda::Array<T>;
   u64 _tex = {};
-  Buf _buf = {};
+  Arr _arr = {};
 
  public:
   LTexture() noexcept;

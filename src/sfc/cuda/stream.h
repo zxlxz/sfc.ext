@@ -28,11 +28,11 @@ class Stream {
 };
 
 class Stream::ScopeGuard {
-  stream_t _enter;
-  stream_t _exit;
+  stream_t _stream_in;
+  stream_t _stream_out;
 
  public:
-  ScopeGuard(stream_t enter, stream_t exit);
+  explicit ScopeGuard(const Stream& stream);
   ~ScopeGuard();
 
   ScopeGuard(const ScopeGuard&) = delete;

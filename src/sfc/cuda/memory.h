@@ -11,7 +11,6 @@ enum class MemKind {
   Heap = 0,
   Host = 1,
   Device = 2,
-  Managed = 3,
 };
 auto to_str(MemKind kind) -> str::Str;
 
@@ -24,7 +23,6 @@ struct MemLocation {
   static auto Heap() -> MemLocation;
   static auto Host() -> MemLocation;
   static auto Device(u32 device = 0) -> MemLocation;
-  static auto Managed(u32 device = 0) -> MemLocation;
 
  public:
   auto pool() const -> mem_pool::Pool&;
