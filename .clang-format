@@ -1,0 +1,32 @@
+---
+BasedOnStyle: Google
+---
+Language: Cpp
+Standard: Latest
+ColumnLimit: 120
+
+AlignConsecutiveMacros: true
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Empty
+
+BinPackArguments: false
+BinPackParameters: false
+
+# break
+BreakConstructorInitializers: BeforeComma
+RequiresClausePosition: SingleLine
+
+# Penalties
+PenaltyBreakOpenParenthesis: 21
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakAssignment: 19
+
+# Sort
+SortIncludes: false
+SortUsingDeclarations: false

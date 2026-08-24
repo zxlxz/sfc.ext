@@ -1,0 +1,13 @@
+
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_LIST_DIR}")
+
+if(WIN32)
+  set(_LOCAL_PREFIX "A:/.local")
+  set(CMAKE_INCLUDE_PATH "${_LOCAL_PREFIX}/include")
+  set(CMAKE_LIBRARY_PATH "${_LOCAL_PREFIX}/lib")
+  set(CMAKE_PROGRAM_PATH "${_LOCAL_PREFIX}/bin")
+endif()
+
+if (APPLE)
+  include(${CMAKE_CURRENT_LIST_DIR}/cuda.cmake)
+endif()
