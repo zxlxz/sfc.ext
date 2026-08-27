@@ -34,13 +34,13 @@ class [[nodiscard]] Tensor {
 
   static auto new_(const u32 (&shape)[N], A alloc = {}) -> Tensor {
     const auto numel = View{nullptr, shape, {}}.numel();
-    auto buf = Buff::with_capacity(numel * sizeof(T), mem::move(alloc));
+    auto buf = Buff::with_capacity(numel, mem::move(alloc));
     return Tensor::from_buf(mem::move(buf), shape);
   }
 
   static auto new_zeroerd(const u32 (&shape)[N], A alloc = {}) -> Tensor {
     const auto numel = View{nullptr, shape, {}}.numel();
-    auto buf = Buff::with_capacity_zeroed(numel * sizeof(T), mem::move(alloc));
+    auto buf = Buff::with_capacity_zeroed(numel, mem::move(alloc));
     return Tensor::from_buf(mem::move(buf), shape);
   }
 
