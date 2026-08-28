@@ -11,58 +11,95 @@
 
 namespace sfc::math {
 
-static constexpr f64 PI = 3.14159265358979323846;
+static constexpr f32 PI = 3.1415927F;
+static constexpr f32 E = 2.7182817F;
+static constexpr f32 Ln2 = 0.6931472F;
+static constexpr f32 Ln10 = 2.302585F;
 
-using ::round;
-using ::roundf;
+// AVX: vroundps(0)
+inline auto roundf(f32 x) -> f32 {
+  return __builtin_roundf(x);
+}
 
-using ::ceil;
-using ::ceilf;
+// AVX: voundps(1)
+inline auto floorf(f32 x) -> f32 {
+  return __builtin_floorf(x);
+}
 
-using ::floor;
-using ::floorf;
+// AVX: vroundps(2)
+inline auto ceilf(f32 x) -> f32 {
+  return __builtin_ceilf(x);
+}
 
-using ::fabs;
-using ::fabsf;
+// AVX: andps(0x7FFFFFFF)
+inline auto fabsf(f32 x) -> f32 {
+  return __builtin_fabsf(x);
+}
 
-using ::sqrt;
-using ::sqrtf;
+// AVX: vsqrtps
+inline auto sqrtf(f32 x) -> f32 {
+  return __builtin_sqrtf(x);
+}
 
-using ::hypot;
-using ::hypotf;
+// libm: exp
+inline auto expf(f32 x) -> f32 {
+  return __builtin_expf(x);
+}
 
-using ::exp;
-using ::expf;
+// libm: log
+inline auto logf(f32 x) -> f32 {
+  return __builtin_logf(x);
+}
 
-using ::pow;
-using ::powf;
+// libm: log2
+inline auto log2f(f32 x) -> f32 {
+  return __builtin_log2f(x);
+}
 
-using ::log;
-using ::logf;
+// libm: log10
+inline auto log10f(f32 x) -> f32 {
+  return __builtin_log10f(x);
+}
 
-using ::log2;
-using ::log2f;
+// libm: pow
+inline auto powf(f32 x, f32 y) -> f32 {
+  return __builtin_powf(x, y);
+}
 
-using ::log10;
-using ::log10f;
+// libm: hypot
+inline auto hypotf(f32 x, f32 y) -> f32 {
+  return __builtin_hypotf(x, y);
+}
 
-using ::sin;
-using ::sinf;
+// libm: sin
+inline auto sinf(f32 x) -> f32 {
+  return __builtin_sinf(x);
+}
 
-using ::cos;
-using ::cosf;
+// libm: cos
+inline auto cosf(f32 x) -> f32 {
+  return __builtin_cosf(x);
+}
 
-using ::tan;
-using ::tanf;
+// libm: tan
+inline auto tanf(f32 x) -> f32 {
+  return __builtin_tanf(x);
+}
 
-using ::asin;
-using ::asinf;
+// libm: asin
+inline auto asinf(f32 x) -> f32 {
+  return __builtin_asinf(x);
+}
 
-using ::acos;
-using ::acosf;
+// libm: acos
+inline auto acosf(f32 x) -> f32 {
+  return __builtin_acosf(x);
+}
 
-using ::atan2;
-using ::atan2f;
+// libm: atan2
+inline auto atan2f(f32 y, f32 x) -> f32 {
+  return __builtin_atan2f(y, x);
+}
 
 template <class T>
 auto clamp(T x, T min_val, T max_val) -> T {

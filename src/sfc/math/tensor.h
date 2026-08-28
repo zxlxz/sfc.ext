@@ -14,11 +14,14 @@ class [[nodiscard]] Tensor {
   using A = mem_pool::Allocator;
   using Buff = Buffer<T, A>;
   using View = NdView<T, N>;
+  using shape_t = u32[N];
+  using strides_t = u32[N];
+
   Buff _buff{};
   View _view{};
 
  public:
-  Tensor() noexcept : _buff{}, _view{nullptr, {}, {}} {}
+  Tensor() noexcept {}
   ~Tensor() {}
 
   Tensor(Tensor&& other) noexcept = default;
@@ -28,22 +31,23 @@ class [[nodiscard]] Tensor {
     const auto ptr = ptr::cast<T>(buf.ptr());
     auto res = Tensor{};
     res._buff = mem::move(buf);
-    res._view = View::from_raw(ptr, shape);
+    res._view = View{ptr, shape};
     return res;
   }
 
   static auto new_(const u32 (&shape)[N], A alloc = {}) -> Tensor {
-    const auto numel = View{nullptr, shape, {}}.numel();
+    const auto numel = View{nullptr, shape}.numel();
     auto buf = Buff::with_capacity(numel, mem::move(alloc));
     return Tensor::from_buf(mem::move(buf), shape);
   }
 
   static auto new_zeroerd(const u32 (&shape)[N], A alloc = {}) -> Tensor {
-    const auto numel = View{nullptr, shape, {}}.numel();
+    const auto numel = View{nullptr, shape}.numel();
     auto buf = Buff::with_capacity_zeroed(numel, mem::move(alloc));
     return Tensor::from_buf(mem::move(buf), shape);
   }
 
+ public:
   auto as_ptr() const -> const T* {
     return _view._data;
   }
@@ -56,11 +60,11 @@ class [[nodiscard]] Tensor {
     return _view.numel();
   }
 
-  auto shape() const -> const u32 (&)[N] {
+  auto shape() const -> const shape_t& {
     return _view._shape;
   }
 
-  auto strides() const -> const u32 (&)[N] {
+  auto strides() const -> const strides_t& {
     return _view._strides;
   }
 
@@ -89,11 +93,11 @@ class [[nodiscard]] Tensor {
     return _view;
   }
 
-  auto operator[](u32 idx) const -> decltype(auto) {
+  auto operator[](u32 idx) const {
     return _view[idx];
   }
 
-  auto operator[](u32 idx) -> decltype(auto) {
+  auto operator[](u32 idx) {
     return _view[idx];
   }
 

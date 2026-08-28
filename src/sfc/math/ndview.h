@@ -22,10 +22,7 @@ struct NdView<T, 1> {
   __hd NdView(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0]}, _strides{strides[0]} {}
 
-  __hd static auto from_raw(T* data, const u32 (&shape)[NDIM]) -> NdView {
-    u32 strides[NDIM] = {1};
-    return NdView{data, shape, strides};
-  }
+  __hd NdView(T* data, const u32 (&shape)[NDIM]) : _data{data}, _shape{shape[0]}, _strides{1} {}
 
  public:
   __hd auto len() const -> u32 {
@@ -164,10 +161,7 @@ struct NdView<T, 2> {
   __hd NdView(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0], shape[1]}, _strides{strides[0], strides[1]} {}
 
-  __hd static auto from_raw(T* data, const u32 (&shape)[NDIM]) -> NdView {
-    const u32 strides[] = {shape[1], 1};
-    return NdView{data, shape, strides};
-  }
+  __hd NdView(T* data, const u32 (&shape)[NDIM]) : _data{data}, _shape{shape[0], shape[1]}, _strides{shape[1], 1} {}
 
  public:
   __hd auto len() const -> u32 {
@@ -313,10 +307,8 @@ struct NdView<T, 3> {
   __hd NdView(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
       : _data{data}, _shape{shape[0], shape[1], shape[2]}, _strides{strides[0], strides[1], strides[2]} {}
 
-  __hd static auto from_raw(T* data, const u32 (&shape)[NDIM]) -> NdView {
-    const u32 strides[] = {shape[1] * shape[2], shape[2], 1};
-    return NdView{data, shape, strides};
-  }
+  __hd NdView(T* data, const u32 (&shape)[NDIM])
+      : _data{data}, _shape{shape[0], shape[1], shape[2]}, _strides{shape[1] * shape[2], shape[2], 1} {}
 
  public:
   __hd auto len() const -> u32 {
@@ -418,10 +410,10 @@ struct NdView<T, 4> {
       , _shape{shape[0], shape[1], shape[2], shape[3]}
       , _strides{strides[0], strides[1], strides[2], strides[3]} {}
 
-  __hd static auto from_raw(T* data, const u32 (&shape)[NDIM]) -> NdView {
-    const u32 strides[] = {shape[1] * shape[2] * shape[3], shape[2] * shape[3], shape[3], 1};
-    return NdView{data, shape, strides};
-  }
+  __hd NdView(T* data, const u32 (&shape)[NDIM])
+      : _data{data}
+      , _shape{shape[0], shape[1], shape[2], shape[3]}
+      , _strides{shape[1] * shape[2] * shape[3], shape[2] * shape[3], shape[3], 1} {}
 
  public:
   __hd auto len() const -> u32 {
@@ -469,5 +461,15 @@ struct NdView<T, 4> {
     _data[offset] = value;
   }
 };
+
+template <class T, u32 A, u32 B>
+auto reshape(NdView<T, A> view, const u32 (&shape)[B]) -> NdView<T, B> {
+  auto res = NdView<T, B>{view.data(), shape};
+  if (shape[0] == 0) {
+    res._shape[0] = 1;                           // set to 1 temporarily
+    res._shape[0] = view.numel() / res.numel();  // adjust shape[0]
+  }
+  return res;
+}
 
 }  // namespace sfc::math
