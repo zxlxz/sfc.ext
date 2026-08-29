@@ -13,16 +13,16 @@ struct NdView<T, 1> {
   using Item = T;
 
   T* _data = nullptr;
-  u32 _shape[NDIM] = {};
-  u32 _strides[NDIM] = {};
+  u32 _shape[1] = {};
+  u32 _strides[1] = {};
 
  public:
   __hd NdView() noexcept : _data{nullptr}, _shape{0}, _strides{0} {}
 
-  __hd NdView(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
+  __hd NdView(T* data, const u32 (&shape)[1], const u32 (&strides)[1])
       : _data{data}, _shape{shape[0]}, _strides{strides[0]} {}
 
-  __hd NdView(T* data, const u32 (&shape)[NDIM]) : _data{data}, _shape{shape[0]}, _strides{1} {}
+  __hd NdView(T* data, const u32 (&shape)[1]) : _data{data}, _shape{shape[0]}, _strides{1} {}
 
  public:
   __hd auto len() const -> u32 {
@@ -37,12 +37,19 @@ struct NdView<T, 1> {
     return _shape[0];
   }
 
-  __hd auto operator[](u32 i) const -> T {
-    return _data[i * _strides[0]];
+ public:
+  __hd auto contains(u32 i) const -> bool {
+    return i < _shape[0];
   }
 
-  __hd auto operator[](u32 i) -> T& {
-    return _data[i * _strides[0]];
+  __hd auto get(const u32 (&idx)[1]) const -> T {
+    const auto offset = idx[0] * _strides[0];
+    return _data[offset];
+  }
+
+  __hd void set(const u32 (&idx)[1], const T& value) {
+    const auto offset = idx[0] * _strides[0];
+    _data[offset] = value;
   }
 
   __hd auto operator[](const u32 (&idx)[1]) const -> const T& {
@@ -55,56 +62,12 @@ struct NdView<T, 1> {
     return _data[offset];
   }
 
- public:
-  __hd auto contains(u32 i) const -> bool {
-    return i < _shape[0];
+  __hd auto operator[](u32 i) const -> T {
+    return _data[i * _strides[0]];
   }
 
-  __hd auto get(u32 i) const -> T {
-    const auto offset = i * _strides[0];
-    return _data[offset];
-  }
-
-  __hd void set(u32 i, const T& value) {
-    const auto offset = i * _strides[0];
-    _data[offset] = value;
-  }
-
-  __hd auto get_nearest(f32 x) const -> T {
-    const auto ix = math::roundf(x);
-    if (ix < 0 || ix > i32(_shape[0]) - 1) {
-      return 0;
-    }
-    return this->get(u32(ix));
-  }
-
-  __hd auto get_interp(f32 x) const -> T {
-    // caculate intgral of linear function in [x-0.5, x+0.5]
-    const auto nx = _shape[0];
-    const auto x0 = i32(math::floorf(x - 0.5f));
-    const auto x1 = x0 + 1;
-
-    if (x1 < 0 || x0 > nx - 1) {
-      return 0;
-    }
-
-    if (x1 == 0) {
-      const auto p = x + 0.5f;  // line[0, x+0.5]
-      const auto t = (*this)[0];
-      return p * t;
-    }
-
-    if (x0 == nx - 1) {
-      const auto p = f32(nx) - (x - 0.5f);  // line[x-0.5 , nx]
-      const auto t = (*this)[nx - 1];
-      return p * t;
-    }
-
-    const auto t0 = (*this)[u32(x0)];
-    const auto t1 = (*this)[u32(x1)];
-    const auto p = x - 0.5f - f32(x0);
-    const auto t = (1 - p) * t0 + p * t1;
-    return t;
+  __hd auto operator[](u32 i) -> T& {
+    return _data[i * _strides[0]];
   }
 
  public:
@@ -152,16 +115,16 @@ struct NdView<T, 2> {
   using Item = T;
 
   T* _data = nullptr;
-  u32 _shape[NDIM] = {};
-  u32 _strides[NDIM] = {};
+  u32 _shape[2] = {};
+  u32 _strides[2] = {};
 
  public:
   __hd NdView() noexcept : _data{nullptr}, _shape{0, 0}, _strides{0, 0} {}
 
-  __hd NdView(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
+  __hd NdView(T* data, const u32 (&shape)[2], const u32 (&strides)[2])
       : _data{data}, _shape{shape[0], shape[1]}, _strides{strides[0], strides[1]} {}
 
-  __hd NdView(T* data, const u32 (&shape)[NDIM]) : _data{data}, _shape{shape[0], shape[1]}, _strides{shape[1], 1} {}
+  __hd NdView(T* data, const u32 (&shape)[2]) : _data{data}, _shape{shape[0], shape[1]}, _strides{shape[1], 1} {}
 
  public:
   __hd auto len() const -> u32 {
@@ -176,78 +139,45 @@ struct NdView<T, 2> {
     return _shape[0] * _shape[1];
   }
 
-  __hd auto operator[](u32 y) const -> NdView<T, 1> {
-    T* data = _data + y * _strides[0];
-    const u32 shape[] = {_shape[1]};
-    const u32 strides[] = {_strides[1]};
-    return {data, shape, strides};
-  }
-
-  __hd auto operator[](const u32 (&idx)[NDIM]) const -> const T& {
-    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
-    return _data[offset];
-  }
-
-  __hd auto operator[](const u32 (&idx)[NDIM]) -> T& {
-    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
-    return _data[offset];
-  }
-
  public:
-  __hd auto transpose() const -> NdView {
-    const u32 shape[] = {_shape[1], _shape[0]};
-    const u32 strides[] = {_strides[1], _strides[0]};
-    return {_data, shape, strides};
-  }
-
-  __hd auto contains(const u32 (&idx)[NDIM]) const -> bool {
+  __hd auto contains(const u32 (&idx)[2]) const -> bool {
     return idx[0] < _shape[0] && idx[1] < _shape[1];
   }
 
-  __hd auto get(const u32 (&idx)[NDIM]) const -> T {
+  __hd auto get(const u32 (&idx)[2]) const -> T {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
     return _data[offset];
   }
 
-  __hd void set(const u32 (&idx)[NDIM], const T& value) {
+  __hd void set(const u32 (&idx)[2], const T& value) {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
     _data[offset] = value;
   }
 
-  __hd auto get_interp(const f32 (&pos)[NDIM]) const -> T {
-    const auto [fy, fx] = pos;
-    const auto [ny, nx] = _shape;
+  __hd auto operator[](const u32 (&idx)[2]) const -> const T& {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
+    return _data[offset];
+  }
 
-    const auto y0 = i32(math::floorf(fy - 0.5f));
-    const auto y1 = y0 + 1;
+  __hd auto operator[](const u32 (&idx)[2]) -> T& {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1];
+    return _data[offset];
+  }
 
-    if (y1 < 0 || y0 > ny - 1) {
-      return 0;
-    }
-
-    if (y1 == 0) {
-      const auto p = fy + 0.5f;  // line[0, fy+0.5]
-      const auto t = (*this)[0].get_interp(fx);
-      return p * t;
-    }
-
-    if (y0 == ny - 1) {
-      const auto p = f32(ny) - (fy - 0.5f);  // line[fy-0.5 , ny]
-      const auto t = (*this)[ny - 1].get_interp(fx);
-      return p * t;
-    }
-
-    const auto t0 = (*this)[u32(y0)].get_interp(fx);
-    const auto t1 = (*this)[u32(y1)].get_interp(fx);
-    const auto p = fy - 0.5f - f32(y0);
-    const auto t = (1 - p) * t0 + p * t1;
-    return t;
+  __hd auto operator[](u32 i) const -> NdView<T, 1> {
+    return NdView<T, 1>{_data + i * _strides[0], {_shape[1]}, {_strides[1]}};
   }
 
  public:
 #ifndef __CUDACC__
   auto is_contiguous() const -> bool {
     return _strides[0] == _shape[1] && _strides[1] == 1;
+  }
+
+  auto transpose() const -> NdView {
+    const u32 shape[] = {_shape[1], _shape[0]};
+    const u32 strides[] = {_strides[1], _strides[0]};
+    return {_data, shape, strides};
   }
 
   void for_each(auto&& f) const {
@@ -298,16 +228,16 @@ struct NdView<T, 3> {
   using Item = T;
 
   T* _data = nullptr;
-  u32 _shape[NDIM] = {};
-  u32 _strides[NDIM] = {};
+  u32 _shape[3] = {};
+  u32 _strides[3] = {};
 
  public:
   __hd NdView() noexcept : _data{nullptr}, _shape{0, 0, 0}, _strides{0, 0, 0} {}
 
-  __hd NdView(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
+  __hd NdView(T* data, const u32 (&shape)[3], const u32 (&strides)[3])
       : _data{data}, _shape{shape[0], shape[1], shape[2]}, _strides{strides[0], strides[1], strides[2]} {}
 
-  __hd NdView(T* data, const u32 (&shape)[NDIM])
+  __hd NdView(T* data, const u32 (&shape)[3])
       : _data{data}, _shape{shape[0], shape[1], shape[2]}, _strides{shape[1] * shape[2], shape[2], 1} {}
 
  public:
@@ -323,38 +253,40 @@ struct NdView<T, 3> {
     return _shape[0] * _shape[1] * _shape[2];
   }
 
-  __hd auto operator[](u32 z) const -> NdView<T, 2> {
-    T* data = _data + z * _strides[0];
-    const u32 shape[] = {_shape[1], _shape[2]};
-    const u32 strides[] = {_strides[1], _strides[2]};
-    return {data, shape, strides};
-  }
-
-  __hd auto operator[](const u32 (&idx)[NDIM]) const -> const T& {
-    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2];
-    return _data[offset];
-  }
-
-  __hd auto operator[](const u32 (&idx)[NDIM]) -> T& {
-    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2];
-    return _data[offset];
-  }
-
  public:
-  __hd auto contains(const u32 (&idx)[NDIM]) const -> bool {
+  __hd auto contains(const u32 (&idx)[3]) const -> bool {
     return idx[0] < _shape[0] && idx[1] < _shape[1] && idx[2] < _shape[2];
   }
 
-  __hd auto get(const u32 (&idx)[NDIM]) const -> T {
+  __hd auto get(const u32 (&idx)[3]) const -> T {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2];
     return _data[offset];
   }
 
-  __hd auto set(const u32 (&idx)[NDIM], const T& value) {
+  __hd auto set(const u32 (&idx)[3], const T& value) {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2];
     _data[offset] = value;
   }
 
+  __hd auto operator[](const u32 (&idx)[3]) const -> const T& {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2];
+    return _data[offset];
+  }
+
+  __hd auto operator[](const u32 (&idx)[3]) -> T& {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2];
+    return _data[offset];
+  }
+
+  __hd auto operator[](u32 i) const -> NdView<T, 2> {
+    return NdView<T, 2>{
+        _data + i * _strides[0],
+        {_shape[1], _shape[2]},
+        {_strides[1], _strides[2]},
+    };
+  }
+
+ public:
 #ifndef __CUDACC__
   auto is_contiguous() const -> bool {
     return _strides[0] == _shape[1] * _shape[2] && _strides[1] == _shape[2] && _strides[2] == 1;
@@ -399,18 +331,18 @@ struct NdView<T, 4> {
   using Item = T;
 
   T* _data = nullptr;
-  u32 _shape[NDIM] = {};
-  u32 _strides[NDIM] = {};
+  u32 _shape[4] = {};
+  u32 _strides[4] = {};
 
  public:
   __hd NdView() noexcept : _data{nullptr}, _shape{0, 0, 0, 0}, _strides{0, 0, 0, 0} {}
 
-  __hd NdView(T* data, const u32 (&shape)[NDIM], const u32 (&strides)[NDIM])
+  __hd NdView(T* data, const u32 (&shape)[4], const u32 (&strides)[4])
       : _data{data}
       , _shape{shape[0], shape[1], shape[2], shape[3]}
       , _strides{strides[0], strides[1], strides[2], strides[3]} {}
 
-  __hd NdView(T* data, const u32 (&shape)[NDIM])
+  __hd NdView(T* data, const u32 (&shape)[4])
       : _data{data}
       , _shape{shape[0], shape[1], shape[2], shape[3]}
       , _strides{shape[1] * shape[2] * shape[3], shape[2] * shape[3], shape[3], 1} {}
@@ -429,47 +361,49 @@ struct NdView<T, 4> {
   }
 
  public:
-  __hd auto operator[](u32 i) const -> NdView<T, 3> {
-    T* data = _data + i * _strides[0];
-    const u32 shape[] = {_shape[1], _shape[2], _shape[3]};
-    const u32 strides[] = {_strides[1], _strides[2], _strides[3]};
-    return {data, shape, strides};
-  }
-
-  __hd auto operator[](const u32 (&idx)[NDIM]) const -> const T& {
-    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2] + idx[3] * _strides[3];
-    return _data[offset];
-  }
-
-  __hd auto operator[](const u32 (&idx)[NDIM]) -> T& {
-    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2] + idx[3] * _strides[3];
-    return _data[offset];
-  }
-
- public:
-  __hd auto contains(const u32 (&idx)[NDIM]) const -> bool {
+  __hd auto contains(const u32 (&idx)[4]) const -> bool {
     return idx[0] < _shape[0] && idx[1] < _shape[1] && idx[2] < _shape[2] && idx[3] < _shape[3];
   }
 
-  __hd auto get(const u32 (&idx)[NDIM]) const -> T {
+  __hd auto get(const u32 (&idx)[4]) const -> T {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2] + idx[3] * _strides[3];
     return _data[offset];
   }
 
-  __hd auto set(const u32 (&idx)[NDIM], const T& value) {
+  __hd auto set(const u32 (&idx)[4], const T& value) {
     const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2] + idx[3] * _strides[3];
     _data[offset] = value;
+  }
+
+  __hd auto operator[](const u32 (&idx)[4]) const -> const T& {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2] + idx[3] * _strides[3];
+    return _data[offset];
+  }
+
+  __hd auto operator[](const u32 (&idx)[4]) -> T& {
+    const auto offset = idx[0] * _strides[0] + idx[1] * _strides[1] + idx[2] * _strides[2] + idx[3] * _strides[3];
+    return _data[offset];
+  }
+
+  __hd auto operator[](u32 i) const -> NdView<T, 3> {
+    return NdView<T, 3>{
+        _data + i * _strides[0],
+        {_shape[1], _shape[2], _shape[3]},
+        {_strides[1], _strides[2], _strides[3]},
+    };
   }
 };
 
 template <class T, u32 A, u32 B>
-auto reshape(NdView<T, A> view, const u32 (&shape)[B]) -> NdView<T, B> {
-  auto res = NdView<T, B>{view.data(), shape};
-  if (shape[0] == 0) {
-    res._shape[0] = 1;                           // set to 1 temporarily
-    res._shape[0] = view.numel() / res.numel();  // adjust shape[0]
+auto reshape(NdView<T, A> src, const u32 (&new_shape)[B]) -> NdView<T, B> {
+  if (!src.is_contiguous()) return {};
+  auto dst = NdView<T, B>{src._data, new_shape};
+  if (new_shape[0] == 0) {
+    dst._shape[0] = 1;                          // set to 1 temporarily
+    dst._shape[0] = src.numel() / dst.numel();  // adjust shape[0]
   }
-  return res;
+  if (src.numel() != dst.numel()) return {};
+  return dst;
 }
 
 }  // namespace sfc::math

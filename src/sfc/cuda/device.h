@@ -13,15 +13,15 @@ struct Device {
   static auto count() -> Result<u32>;
   static auto current() -> Result<Device>;
   static auto sync() -> Result<>;
-  static auto of(u32 id) -> Result<Device>;
+  static auto try_from(u32 id) -> Result<Device>;
 
  public:
   struct Info;
   auto info() const -> Result<Info>;
 
  public:
-  class ScopeGuard;
-  auto scope() -> ScopeGuard;
+  class Entered;
+  auto enter() -> Entered;
 };
 
 struct Device::Info {
@@ -37,16 +37,16 @@ struct Device::Info {
   void fmt(fmt::Formatter& f) const;
 };
 
-class Device::ScopeGuard {
-  int _dev_in;   // in scope
-  int _dev_out;  // out scope
+class Device::Entered {
+  int _dev_in;   // in enter
+  int _dev_out;  // out enter
 
  public:
-  explicit ScopeGuard(const Device& dev);
-  ~ScopeGuard();
+  explicit Entered(const Device& dev);
+  ~Entered();
 
-  ScopeGuard(const ScopeGuard&) = delete;
-  ScopeGuard& operator=(const ScopeGuard&) = delete;
+  Entered(const Entered&) = delete;
+  Entered& operator=(const Entered&) = delete;
 };
 
 }  // namespace sfc::cuda

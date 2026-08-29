@@ -18,25 +18,25 @@ class Stream {
   Stream(Stream&& other) noexcept;
   Stream& operator=(Stream&& other) noexcept;
 
-  static auto create(u32 flags = 0) -> Stream;
+  static auto new_(u32 flags = 0) -> Stream;
 
  public:
   auto sync() -> Result<>;
 
-  class ScopeGuard;
-  auto scope() -> ScopeGuard;
+  class Entered;
+  auto enter() -> Entered;
 };
 
-class Stream::ScopeGuard {
+class Stream::Entered {
   stream_t _stream_in;
   stream_t _stream_out;
 
  public:
-  explicit ScopeGuard(const Stream& stream);
-  ~ScopeGuard();
+  explicit Entered(Stream& stream);
+  ~Entered() noexcept;
 
-  ScopeGuard(const ScopeGuard&) = delete;
-  ScopeGuard& operator=(const ScopeGuard&) = delete;
+  Entered(const Entered&) = delete;
+  Entered& operator=(const Entered&) = delete;
 };
 
 auto stream_current() -> stream_t;

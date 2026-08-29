@@ -12,7 +12,7 @@ namespace detail {
 
 using HeapAlloc = sfc::alloc::Global;
 
-auto to_device_ptr(void* p) -> CUdeviceptr {
+auto to_device_ptr(const void* p) -> CUdeviceptr {
   return __builtin_bit_cast(CUdeviceptr, p);
 }
 
@@ -59,14 +59,54 @@ auto device_dealloc(void* ptr, [[maybe_unused]] Layout layout) -> Result<> {
   return Ok{};
 }
 
-auto memcpy_async(void* dst, const void* src, usize size, stream_t stream) -> Result<> {
+auto memcpy_uva(void* dst, const void* src, usize size, stream_t stream) -> Result<> {
   if (size == 0) {
     return Ok{};
   }
 
-  const auto d_src = to_device_ptr(const_cast<void*>(src));
+  const auto d_src = to_device_ptr(src);
   const auto d_dst = to_device_ptr(dst);
   if (auto err = cuMemcpyAsync(d_dst, d_src, size, stream)) {
+    return Error(err);
+  }
+
+  return Ok{};
+}
+
+auto memcpy_h2d(void* dst, const void* src, usize size, stream_t stream) -> Result<> {
+  if (size == 0) {
+    return Ok{};
+  }
+
+  const auto d_dst = to_device_ptr(dst);
+  if (auto err = cuMemcpyHtoDAsync(d_dst, src, size, stream)) {
+    return Error(err);
+  }
+
+  return Ok{};
+}
+
+auto memcpy_d2h(void* dst, const void* src, usize size, stream_t stream) -> Result<> {
+  if (size == 0) {
+    return Ok{};
+  }
+
+  const auto d_src = to_device_ptr(src);
+  if (auto err = cuMemcpyDtoHAsync(dst, d_src, size, stream)) {
+    return Error(err);
+  }
+
+  return Ok{};
+}
+
+auto memcpy_d2d(void* dst, const void* src, usize size, stream_t stream) -> Result<> {
+  if (size == 0) {
+    return Ok{};
+  }
+
+  const auto d_src = to_device_ptr(src);
+  const auto d_dst = to_device_ptr(dst);
+  if (auto err = cuMemcpyDtoDAsync(d_dst, d_src, size, stream)) {
     return Error(err);
   }
 
@@ -112,6 +152,14 @@ auto MemLocation::Device(u32 device) -> MemLocation {
   return {.kind = MemKind::Device, .device = device};
 }
 
+auto MemLocation::on_host() const -> bool {
+  return kind == MemKind::Heap || kind == MemKind::Host;
+}
+
+auto MemLocation::on_device() const -> bool {
+  return kind == MemKind::Device;
+}
+
 auto MemLocation::allocate(mem::Layout layout) -> void* {
   cuda::init().unwrap();
 
@@ -126,14 +174,14 @@ auto MemLocation::allocate(mem::Layout layout) -> void* {
       break;
     }
     case MemKind::Host: {
-      auto dev = cuda::Device::of(device).unwrap();
-      auto scope = dev.scope();
+      auto dev = cuda::Device::try_from(device).unwrap();
+      auto enter = dev.enter();
       ptr = detail::host_alloc(layout).unwrap();
       break;
     }
     case MemKind::Device: {
-      auto dev = cuda::Device::of(device).unwrap();
-      auto scope = dev.scope();
+      auto dev = cuda::Device::try_from(device).unwrap();
+      auto enter = dev.enter();
       ptr = detail::device_alloc(layout).unwrap();
       break;
     }
@@ -154,14 +202,14 @@ void MemLocation::deallocate(void* ptr, mem::Layout layout) {
       break;
     }
     case MemKind::Host: {
-      auto dev = cuda::Device::of(device).unwrap();
-      auto scope = dev.scope();
+      auto dev = cuda::Device::try_from(device).unwrap();
+      auto enter = dev.enter();
       detail::host_dealloc(ptr, layout).unwrap();
       break;
     }
     case MemKind::Device: {
-      auto dev = cuda::Device::of(device).unwrap();
-      auto scope = dev.scope();
+      auto dev = cuda::Device::try_from(device).unwrap();
+      auto enter = dev.enter();
       detail::device_dealloc(ptr, layout).unwrap();
       break;
     }
@@ -196,31 +244,62 @@ auto MemLocation::pool() const -> mem_pool::Pool& {
   return Pool::global();
 }
 
-auto fill_bytes(void* ptr, u8 val, usize size) -> Result<> {
+auto MemBlock::fill_bytes(u8 val) -> Result<> {
   if (size == 0) {
     return Ok{};
   }
+
   if (ptr == nullptr) {
     return Error(CUDA_ERROR_INVALID_VALUE);
   }
 
+  if (loc.on_host()) {
+    __builtin_memset(ptr, val, size);
+    return Ok{};
+  }
+
+  auto dev = cuda::Device::try_from(loc.device).unwrap();
+  auto ctx = dev.enter();
   const auto stream = cuda::stream_current();
-  const auto ret = detail::memset_async(ptr, val, size, stream);
-  return ret;
+  _TRY(detail::memset_async(ptr, val, size, stream));
+  return Ok{};
 }
 
-auto copy_bytes(const void* src, void* dst, usize size) -> Result<> {
+auto MemBlock::copy_from(MemBlock src) -> Result<> {
+  if (size != src.size) {
+    return Error(CUDA_ERROR_INVALID_VALUE);
+  }
+
   if (size == 0) {
     return Ok{};
   }
 
-  if (src == nullptr || dst == nullptr) {
+  if (this->ptr == nullptr || src.ptr == nullptr) {
     return Error(CUDA_ERROR_INVALID_VALUE);
   }
 
+  if (this->loc.on_host() && src.loc.on_host()) {
+    __builtin_memcpy(ptr, src.ptr, size);
+    return Ok{};
+  }
+
+  auto dev_id = loc.on_device() ? loc.device : src.loc.on_device() ? src.loc.device : 0;
+  auto dev = cuda::Device::try_from(dev_id).unwrap();
+  auto ctx = dev.enter();
   const auto stream = cuda::stream_current();
-  const auto ret = detail::memcpy_async(dst, src, size, stream);
-  return ret;
+
+  if (loc.on_host() && src.loc.on_device()) {
+    _TRY(detail::memcpy_h2d(ptr, src.ptr, size, stream));
+  } else if (loc.on_device() && src.loc.on_host()) {
+    _TRY(detail::memcpy_d2h(ptr, src.ptr, size, stream));
+  } else if (loc.on_device() && src.loc.on_device()) {
+    _TRY(detail::memcpy_d2d(ptr, src.ptr, size, stream));
+  } else {
+    // NOTE: this branch will not be reached
+    // only to handle unexpected memory locations
+    _TRY(detail::memcpy_uva(ptr, src.ptr, size, stream));
+  }
+  return Ok{};
 }
 
 }  // namespace sfc::cuda

@@ -9,7 +9,7 @@ SFC_TEST(device_query) {
 
   io::println("cuda.dev: count={}", dev_cnt);
   for (auto i = 0U; i < dev_cnt; ++i) {
-    const auto dev = Device::of(i).unwrap();
+    const auto dev = Device::try_from(i).unwrap();
     const auto info = dev.info().unwrap();
     io::println("cuda.dev[{}] = {#}", i, info);
   }

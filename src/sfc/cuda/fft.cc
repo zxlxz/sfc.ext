@@ -40,6 +40,7 @@ class CUFFT {
   decltype(cufftExecC2C)* _cufftExecC2C = nullptr;
   decltype(cufftExecR2C)* _cufftExecR2C = nullptr;
   decltype(cufftExecC2R)* _cufftExecC2R = nullptr;
+  decltype(cufftSetStream)* _cufftSetStream = nullptr;
 
  public:
   static auto from(ffi::Library& lib) {
@@ -49,10 +50,18 @@ class CUFFT {
     res._cufftExecC2C = lib.func("cufftExecC2C");
     res._cufftExecR2C = lib.func("cufftExecR2C");
     res._cufftExecC2R = lib.func("cufftExecC2R");
+    res._cufftSetStream = lib.func("cufftSetStream");
     return res;
   }
 
  public:
+  auto set_stream(cufftHandle plan, CUstream stream) const -> Result<> {
+    if (auto err = _cufftSetStream(plan, stream)) {
+      return fft_err(err);
+    }
+    return Ok{};
+  }
+
   auto destroy(cufftHandle plan) const -> Result<> {
     if (auto err = _cufftDestroy(plan)) {
       return fft_err(err);
@@ -113,6 +122,8 @@ class CUFFT {
 };
 
 auto fft_lib() -> CUFFT& {
+  cuda::init().unwrap();
+
 #ifdef _WIN32
   const auto path = Str{"cufft64_12.dll"};
 #else
@@ -124,6 +135,10 @@ auto fft_lib() -> CUFFT& {
 }
 
 auto fft_destroy(cufftHandle plan) -> Result<> {
+  if (plan == 0) {
+    return Ok{};
+  }
+
   auto& lib = fft_lib();
   return lib.destroy(plan);
 }
@@ -131,24 +146,28 @@ auto fft_destroy(cufftHandle plan) -> Result<> {
 template <class I, class O>
 auto fft_plan_1d(u32 len, u32 batch) -> Result<cufftHandle> {
   auto& lib = fft_lib();
-  if constexpr (requires { trait::same_<I, c32> && trait::same_<O, c32>; }) {
+  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
     return lib.plan_1d_c2c(int(len), int(batch));
-  } else if constexpr (requires { trait::same_<I, f32> && trait::same_<O, c32>; }) {
+  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
     return lib.plan_1d_r2c(int(len), int(batch));
-  } else if constexpr (requires { trait::same_<I, c32> && trait::same_<O, f32>; }) {
+  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
     return lib.plan_1d_c2r(int(len), int(batch));
   } else {
     static_assert(false, "unsupported type combination");
   }
 }
 
-auto fft_exec(cufftHandle plan, auto in[], auto out[], int dir) -> Result<> {
+template <class I, class O>
+auto fft_exec(cufftHandle plan, I in[], O out[], int dir) -> Result<> {
   auto& lib = detail::fft_lib();
-  if constexpr (requires { lib.exec_c2c(plan, in, out, dir); }) {
+
+  _TRY(lib.set_stream(plan, cuda::stream_current()));
+
+  if constexpr (trait::same_<I, c32> && trait::same_<O, c32>) {
     return lib.exec_c2c(plan, in, out, dir);
-  } else if constexpr (requires { lib.exec_r2c(plan, in, out); }) {
+  } else if constexpr (trait::same_<I, f32> && trait::same_<O, c32>) {
     return lib.exec_r2c(plan, in, out);
-  } else if constexpr (requires { lib.exec_c2r(plan, in, out); }) {
+  } else if constexpr (trait::same_<I, c32> && trait::same_<O, f32>) {
     return lib.exec_c2r(plan, in, out);
   } else {
     static_assert(false, "unsupported type combination");
@@ -157,11 +176,12 @@ auto fft_exec(cufftHandle plan, auto in[], auto out[], int dir) -> Result<> {
 
 }  // namespace detail
 
-CFFT::CFFT() noexcept : _plan{0} {
-  cuda::init().unwrap();
-}
+CFFT::CFFT() noexcept : _plan{0} {}
 
 CFFT::~CFFT() {
+  if (_plan == 0) {
+    return;
+  }
   detail::fft_destroy(_plan).unwrap();
 }
 
@@ -250,6 +270,8 @@ auto CFFT::ifft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) -> Result<> {
 
   sfc::assert_(in.is_contiguous(), "CFFT::ifft: in is not contiguous");
   sfc::assert_(out.is_contiguous(), "CFFT::ifft: out is not contiguous");
+  sfc::assert_(ilen == _len, "CFFT::ifft: in.shape({}) not match fft.len(={})", ilen, _len);
+  sfc::assert_(olen == _len, "CFFT::ifft: out.shape({}) not match fft.len(={})", olen, _len);
   sfc::assert_(ibatch == obatch, "CFFT::ifft: in.batch({}) not match out.batch(={})", ibatch, obatch);
   sfc::assert_(ibatch % _batch == 0, "CFFT::ifft: in.batch({}) not multiple of batch(={})", ibatch, _batch);
   sfc::assert_(obatch % _batch == 0, "CFFT::ifft: out.batch({}) not multiple of batch(={})", obatch, _batch);
@@ -263,13 +285,11 @@ auto CFFT::ifft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) -> Result<> {
   return Ok{};
 }
 
-RFFT::RFFT() noexcept {
-  cuda::init().unwrap();
-}
+RFFT::RFFT() noexcept {}
 
 RFFT::~RFFT() {
-  detail::fft_destroy(_plan_r2c).unwrap();
-  detail::fft_destroy(_plan_c2r).unwrap();
+  if (_plan_r2c != 0) detail::fft_destroy(_plan_r2c).unwrap();
+  if (_plan_c2r != 0) detail::fft_destroy(_plan_c2r).unwrap();
 }
 
 RFFT::RFFT(RFFT&& other) noexcept
@@ -287,7 +307,7 @@ RFFT& RFFT::operator=(RFFT&& other) noexcept {
   return *this;
 }
 
-auto RFFT::create(u32 len, u32 batch) -> RFFT {
+auto RFFT::new_(u32 len, u32 batch) -> RFFT {
   const auto plan_r2c = detail::fft_plan_1d<f32, c32>(len, batch).unwrap();
   const auto plan_c2r = detail::fft_plan_1d<c32, f32>(len, batch).unwrap();
 

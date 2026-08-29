@@ -9,10 +9,6 @@ struct c32 {
   f32 imag;
 
  public:
-  __hd auto operator~() const -> c32 {
-    return c32{real, -imag};
-  }
-
   __hd auto operator-() const -> c32 {
     return c32{-real, -imag};
   }
@@ -53,9 +49,11 @@ struct c32 {
 
  public:
   void fmt(auto& f) const {
-    auto imp = f.debug_tuple("");
-    imp.field(real);
-    imp.field(imag);
+    auto spec = f.spec();
+    spec._sign = '+';
+    f.write_val(real);
+    f.write_val(imag);
+    f.write_char('i');
   }
 };
 

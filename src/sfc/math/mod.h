@@ -1,6 +1,5 @@
 #pragma once
 
-#include <math.h>
 #include <sfc/core/ops.h>
 
 #ifdef __CUDACC__
@@ -21,7 +20,7 @@ inline auto roundf(f32 x) -> f32 {
   return __builtin_roundf(x);
 }
 
-// AVX: voundps(1)
+// AVX: vroundps(1)
 inline auto floorf(f32 x) -> f32 {
   return __builtin_floorf(x);
 }

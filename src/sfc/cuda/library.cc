@@ -75,7 +75,7 @@ auto ker_func(ker_t ker) -> Result<CUfunction> {
   return Ok{func};
 }
 
-auto func_launch(CUfunction f, dim3_t grid_dim, dim3_t blk_dim, stream_t stream, void** args) -> Result<> {
+auto func_launch(CUfunction f, dim3_t grid_dim, dim3_t blk_dim, stream_t stream, const void* args[]) -> Result<> {
   if (f == nullptr) {
     return Error(CUDA_ERROR_INVALID_VALUE);
   }
@@ -93,7 +93,7 @@ auto func_launch(CUfunction f, dim3_t grid_dim, dim3_t blk_dim, stream_t stream,
       0,
   };
 
-  if (auto err = cuLaunchKernelEx(&config, f, args, nullptr)) {
+  if (auto err = cuLaunchKernelEx(&config, f, (void**)args, nullptr)) {
     return Error(err);
   }
   return Ok{};
@@ -132,7 +132,7 @@ auto Library::get_kern(const char* name) const -> Result<Kernel> {
   return Kernel{kern, func};
 }
 
-auto launch(fun_t f, Slice<void*> args) -> Result<> {
+auto launch(fun_t f, Slice<const void*> args) -> Result<> {
   if (f == nullptr) {
     return Error(CUDA_ERROR_INVALID_VALUE);
   }

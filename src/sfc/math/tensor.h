@@ -118,17 +118,6 @@ class [[nodiscard]] Tensor {
   }
 
  public:
-  void copy_from(const Tensor& other) {
-    _buff.copy_from(other._buff);
-  }
-
-  auto clone() const -> Tensor {
-    auto res = Tensor::new_(_view._shape, _buff.mem_location());
-    res.copy_from(*this);
-    return res;
-  }
-
- public:
   void fmt(auto& f) const {
     _view.fmt(f);
   }

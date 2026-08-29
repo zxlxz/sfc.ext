@@ -6,6 +6,7 @@
 namespace sfc::cuda {
 
 using mem::Layout;
+using math::Tensor;
 
 enum class MemKind {
   Heap = 0,
@@ -25,40 +26,45 @@ struct MemLocation {
   static auto Device(u32 device = 0) -> MemLocation;
 
  public:
-  auto pool() const -> mem_pool::Pool&;
+  auto on_host() const -> bool;
+  auto on_device() const -> bool;
 
   auto allocate(Layout layout) -> void*;
   void deallocate(void* ptr, Layout layout);
+
+  auto pool() const -> mem_pool::Pool&;
 
  public:
   void fmt(fmt::Formatter& f) const;
 };
 
-auto fill_bytes(void* ptr, u8 val, usize size) -> Result<>;
-auto copy_bytes(const void* src, void* dst, usize size) -> Result<>;
+struct MemBlock {
+  void* ptr;
+  usize size;
+  MemLocation loc;
+
+ public:
+  auto fill_bytes(u8 val) -> Result<>;
+  auto copy_from(MemBlock src) -> Result<>;
+};
 
 template <class T, u32 N = 1>
-auto empty(const u32 (&shape)[N], MemLocation loc = {}) -> math::Tensor<T, N> {
-  if (loc.kind == MemKind::Heap) {
-    return math::empty<T>(shape);
-  }
-  return math::Tensor<T, N>::new_(shape, loc.pool());
+auto empty(const u32 (&shape)[N], MemLocation loc = {}) -> Tensor<T, N> {
+  return Tensor<T, N>::new_(shape, loc.pool());
 }
 
 template <class T, u32 N = 1>
-auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> math::Tensor<T, N> {
-  if (loc.kind == MemKind::Heap) {
-    return math::zero<T>(shape);
-  }
-  auto res = math::Tensor<T, N>::new_(shape, loc.pool());
-  cuda::fill_bytes(res.as_mut_ptr(), 0, res.numel() * sizeof(T)).unwrap();
+auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> Tensor<T, N> {
+  auto res = Tensor<T, N>::new_(shape, loc.pool());
+  auto blk = MemBlock{res.as_mut_ptr(), res.numel() * sizeof(T), loc};
+  blk.fill_bytes(0).unwrap();
   return res;
 }
 
 template <class T, u32 N>
-auto empty_like(const math::Tensor<T, N>& array) -> math::Tensor<T, N> {
+auto empty_like(const Tensor<T, N>& array) -> Tensor<T, N> {
   const auto& shape = array.shape();
-  return math::Tensor<T, N>::new_(shape, array.allocator());
+  return Tensor<T, N>::new_(shape, array.allocator());
 }
 
 }  // namespace sfc::cuda

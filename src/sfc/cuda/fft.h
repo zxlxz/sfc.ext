@@ -42,7 +42,7 @@ class RFFT {
   RFFT(RFFT&& other) noexcept;
   RFFT& operator=(RFFT&& other) noexcept;
 
-  static auto create(u32 len, u32 batch = 1) -> RFFT;
+  static auto new_(u32 len, u32 batch = 1) -> RFFT;
 
  public:
   auto fft(math::NdView<f32, 1> in, math::NdView<c32, 1> out) -> Result<>;

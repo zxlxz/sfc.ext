@@ -8,7 +8,7 @@ using lib_t = struct CUlib_st*;
 using ker_t = struct CUkern_st*;
 using fun_t = struct CUfunc_st*;
 
-auto launch(fun_t func, Slice<void*> args) -> Result<>;
+auto launch(fun_t func, Slice<const void*> args) -> Result<>;
 
 struct Kernel;
 
@@ -48,7 +48,7 @@ struct Function<void(T...)> {
 
  public:
   auto operator()(const T&... args) -> Result<> {
-    void* argv[] = {&args...};
+    const void* argv[] = {&args..., nullptr};
     return cuda::launch(_func, argv);
   }
 };

@@ -146,7 +146,7 @@ auto Device::sync() -> Result<> {
   return detail::ctx_sync();
 }
 
-auto Device::of(u32 id) -> Result<Device> {
+auto Device::try_from(u32 id) -> Result<Device> {
   _TRY(detail::init());
   const auto dev = _TRY(detail::device_of(id));
   return Device{dev};
@@ -157,7 +157,7 @@ auto Device::info() const -> Result<Device::Info> {
   static constexpr auto kMaxDevId = 64;
   static detail::DeviceProp props[kMaxDevId]{};
 
-  if (_dev >= kMaxDevId) {
+  if (_dev < 0 || _dev >= kMaxDevId) {
     return Error{CUDA_ERROR_INVALID_DEVICE};
   }
 
@@ -178,15 +178,15 @@ auto Device::info() const -> Result<Device::Info> {
   return info;
 }
 
-auto Device::scope() -> Device::ScopeGuard {
-  return Device::ScopeGuard{*this};
+auto Device::enter() -> Device::Entered {
+  return Device::Entered{*this};
 }
 
-Device::ScopeGuard::ScopeGuard(const Device& dev) : _dev_in{dev._dev}, _dev_out{_dev_in} {
+Device::Entered::Entered(const Device& dev) : _dev_in{dev._dev}, _dev_out{_dev_in} {
   _dev_out = detail::device_set(_dev_in).unwrap();
 }
 
-Device::ScopeGuard::~ScopeGuard() {
+Device::Entered::~Entered() {
   if (_dev_out == -1) {
     return;
   }

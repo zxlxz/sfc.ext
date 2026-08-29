@@ -34,6 +34,14 @@ auto grid_dim() -> dim3_t {
 }
 
 void set_worksize(dim3_t ws, dim3_t bs) {
+  ws.x = (ws.x == 0) ? 1 : ws.x;
+  ws.y = (ws.y == 0) ? 1 : ws.y;
+  ws.z = (ws.z == 0) ? 1 : ws.z;
+
+  bs.x = (bs.x == 0) ? 1 : bs.x;
+  bs.y = (bs.y == 0) ? 1 : bs.y;
+  bs.z = (bs.z == 0) ? 1 : bs.z;
+
   _tls_work_size = ws;
   _tls_block_size = bs;
 }

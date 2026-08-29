@@ -56,12 +56,6 @@ SFC_TEST(complex_scalar_ops) {
 SFC_TEST(complex_unary_ops) {
   const auto a = c32{1.0f, 2.0f};
 
-  // ~a
-  {
-    const auto c = ~a;
-    sfc::assert_eq(c, c32{1.0f, -2.0f});
-  }
-
   // -a
   {
     const auto c = -a;
