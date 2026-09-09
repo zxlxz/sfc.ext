@@ -2,66 +2,178 @@
 #include "sfc/io.h"
 #include "sfc/math/ndview.h"
 
-namespace sfc::math::ndview::test {
+namespace sfc::math::test {
 
-template <class T, int N0>
-auto as_view_1d(T (&v)[N0]) -> NdView<T, 1> {
-  return {v, {N0}, {1}};
+SFC_TEST(ndview_len) {
+  int buf[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+
+  auto v1 = NdView<int, 1>::with_shape(buf, {12});
+  sfc::assert_eq(v1.len(), 12U);
+
+  auto v2 = NdView<int, 2>::with_shape(buf, {3, 4});
+  sfc::assert_eq(v2.len(), 3U);
+
+  auto v3 = NdView<int, 3>::with_shape(buf, {3, 2, 2});
+  sfc::assert_eq(v3.len(), 3U);
+
+  auto v4 = NdView<int, 4>::with_shape(buf, {3, 2, 2, 1});
+  sfc::assert_eq(v4.len(), 3U);
 }
 
-template <class T, int N0, int N1>
-auto as_view_2d(T (&v)[N0][N1]) -> NdView<T, 2> {
-  return {v[0], {N0, N1}, {N1, 1}};
+SFC_TEST(ndview_numel) {
+  int buf[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+
+  auto v1 = NdView<int, 1>::with_shape(buf, {12});
+  sfc::assert_eq(v1.numel(), 12U);
+
+  auto v2 = NdView<int, 2>::with_shape(buf, {3, 4});
+  sfc::assert_eq(v2.numel(), 12U);
+
+  auto v3 = NdView<int, 3>::with_shape(buf, {3, 2, 2});
+  sfc::assert_eq(v3.numel(), 12U);
+
+  auto v4 = NdView<int, 4>::with_shape(buf, {3, 2, 2, 1});
+  sfc::assert_eq(v4.numel(), 12U);
 }
 
-SFC_TEST(ndview_1) {
-  int buf[] = {1, 2, 3, 4};
+SFC_TEST(ndview_contains) {
+  int buf[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-  const auto s = as_view_1d(buf);
-  sfc::assert_eq(s.len(), 4U);
-  sfc::assert_eq(s._shape[0], 4U);
-  sfc::assert_eq(s._strides[0], 1U);
-  sfc::assert_eq(s.numel(), 4U);
+  auto v1 = NdView<int, 1>::with_shape(buf, {12});
+  sfc::assert_eq(v1.contains(5), true);
+  sfc::assert_eq(v1.contains(12), false);
 
-  sfc::assert_eq(s[0], 1);
-  sfc::assert_eq(s[3], 4);
+  auto v2 = NdView<int, 2>::with_shape(buf, {3, 4});
+  sfc::assert_eq(v2.contains(1, 2), true);
+  sfc::assert_eq(v2.contains(1, 4), false);
 
-  io::println("s = \n {}\n", s);
+  auto v3 = NdView<int, 3>::with_shape(buf, {3, 2, 2});
+  sfc::assert_eq(v3.contains(2, 1, 1), true);
+  sfc::assert_eq(v3.contains(3, 0, 0), false);
+
+  auto v4 = NdView<int, 4>::with_shape(buf, {3, 2, 2, 1});
+  sfc::assert_eq(v4.contains(2, 1, 1, 0), true);
+  sfc::assert_eq(v4.contains(3, 0, 0, 0), false);
 }
 
-SFC_TEST(ndview_2) {
-  int buf[4][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}, {10, 11, 12}};
+SFC_TEST(ndview_visit) {
+  int buf[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-  const auto s = as_view_2d(buf);
-  sfc::assert_eq(s.len(), 4U);
-  sfc::assert_eq(s._shape[0], 4U);
-  sfc::assert_eq(s._shape[1], 3U);
-  sfc::assert_eq(s._strides[0], 3U);
-  sfc::assert_eq(s._strides[1], 1U);
-  sfc::assert_eq(s.numel(), 12U);
+  auto v1 = NdView<int, 1>::with_shape(buf, {12});
+  sfc::assert_eq(v1[5], 5);
 
-  sfc::assert_eq(s[0][0], 1);
-  sfc::assert_eq(s[0][2], 3);
-  sfc::assert_eq(s[1][0], 4);
-  sfc::assert_eq(s[1][2], 6);
+  auto v2 = NdView<int, 2>::with_shape(buf, {3, 4});
+  sfc::assert_eq(v2[1, 2], 6);
 
-  io::println("s = {:2d}\n", s);
+  auto v3 = NdView<int, 3>::with_shape(buf, {3, 2, 2});
+  sfc::assert_eq(v3[2, 1, 1], 11);
+
+  auto v4 = NdView<int, 4>::with_shape(buf, {3, 2, 2, 1});
+  sfc::assert_eq(v4[2, 1, 1, 0], 11);
 }
 
+SFC_TEST(ndview_reshape) {
+  int buf[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-SFC_TEST(ndview_3) {
-  int buf[2][3][4] = {
-      {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}},
-      {{13, 14, 15, 16}, {17, 18, 19, 20}, {21, 22, 23, 24}},
-  };
+  auto v1 = NdView<int, 1>::with_shape(buf, {12});
 
-  const auto s = NdView<int, 3>{buf[0][0], {2, 3, 4}, {12, 4, 1}};
-  sfc::assert_eq(s.len(), 2U);
-  sfc::assert_eq(s._shape[0], 2U);
-  sfc::assert_eq(s._shape[1], 3U);
-  sfc::assert_eq(s._shape[2], 4U);
+  // reshape v2
+  {
+    auto v2_ok = reshape(v1, {3, 4});
+    sfc::assert_eq(v2_ok.len(), 3U);
+    sfc::assert_eq(v2_ok.numel(), 12U);
 
-  io::println("s = \n{:2d}\n", s);
+    auto v2_err = reshape(v1, {3, 5});
+    sfc::assert_eq(v2_err.len(), 0U);
+    sfc::assert_eq(v2_err.numel(), 0U);
+  }
+
+  // reshape v3
+  {
+    auto v3_ok = reshape(v1, {3, 2, 2});
+    sfc::assert_eq(v3_ok.len(), 3U);
+    sfc::assert_eq(v3_ok.numel(), 12U);
+
+    auto v3_err = reshape(v1, {3, 2, 3});
+    sfc::assert_eq(v3_err.len(), 0U);
+    sfc::assert_eq(v3_err.numel(), 0U);
+  }
+
+  // reshape v4
+  {
+    auto v4_ok = reshape(v1, {3, 2, 2, 1});
+    sfc::assert_eq(v4_ok.len(), 3U);
+    sfc::assert_eq(v4_ok.numel(), 12U);
+
+    auto v4_err = reshape(v1, {3, 2, 2, 2});
+    sfc::assert_eq(v4_err.len(), 0U);
+    sfc::assert_eq(v4_err.numel(), 0U);
+  }
+}
+
+SFC_TEST(ndview_fmt) {
+  int buf[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+
+  {
+    auto v1 = NdView<int, 1>::with_shape(buf, {12});
+    io::println("v1 = {}", v1);
+  }
+
+  {
+    auto v2 = NdView<int, 2>::with_shape(buf, {3, 4});
+    io::println("v2 = \n{#}", v2);
+  }
+
+  {
+    auto v3 = NdView<int, 3>::with_shape(buf, {2, 2, 3});
+    io::println("v3 = \n{#}", v3);
+  }
+
+  {
+    auto v4 = NdView<int, 4>::with_shape(buf, {3, 2, 2, 1});
+    io::println("v4 = \n{#}", v4);
+  }
+}
+
+SFC_TEST(ndview_is_contiguous) {
+  int buf[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+
+  {
+    auto v1_dense = NdView<int, 1>{buf, {12}, {1}};
+    auto v1_sparse = NdView<int, 1>{buf, {6}, {2}};
+    sfc::assert_eq(v1_dense[1], 1);
+    sfc::assert_eq(v1_sparse[1], 2);
+
+    sfc::assert_eq(v1_dense.is_contiguous(), true);
+    sfc::assert_eq(v1_sparse.is_contiguous(), false);
+  }
+
+  {
+    auto v2_dense = NdView<int, 2>{buf, {3, 4}, {4, 1}};
+    auto v2_sparse = NdView<int, 2>{buf, {3, 2}, {4, 2}};
+    sfc::assert_eq(v2_dense[1, 2], 6);
+    sfc::assert_eq(v2_sparse[1, 1], 6);
+    sfc::assert_eq(v2_dense.is_contiguous(), true);
+    sfc::assert_eq(v2_sparse.is_contiguous(), false);
+  }
+
+  {
+    auto v3_dense = NdView<int, 3>{buf, {2, 3, 2}, {6, 2, 1}};
+    auto v3_sparse = NdView<int, 3>{buf, {2, 2, 2}, {6, 2, 2}};
+    sfc::assert_eq(v3_dense[1, 2, 1], 11);
+    sfc::assert_eq(v3_sparse[1, 1, 1], 11);
+    sfc::assert_eq(v3_dense.is_contiguous(), true);
+    sfc::assert_eq(v3_sparse.is_contiguous(), false);
+  }
+
+  {
+    auto v4_dense = NdView<int, 4>{buf, {3, 2, 2, 1}, {4, 2, 1, 1}};
+    auto v4_sparse = NdView<int, 4>{buf, {3, 2, 2, 1}, {4, 2, 2, 1}};
+    sfc::assert_eq(v4_dense[2, 1, 1, 0], 11);
+    sfc::assert_eq(v4_sparse[2, 1, 1, 0], 11);
+    sfc::assert_eq(v4_dense.is_contiguous(), true);
+    sfc::assert_eq(v4_sparse.is_contiguous(), false);
+  }
 }
 
 }  // namespace sfc::math::test

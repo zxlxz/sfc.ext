@@ -15,10 +15,10 @@ SFC_TEST(fft_c2c) {
   for (auto cnt : cnts) {
     auto in = cuda::empty<c32>({cnt, fft_len}, MemLocation::Host());
     auto out = cuda::empty<c32>({cnt, fft_len}, MemLocation::Host());
-    in.for_each_mut([](auto& y, auto... i) { y = c32{f32(i)...}; });
-    io::println("in = \n {:+5.2}", in);
+    in.fill_with([](u32 i, u32 j) { return c32{f32(i), f32(j)}; });
+    io::println("in = {+#5.2}", in);
     fft.fft(in, out).unwrap();
-    io::println("out = \n {:+5.2}", out);
+    io::println("out = {+#5.2}", out);
     cuda::Device::sync().unwrap();
   }
 }

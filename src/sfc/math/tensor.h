@@ -1,7 +1,6 @@
 #pragma once
 
 #include "sfc/alloc.h"
-#include "sfc/alloc/mem_pool.h"
 #include "sfc/math/ndview.h"
 
 namespace sfc::math {
@@ -31,18 +30,18 @@ class [[nodiscard]] Tensor {
     const auto ptr = ptr::cast<T>(buf.ptr());
     auto res = Tensor{};
     res._buff = mem::move(buf);
-    res._view = View{ptr, shape};
+    res._view = View::with_shape(ptr, shape);
     return res;
   }
 
   static auto new_(const u32 (&shape)[N], A alloc = {}) -> Tensor {
-    const auto numel = View{nullptr, shape}.numel();
+    const auto numel = View::with_shape(nullptr, shape).numel();
     auto buf = Buff::with_capacity(numel, mem::move(alloc));
     return Tensor::from_buf(mem::move(buf), shape);
   }
 
   static auto new_zeroerd(const u32 (&shape)[N], A alloc = {}) -> Tensor {
-    const auto numel = View{nullptr, shape}.numel();
+    const auto numel = View::with_shape(nullptr, shape).numel();
     auto buf = Buff::with_capacity_zeroed(numel, mem::move(alloc));
     return Tensor::from_buf(mem::move(buf), shape);
   }
@@ -93,28 +92,41 @@ class [[nodiscard]] Tensor {
     return _view;
   }
 
-  auto operator[](u32 idx) const {
+  auto operator[](u32 idx) -> NdView<T, N - 1> requires(N > 1) {
     return _view[idx];
   }
 
-  auto operator[](u32 idx) {
+ public:
+  auto operator[](u32 idx) const -> T requires(N == 1) {
     return _view[idx];
   }
 
-  auto operator[](const u32 (&idx)[N]) const -> T {
+  auto operator[](u32 idx) -> T& requires(N == 1) {
     return _view[idx];
   }
 
-  auto operator[](const u32 (&idx)[N]) -> T& {
-    return _view[idx];
+  auto operator[](u32 i, u32 j) const -> T requires(N == 2) {
+    return _view[i, j];
   }
 
-  auto get(const u32 (&idx)[N]) const -> T {
-    return _view[idx];
+  auto operator[](u32 i, u32 j) -> T& requires(N == 2) {
+    return _view[i, j];
   }
 
-  void set(const u32 (&idx)[N], T value) {
-    _view[idx] = value;
+  auto operator[](u32 i, u32 j, u32 k) const -> T requires(N == 3) {
+    return _view[i, j, k];
+  }
+
+  auto operator[](u32 i, u32 j, u32 k) -> T& requires(N == 3) {
+    return _view[i, j, k];
+  }
+
+  auto operator[](u32 i, u32 j, u32 k, u32 l) const -> T requires(N == 4) {
+    return _view[i, j, k, l];
+  }
+
+  auto operator[](u32 i, u32 j, u32 k, u32 l) -> T& requires(N == 4) {
+    return _view[i, j, k, l];
   }
 
  public:
