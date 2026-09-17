@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sfc/alloc.h"
+#include "sfc/alloc/mem_pool.h"
 #include "sfc/math/ndview.h"
 
 namespace sfc::math {
@@ -11,7 +12,7 @@ class Tensor;
 template <class T, u32 N>
 class [[nodiscard]] Tensor {
   using A = mem_pool::Allocator;
-  using Buff = Buffer<T, A>;
+  using Buff = raw_buf::RawBuf<T, A>;
   using View = NdView<T, N>;
   using shape_t = u32[N];
   using strides_t = u32[N];

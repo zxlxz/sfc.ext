@@ -180,7 +180,7 @@ struct NdView<T, 2> {
   }
 
   auto fmt(auto& f) const -> void {
-    f.set_depth_limit(1);
+    f.set_max_depth(f.depth() + 1);
     auto imp = f.debug_list();
     for (u32 i = 0U; i < _shape[0]; ++i) {
       imp.entry((*this)[i]);
@@ -288,7 +288,6 @@ struct NdView<T, 3> {
   }
 
   void fmt(auto& f) const {
-    f.set_depth_limit(2);
     auto imp = f.debug_list();
     for (u32 i = 0U; i < _shape[0]; ++i) {
       imp.entry((*this)[i]);
@@ -380,7 +379,6 @@ struct NdView<T, 4> {
   }
 
   void fmt(auto& f) const {
-    f.set_depth_limit(3);
     auto imp = f.debug_list();
     for (u32 i = 0U; i < _shape[0]; ++i) {
       imp.entry((*this)[i]);

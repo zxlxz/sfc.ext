@@ -20,7 +20,7 @@ static auto array_fmt() -> CUarray_format {
     if constexpr (sizeof(T) == 1) return CU_AD_FORMAT_SIGNED_INT8;
     if constexpr (sizeof(T) == 2) return CU_AD_FORMAT_SIGNED_INT16;
     return CU_AD_FORMAT_SIGNED_INT32;
-  } else if constexpr (trait::float_<T>) {
+  } else if constexpr (trait::flt_<T>) {
     if constexpr (sizeof(T) == 4) return CU_AD_FORMAT_FLOAT;
     static_assert(sizeof(T) == 4, "unsupported floating-point texture type");
   } else {
