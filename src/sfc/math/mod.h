@@ -95,6 +95,11 @@ inline auto acosf(f32 x) -> f32 {
   return __builtin_acosf(x);
 }
 
+// libm: atan
+inline auto atanf(f32 x) -> f32 {
+  return __builtin_atanf(x);
+}
+
 // libm: atan2
 inline auto atan2f(f32 y, f32 x) -> f32 {
   return __builtin_atan2f(y, x);
