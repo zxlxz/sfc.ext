@@ -17,11 +17,6 @@ struct vec<T, 1> {
   __hd vec(T x) : x{x} {}
   __hd vec(const T (&v)[1]) : x{v[0]} {}
 
-  template <class U>
-  explicit __hd operator vec<U, 1>() const {
-    return {static_cast<U>(x)};
-  }
-
  public:
   void fmt(auto& f) const {
     f.debug_tuple("").field(x);
@@ -29,7 +24,7 @@ struct vec<T, 1> {
 };
 
 template <class T>
-struct vec<T, 2> {
+struct alignas(2*sizeof(T)) vec<T, 2> {
   static constexpr auto NDIM = 2U;
   T x, y;
 
@@ -37,11 +32,6 @@ struct vec<T, 2> {
   vec() = default;
   __hd vec(T x, T y) : x{x}, y{y} {}
   __hd vec(const T (&v)[2]) : x{v[0]}, y{v[1]} {}
-
-  template <class U>
-  explicit __hd operator vec<U, 2>() const {
-    return {static_cast<U>(x), static_cast<U>(y)};
-  }
 
  public:
   void fmt(auto& f) const {
@@ -59,11 +49,6 @@ struct vec<T, 3> {
   __hd vec(T x, T y, T z) : x{x}, y{y}, z{z} {}
   __hd vec(const T (&v)[3]) : x{v[0]}, y{v[1]}, z{v[2]} {}
 
-  template <class U>
-  explicit __hd operator vec<U, 3>() const {
-    return {static_cast<U>(x), static_cast<U>(y), static_cast<U>(z)};
-  }
-
  public:
   void fmt(auto& f) const {
     f.debug_tuple("").field(x).field(y).field(z);
@@ -71,7 +56,7 @@ struct vec<T, 3> {
 };
 
 template <class T>
-struct vec<T, 4> {
+struct alignas(4*sizeof(T)) vec<T, 4> {
   static constexpr auto NDIM = 4U;
   T x, y, z, w;
 
@@ -79,11 +64,6 @@ struct vec<T, 4> {
   vec() = default;
   __hd vec(T x, T y, T z, T w) : x{x}, y{y}, z{z}, w{w} {}
   __hd vec(const T (&v)[4]) : x{v[0]}, y{v[1]}, z{v[2]}, w{v[3]} {}
-
-  template <class U>
-  explicit __hd operator vec<U, 4>() const {
-    return {static_cast<U>(x), static_cast<U>(y), static_cast<U>(z), static_cast<U>(w)};
-  }
 
  public:
   void fmt(auto& f) const {
@@ -205,8 +185,16 @@ __hd inline auto operator-=(vec<T, N>& self, vec<T, N> other) -> vec<T, N>& {
   return self;
 }
 
+template <class U, class T, u32 N>
+__hd inline auto vec_cast(vec<T, N> v) -> vec<U, N> {
+  if constexpr (N == 1) return {(U)v.x};
+  if constexpr (N == 2) return {(U)v.x, (U)v.y};
+  if constexpr (N == 3) return {(U)v.x, (U)v.y, (U)v.z};
+  if constexpr (N == 4) return {(U)v.x, (U)v.y, (U)v.z, (U)v.w};
+}
+
 template <u32 N>
-__hd inline auto length(vec<f32, N> a) -> float {
+__hd inline auto norm(vec<f32, N> a) -> float {
   if constexpr (N == 1) return math::fabsf(a.x);
   if constexpr (N == 2) return math::sqrtf(a.x * a.x + a.y * a.y);
   if constexpr (N == 3) return math::sqrtf(a.x * a.x + a.y * a.y + a.z * a.z);

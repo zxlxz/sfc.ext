@@ -72,6 +72,10 @@ class [[nodiscard]] Tensor {
     return _buff;
   }
 
+  auto as_view() const -> View {
+    return _view;
+  }
+
   auto as_slice() const -> Slice<const T> {
     return {_buff.ptr(), _buff.cap()};
   }
@@ -86,10 +90,6 @@ class [[nodiscard]] Tensor {
 
  public:
   operator View() const {
-    return _view;
-  }
-
-  auto operator*() const -> View {
     return _view;
   }
 

@@ -146,7 +146,7 @@ struct NdView<T, 2> {
   }
 
   template <u32 I = 1, u32 J = 0>
-  auto transpose() const -> NdView {
+  auto permute() const -> NdView {
     static_assert(I < 2 && J < 2);
     static_assert(I != J);
 
@@ -248,7 +248,7 @@ struct NdView<T, 3> {
   }
 
   template <u32 I, u32 J, u32 K>
-  auto transpose() const -> NdView<T, 3> {
+  auto permute() const -> NdView<T, 3> {
     static_assert(I < 3 && J < 3 && K < 3);
     static_assert(I != J && I != K && J != K);
 
@@ -355,6 +355,16 @@ struct NdView<T, 4> {
     const auto s = NdView::with_shape(_data, _shape);
     return _strides[0] == s._strides[0] && _strides[1] == s._strides[1] && _strides[2] == s._strides[2] &&
            _strides[3] == s._strides[3];
+  }
+
+  template <u32 I, u32 J, u32 K, u32 L>
+  auto permute() -> NdView<T, 4> {
+    static_assert(I < 4 && J < 4 && K < 4 && L < 4);
+    static_assert(I != J && I != K && I != L && J != K && J != L && K != L);
+
+    const u32 new_shape[4] = {_shape[I], _shape[J], _shape[K], _shape[L]};
+    const u32 new_strides[4] = {_strides[I], _strides[J], _strides[K], _strides[L]};
+    return NdView<T, 4>{_data, new_shape, new_strides};
   }
 
   void for_each(auto&& func) const {

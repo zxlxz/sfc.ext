@@ -79,17 +79,16 @@ SFC_TEST(vec_scalar_mul_div) {
 }
 
 SFC_TEST(vec_cast) {
-  const auto v = vec{1.1, 2.2};
+  const auto vf = vec{1.1, 2.2};
+  const auto vi = vec_cast<int>(vf);
 
-  sfc::assert_eq(vec2i(v), vec{1, 2});
+  sfc::assert_eq(vi, vec{1, 2});
 }
 
-SFC_TEST(vec_length) {
-  const auto l1 = math::length(vec2f{3.0f, 4.0f});
-  sfc::assert_eq(l1, 5.0f);
-
-  const auto l2 = math::length(vec3f{0.0f, 0.0f, 5.0f});
-  sfc::assert_eq(l2, 5.0f);
+SFC_TEST(vec_norm) {
+  const auto v = vec2f{3.0f, 4.0f};
+  const auto s = math::norm(v);
+  sfc::assert_eq(s, 5.0f);
 }
 
 SFC_TEST(vec_reduce) {

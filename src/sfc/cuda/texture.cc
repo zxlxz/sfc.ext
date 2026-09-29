@@ -11,7 +11,7 @@ namespace detail {
 using arr_t = CUarray;
 
 template <class T>
-static auto array_fmt() -> CUarray_format {
+auto array_fmt() -> CUarray_format {
   if constexpr (trait::uint_<T>) {
     if constexpr (sizeof(T) == 1) return CU_AD_FORMAT_UNSIGNED_INT8;
     if constexpr (sizeof(T) == 2) return CU_AD_FORMAT_UNSIGNED_INT16;
@@ -29,7 +29,7 @@ static auto array_fmt() -> CUarray_format {
 }
 
 template <class T>
-static auto array_new(Extent ext, u32 flags) -> Result<arr_t> {
+auto array_new(Extent ext, u32 flags) -> Result<arr_t> {
   const auto desc = CUDA_ARRAY3D_DESCRIPTOR{
       .Width = ext.x,
       .Height = ext.y,
@@ -46,7 +46,7 @@ static auto array_new(Extent ext, u32 flags) -> Result<arr_t> {
   return Ok{res};
 }
 
-static auto array_del(arr_t arr) -> Result<> {
+auto array_del(arr_t arr) -> Result<> {
   if (arr == nullptr) {
     return Ok{};
   }
@@ -58,7 +58,7 @@ static auto array_del(arr_t arr) -> Result<> {
   return Ok{};
 }
 
-static auto array_ext(arr_t arr) -> Result<CUDA_ARRAY3D_DESCRIPTOR> {
+auto array_desc(arr_t arr) -> Result<CUDA_ARRAY3D_DESCRIPTOR> {
   if (arr == nullptr) {
     return Error(CUDA_ERROR_INVALID_VALUE);
   }
@@ -67,16 +67,22 @@ static auto array_ext(arr_t arr) -> Result<CUDA_ARRAY3D_DESCRIPTOR> {
   if (auto err = cuArray3DGetDescriptor_v2(&desc, arr)) {
     return Error(err);
   }
-  return Ok{desc};
+  return desc;
+}
+
+auto array_extent(arr_t arr) -> Result<Extent> {
+  const auto desc = _TRY(detail::array_desc(arr));
+  const auto extent = Extent{desc.Width, desc.Height, desc.Depth};
+  return extent;
 }
 
 template <class T>
-static auto array_set(arr_t arr, const T* src, CUstream stream) -> Result<> {
+auto array_set(arr_t arr, const T* src, CUstream stream) -> Result<> {
   if (arr == nullptr || src == nullptr) {
     return Error(CUDA_ERROR_INVALID_VALUE);
   }
 
-  const auto desc = _TRY(detail::array_ext(arr));
+  const auto desc = _TRY(detail::array_desc(arr));
   auto copy_params = CUDA_MEMCPY3D{};
   copy_params.srcMemoryType = CU_MEMORYTYPE_HOST;
   copy_params.srcHost = src;
@@ -93,7 +99,7 @@ static auto array_set(arr_t arr, const T* src, CUstream stream) -> Result<> {
   return Ok{};
 }
 
-static auto texture_new(arr_t arr, TexFilt tex_filt, TexAddr tex_addr) -> Result<u64> {
+auto texture_new(arr_t arr, TexFilt tex_filt, TexAddr tex_addr) -> Result<u64> {
   auto res_desc = CUDA_RESOURCE_DESC{};
   res_desc.resType = CU_RESOURCE_TYPE_ARRAY;
   res_desc.res.array.hArray = arr;
@@ -110,7 +116,7 @@ static auto texture_new(arr_t arr, TexFilt tex_filt, TexAddr tex_addr) -> Result
   return u64{tex};
 }
 
-static auto texture_del(u64 tex) -> Result<> {
+auto texture_del(u64 tex) -> Result<> {
   if (auto err = cuTexObjectDestroy(CUtexObject(tex))) {
     return Error(err);
   }
@@ -132,9 +138,7 @@ Array<T>::~Array() {
 }
 
 template <class T>
-Array<T>::Array(Array&& other) noexcept : _arr{other._arr} {
-  other._arr = nullptr;
-}
+Array<T>::Array(Array&& other) noexcept : _arr{mem::take(other._arr)} {}
 
 template <class T>
 auto Array<T>::operator=(Array&& other) noexcept -> Array& {
@@ -147,20 +151,26 @@ auto Array<T>::operator=(Array&& other) noexcept -> Array& {
 template <class T>
 auto Array<T>::new_(Extent ext) -> Array {
   auto res = Array{};
-  res._arr = detail::array_new<T>(ext, 0).unwrap();
+  res._arr = detail::array_new<T>(ext, 0).unwrap_or(nullptr);
   return res;
 }
 
 template <class T>
 auto Array<T>::new_layered(Extent ext) -> Array {
   auto res = Array{};
-  res._arr = detail::array_new<T>(ext, CUDA_ARRAY3D_LAYERED).unwrap();
+  res._arr = detail::array_new<T>(ext, CUDA_ARRAY3D_LAYERED).unwrap_or(nullptr);
   return res;
 }
 
 template <class T>
 auto Array<T>::as_ptr() const -> arr_t {
   return _arr;
+}
+
+template <class T>
+auto Array<T>::extent() const -> Extent {
+  const auto ext = detail::array_extent(_arr).unwrap_or({});
+  return ext;
 }
 
 template <class T>

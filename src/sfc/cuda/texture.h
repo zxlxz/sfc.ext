@@ -18,14 +18,15 @@ enum class TexAddr {
 };
 
 struct Extent {
-  u32 x = 0;
-  u32 y = 0;
-  u32 z = 0;
+  usize x = 0;
+  usize y = 0;
+  usize z = 0;
 };
 
 template <class T>
 class Array {
   using arr_t = struct CUarray_st*;
+  using ext_t = Extent;
   arr_t _arr = nullptr;
 
  public:
@@ -39,6 +40,7 @@ class Array {
 
  public:
   auto as_ptr() const -> arr_t;
+  auto extent() const -> Extent;
   auto set_data(const T* src) -> Result<>;
 };
 
@@ -62,10 +64,11 @@ class Texture {
     return {_tex};
   }
 
-  auto operator*() const -> Tex {
+  auto as_tex() const -> Tex {
     return {_tex};
   }
 
+ public:
   auto set_data(math::NdView<T, N> src) -> Result<>;
 };
 
@@ -85,14 +88,15 @@ class LTexture {
   static auto new_(const u32 (&shape)[N], TexFilt filt = TexFilt::Point, TexAddr addr = TexAddr::Clamp) -> LTexture;
 
  public:
-  operator Tex() const {
-    return {_tex};
-  }
-
   auto operator*() const -> Tex {
     return {_tex};
   }
 
+  auto as_tex() const -> Tex {
+    return {_tex};
+  }
+
+ public:
   auto set_data(math::NdView<T, N> src) -> Result<>;
 };
 
