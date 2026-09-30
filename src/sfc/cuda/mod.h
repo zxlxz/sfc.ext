@@ -19,7 +19,9 @@
 
 namespace sfc::cuda {
 
+// cudaError_enum -> CUresult
 enum class Error;
+
 auto to_str(Error err) -> str::Str;
 
 template <class T = Unit>

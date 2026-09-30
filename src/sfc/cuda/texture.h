@@ -1,7 +1,6 @@
 #pragma once
 
-#include "sfc/cuda/tex.h"
-#include "sfc/math/ndview.h"
+#include "sfc/cuda/array.h"
 
 namespace sfc::cuda {
 
@@ -17,34 +16,76 @@ enum class TexAddr {
   Border = 3   // 3
 };
 
-struct Extent {
-  usize x = 0;
-  usize y = 0;
-  usize z = 0;
+template <class T, u32 N = 3>
+struct Tex;
+
+template <class T, u32 N = 3>
+struct LTex;
+
+template <class T>
+struct Tex<T, 2> {
+  using Item = T;
+  u64 _tex;
+
+ public:
+#ifdef __CUDACC__
+  __dev auto load(math::vec2f pos) const -> T {
+    auto res = T{0};
+    ::tex2D(&res, _tex, pos.x, pos.y);
+    return res;
+  }
+#endif
 };
 
 template <class T>
-class Array {
-  using arr_t = struct CUarray_st*;
-  using ext_t = Extent;
-  arr_t _arr = nullptr;
+struct Tex<T, 3> {
+  using Item = T;
+  u64 _tex;
 
  public:
-  Array() noexcept;
-  ~Array();
-  Array(Array&& other) noexcept;
-  Array& operator=(Array&& other) noexcept;
-
-  static auto new_(Extent ext) -> Array;
-  static auto new_layered(Extent ext) -> Array;
-
- public:
-  auto as_ptr() const -> arr_t;
-  auto extent() const -> Extent;
-  auto set_data(const T* src) -> Result<>;
+#ifdef __CUDACC__
+  __dev auto load(math::vec3f pos) const -> T {
+    auto res = T{0};
+    ::tex3D(&res, _tex, pos.x, pos.y, pos.z);
+    return res;
+  }
+#endif
 };
 
-template <class T, int N = 3>
+template <class T>
+struct LTex<T, 3> {
+  using Item = T;
+  u64 _tex;
+
+ public:
+#ifdef __CUDACC__
+  __dev auto load(math::vec2f pos, int layer) const -> T {
+    auto res = T{0};
+    ::tex2DLayered(&res, _tex, pos.x, pos.y, layer);
+    return res;
+  }
+#endif
+
+ public:
+  struct Layer {
+    u64 _tex;
+    int _layer;
+
+#ifdef __CUDACC__
+    __dev auto load(math::vec2f pos) const -> T {
+      auto res = T{0};
+      ::tex2DLayered(&res, _tex, pos.x, pos.y, _layer);
+      return res;
+    }
+#endif
+  };
+
+  __dev auto operator[](int k) const -> Layer {
+    return Layer{_tex, k};
+  }
+};
+
+template <class T, u32 N = 3>
 class Texture {
   using Tex = cuda::Tex<T, N>;
   using Arr = cuda::Array<T>;
@@ -61,18 +102,18 @@ class Texture {
 
  public:
   operator Tex() const {
-    return {_tex};
+    return Tex{_tex};
   }
 
   auto as_tex() const -> Tex {
-    return {_tex};
+    return Tex{_tex};
   }
 
  public:
   auto set_data(math::NdView<T, N> src) -> Result<>;
 };
 
-template <class T, int N = 3>
+template <class T, u32 N = 3>
 class LTexture {
   using Tex = cuda::LTex<T, N>;
   using Arr = cuda::Array<T>;
@@ -89,11 +130,11 @@ class LTexture {
 
  public:
   auto operator*() const -> Tex {
-    return {_tex};
+    return Tex{_tex};
   }
 
   auto as_tex() const -> Tex {
-    return {_tex};
+    return Tex{_tex};
   }
 
  public:

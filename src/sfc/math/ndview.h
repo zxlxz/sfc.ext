@@ -40,6 +40,10 @@ struct NdView<T, 1> {
     return _shape[0];
   }
 
+  __hd auto shape(u32 i) const -> u32 {
+    return i < NDIM ? _shape[i] : 1;
+  }
+
  public:
   __hd auto contains(u32 i) const -> bool {
     return i < _shape[0];
@@ -117,6 +121,10 @@ struct NdView<T, 2> {
 
   __hd auto numel() const -> u32 {
     return _shape[0] * _shape[1];
+  }
+
+  __hd auto shape(u32 i) const -> u32 {
+    return i < NDIM ? _shape[i] : 1;
   }
 
  public:
@@ -219,6 +227,10 @@ struct NdView<T, 3> {
 
   __hd auto numel() const -> u32 {
     return _shape[0] * _shape[1] * _shape[2];
+  }
+
+  __hd auto shape(u32 i) const -> u32 {
+    return i < NDIM ? _shape[i] : 1;
   }
 
  public:
@@ -328,6 +340,10 @@ struct NdView<T, 4> {
 
   __hd auto numel() const -> u32 {
     return _shape[0] * _shape[1] * _shape[2] * _shape[3];
+  }
+
+  __hd auto shape(u32 i) const -> u32 {
+    return i < NDIM ? _shape[i] : 1;
   }
 
  public:
