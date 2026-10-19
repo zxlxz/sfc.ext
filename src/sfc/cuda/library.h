@@ -2,24 +2,33 @@
 
 #include "sfc/cuda/mod.h"
 
+struct CUlib_st;
+struct CUkern_st;
+struct CUfunc_st;
+
 namespace sfc::cuda {
 
-using lib_t = struct CUlib_st*;
-using ker_t = struct CUkern_st*;
-using fun_t = struct CUfunc_st*;
-
-auto launch(fun_t func, Slice<const void*> args) -> Result<>;
-
-struct Kernel;
+auto launch(CUfunc_st* func, Slice<const void*> args) -> Result<>;
 
 template <class>
 struct Function;
 
-class Library {
-  lib_t _lib{nullptr};
+template <class... T>
+struct Function<void(T...)> {
+  CUfunc_st* _func;
 
  public:
-  Library() noexcept;
+  auto operator()(const T&... args) -> Result<> {
+    const void* argv[] = {&args..., nullptr};
+    return cuda::launch(_func, argv);
+  }
+};
+
+class Library {
+  CUlib_st* _lib{nullptr};
+
+ public:
+  Library(CUlib_st& lib) noexcept;
   ~Library() noexcept;
 
   Library(Library&& other) noexcept;
@@ -28,29 +37,13 @@ class Library {
   static auto load(Str path) -> Result<Library>;
 
  public:
-  auto get_kern(const char* name) const -> Result<Kernel>;
-};
-
-struct Kernel {
-  ker_t _ker;
-  fun_t _func;
-
- public:
-  template <class F>
-  auto as_func() -> Function<F> {
-    return Function<F>{_func};
+  template<class F>
+  auto get_func(const char* name) -> Result<Function<F>> {
+    auto f = _TRY(this->get_func_imp(name));
+    return Function<F>{f};
   }
-};
 
-template <class... T>
-struct Function<void(T...)> {
-  fun_t _func;
-
- public:
-  auto operator()(const T&... args) -> Result<> {
-    const void* argv[] = {&args..., nullptr};
-    return cuda::launch(_func, argv);
-  }
+  auto get_func_imp(const char* name) const -> Result<CUfunc_st*>;
 };
 
 }  // namespace sfc::cuda

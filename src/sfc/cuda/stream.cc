@@ -7,7 +7,7 @@ namespace sfc::cuda {
 
 namespace detail {
 
-static auto stream_new(unsigned int flags) -> Result<stream_t> {
+auto stream_new(unsigned int flags) -> Result<stream_t> {
   auto stream = stream_t{nullptr};
   if (auto err = cuStreamCreate(&stream, flags)) {
     return Error(err);
@@ -15,7 +15,7 @@ static auto stream_new(unsigned int flags) -> Result<stream_t> {
   return Ok{stream};
 }
 
-static auto stream_del(stream_t s) -> Result<> {
+auto stream_del(stream_t s) -> Result<> {
   if (s == nullptr) {
     return Ok{};
   }
@@ -26,7 +26,7 @@ static auto stream_del(stream_t s) -> Result<> {
   return Ok{};
 }
 
-static auto stream_sync(stream_t s) -> Result<> {
+auto stream_sync(stream_t s) -> Result<> {
   if (s == nullptr) {
     return Ok{};
   }

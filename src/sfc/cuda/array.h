@@ -3,6 +3,8 @@
 #include "sfc/cuda/mod.h"
 #include "sfc/math/ndview.h"
 
+struct CUarray_st;
+
 namespace sfc::cuda {
 
 struct Extent {
@@ -28,9 +30,7 @@ struct Extent {
 
 template <class T>
 class Array {
-  using arr_t = struct CUarray_st*;
-  using ext_t = Extent;
-  arr_t _arr = nullptr;
+  CUarray_st* _arr = nullptr;
 
  public:
   Array() noexcept;
@@ -42,7 +42,7 @@ class Array {
   static auto new_layered(Extent ext) -> Array;
 
  public:
-  auto as_ptr() const -> arr_t;
+  auto as_ptr() const -> CUarray_st*;
   auto extent() const -> Extent;
 
   template <u32 N>

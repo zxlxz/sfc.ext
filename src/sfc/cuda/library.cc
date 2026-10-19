@@ -8,66 +8,48 @@ namespace sfc::cuda {
 
 namespace detail {
 
-struct JITOption {
-  CUjit_option opt;
-  void* val;
+struct JitOptions {
+  static constexpr u32 MAX_OPT_CNT{32};
+
+  u32 cnt = {0};
+  CUjit_option keys[MAX_OPT_CNT] = {};
+  void* vals[MAX_OPT_CNT] = {};
 };
 
-struct LibOption {
-  CUlibraryOption opt;
-  void* val;
+struct LibOptions {
+  static constexpr u32 MAX_OPT_CNT{32};
+
+  u32 cnt = {0};
+  CUlibraryOption keys[MAX_OPT_CNT] = {};
+  void* vals[MAX_OPT_CNT] = {};
 };
 
-auto lib_load(const char* path, Slice<JITOption> jit_opt_list, Slice<LibOption> lib_opt_list) -> Result<lib_t> {
-  const auto kMaxJItOptCnt = 32U;
-  const auto kMaxLibOptCnt = 8U;
-  if (jit_opt_list.len() > kMaxJItOptCnt) {
-    return Error(CUDA_ERROR_INVALID_VALUE);
-  }
-  if (lib_opt_list.len() > kMaxLibOptCnt) {
-    return Error(CUDA_ERROR_INVALID_VALUE);
-  }
-
-  auto jit_opt_cnt = u32(jit_opt_list.len());
-  CUjit_option jit_opts[kMaxJItOptCnt]{};
-  void* jit_opt_vals[kMaxJItOptCnt]{};
-  for (auto i = 0U; i < jit_opt_cnt; ++i) {
-    jit_opts[i] = jit_opt_list[i].opt;
-    jit_opt_vals[i] = jit_opt_list[i].val;
-  }
-
-  auto lib_opt_cnt = u32(lib_opt_list.len());
-  CUlibraryOption lib_opts[kMaxLibOptCnt]{};
-  void* lib_opt_vals[kMaxLibOptCnt]{};
-  for (auto i = 0U; i < lib_opt_cnt; ++i) {
-    lib_opts[i] = lib_opt_list[i].opt;
-    lib_opt_vals[i] = lib_opt_list[i].val;
-  }
-
-  auto lib = lib_t{nullptr};
-  if (auto err =
-          cuLibraryLoadFromFile(&lib, path, jit_opts, jit_opt_vals, jit_opt_cnt, lib_opts, lib_opt_vals, lib_opt_cnt)) {
-    return Error(err);
+auto load_lib(const char* path, JitOptions jit_opts, LibOptions lib_opts) -> Result<CUlibrary> {
+  auto lib = CUlibrary{nullptr};
+  const auto ret = cuLibraryLoadFromFile(
+      &lib, path, jit_opts.keys, jit_opts.vals, jit_opts.cnt, lib_opts.keys, lib_opts.vals, lib_opts.cnt);
+  if (ret) {
+    return Error(ret);
   }
   return Ok{lib};
 }
 
-auto lib_unload(lib_t lib) -> Result<> {
+auto unload_lib(CUlibrary lib) -> Result<> {
   if (auto err = cuLibraryUnload(lib)) {
     return Error(err);
   }
   return Ok{};
 }
 
-auto lib_kern(lib_t lib, const char* name) -> Result<ker_t> {
-  auto func = ker_t{nullptr};
-  if (auto err = cuLibraryGetKernel(&func, lib, name)) {
+auto get_kernel(CUlibrary lib, const char* name) -> Result<CUkernel> {
+  auto kernel = CUkernel{nullptr};
+  if (auto err = cuLibraryGetKernel(&kernel, lib, name)) {
     return Error(err);
   }
-  return Ok{func};
+  return Ok{kernel};
 }
 
-auto ker_func(ker_t ker) -> Result<CUfunction> {
+auto get_function(CUkernel ker) -> Result<CUfunction> {
   auto func = CUfunction{nullptr};
   if (auto err = cuKernelGetFunction(&func, ker)) {
     return Error(err);
@@ -75,7 +57,7 @@ auto ker_func(ker_t ker) -> Result<CUfunction> {
   return Ok{func};
 }
 
-auto func_launch(CUfunction f, dim3_t grid_dim, dim3_t blk_dim, stream_t stream, const void* args[]) -> Result<> {
+auto launch_kernel(CUfunction f, dim3_t grid_dim, dim3_t blk_dim, stream_t stream, const void* args[]) -> Result<> {
   if (f == nullptr) {
     return Error(CUDA_ERROR_INVALID_VALUE);
   }
@@ -101,38 +83,33 @@ auto func_launch(CUfunction f, dim3_t grid_dim, dim3_t blk_dim, stream_t stream,
 
 }  // namespace detail
 
-Library::Library() noexcept {}
+Library::Library(CUlib_st& lib) noexcept : _lib{&lib} {}
 
 Library::~Library() noexcept {
   if (_lib == nullptr) {
     return;
   }
-  (void)detail::lib_unload(_lib);
-  _lib = nullptr;
+  (void)detail::unload_lib(_lib);
 }
 
 Library::Library(Library&& other) noexcept : _lib{mem::take(other._lib)} {}
 
 auto Library::load(Str path) -> Result<Library> {
-  const auto c_path = ffi::CString::from(path);
+  const auto c_path = ffi::CString::from_str(path);
+  auto jit_opts = detail::JitOptions{};
+  auto lib_opts = detail::LibOptions{};
+  auto lib = _TRY(detail::load_lib(c_path.as_ptr(), jit_opts, lib_opts));
 
-  auto to_lib = [](lib_t lib) {
-    auto res = Library{};
-    res._lib = lib;
-    return res;
-  };
-
-  auto lib = detail::lib_load(c_path.as_ptr(), {}, {}).map(to_lib);
-  return lib;
+  return Library{*lib};
 }
 
-auto Library::get_kern(const char* name) const -> Result<Kernel> {
-  auto kern = _TRY(detail::lib_kern(_lib, name));
-  auto func = _TRY(detail::ker_func(kern));
-  return Kernel{kern, func};
+auto Library::get_func_imp(const char* name) const -> Result<CUfunc_st*> {
+  auto kern = _TRY(detail::get_kernel(_lib, name));
+  auto func = _TRY(detail::get_function(kern));
+  return Ok{func};
 }
 
-auto launch(fun_t f, Slice<const void*> args) -> Result<> {
+auto launch(CUfunc_st* f, Slice<const void*> args) -> Result<> {
   if (f == nullptr) {
     return Error(CUDA_ERROR_INVALID_VALUE);
   }
@@ -140,7 +117,7 @@ auto launch(fun_t f, Slice<const void*> args) -> Result<> {
   const auto stream = cuda::stream_current();
   const auto grid_dim = cuda::grid_dim();
   const auto block_dim = cuda::block_dim();
-  return detail::func_launch(f, grid_dim, block_dim, stream, args._ptr);
+  return detail::launch_kernel(f, grid_dim, block_dim, stream, args._ptr);
 }
 
 }  // namespace sfc::cuda

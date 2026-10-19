@@ -153,7 +153,7 @@ auto Array<T>::new_layered(Extent ext) -> Array {
 }
 
 template <class T>
-auto Array<T>::as_ptr() const -> arr_t {
+auto Array<T>::as_ptr() const -> CUarray_st* {
   return _arr;
 }
 

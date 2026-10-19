@@ -13,7 +13,7 @@ namespace detail {
 using HeapAlloc = sfc::alloc::Global;
 
 auto to_device_ptr(const void* p) -> CUdeviceptr {
-  return __builtin_bit_cast(CUdeviceptr, p);
+  return CUdeviceptr(p);
 }
 
 auto heap_alloc(Layout layout) -> Result<void*> {
@@ -160,90 +160,6 @@ auto MemLocation::on_device() const -> bool {
   return kind == MemKind::Device;
 }
 
-auto MemLocation::allocate(mem::Layout layout) -> void* {
-  cuda::init().unwrap();
-
-  if (layout.size == 0) {
-    return nullptr;
-  }
-
-  void* ptr = nullptr;
-  switch (kind) {
-    case MemKind::Heap: {
-      ptr = detail::heap_alloc(layout).unwrap();
-      break;
-    }
-    case MemKind::Host: {
-      auto dev = cuda::Device::try_from(device).unwrap();
-      auto enter = dev.enter();
-      ptr = detail::host_alloc(layout).unwrap();
-      break;
-    }
-    case MemKind::Device: {
-      auto dev = cuda::Device::try_from(device).unwrap();
-      auto enter = dev.enter();
-      ptr = detail::device_alloc(layout).unwrap();
-      break;
-    }
-  }
-  return ptr;
-}
-
-void MemLocation::deallocate(void* ptr, mem::Layout layout) {
-  cuda::init().unwrap();
-
-  if (ptr == nullptr) {
-    return;
-  }
-
-  switch (kind) {
-    case MemKind::Heap: {
-      detail::heap_dealloc(ptr, layout).unwrap();
-      break;
-    }
-    case MemKind::Host: {
-      auto dev = cuda::Device::try_from(device).unwrap();
-      auto enter = dev.enter();
-      detail::host_dealloc(ptr, layout).unwrap();
-      break;
-    }
-    case MemKind::Device: {
-      auto dev = cuda::Device::try_from(device).unwrap();
-      auto enter = dev.enter();
-      detail::device_dealloc(ptr, layout).unwrap();
-      break;
-    }
-  }
-}
-
-auto MemLocation::pool() const -> mem_pool::Pool& {
-  using Pool = mem_pool::XPool<MemLocation>;
-
-  static Pool ram_pool = Pool{Host()};
-  static Pool gpu_pool[8] = {
-      Pool{Device(0)},
-      Pool{Device(1)},
-      Pool{Device(2)},
-      Pool{Device(3)},
-      Pool{Device(4)},
-      Pool{Device(5)},
-      Pool{Device(6)},
-      Pool{Device(7)},
-  };
-
-  if (device >= kMaxDeviceCnt) {
-    return Pool::global();
-  }
-
-  switch (kind) {
-    case MemKind::Heap:   return Pool::global();
-    case MemKind::Host:   return ram_pool;
-    case MemKind::Device: return gpu_pool[device];
-  }
-
-  return Pool::global();
-}
-
 auto MemBlock::fill_bytes(u8 val) -> Result<> {
   if (size == 0) {
     return Ok{};
@@ -300,6 +216,103 @@ auto MemBlock::copy_from(MemBlock src) -> Result<> {
     _TRY(detail::memcpy_uva(ptr, src.ptr, size, stream));
   }
   return Ok{};
+}
+
+auto Allocator::Heap() -> Allocator {
+  return Allocator{.loc = MemLocation::Heap()};
+}
+
+auto Allocator::Host() -> Allocator {
+  return Allocator{.loc = MemLocation::Host()};
+}
+
+auto Allocator::Device(u32 device = 0) -> Allocator {
+  return Allocator{.loc = MemLocation::Device(device)};
+}
+
+auto Allocator::allocate(mem::Layout layout) -> void* {
+  cuda::init().unwrap();
+
+  if (layout.size == 0) {
+    return nullptr;
+  }
+
+  void* ptr = nullptr;
+  switch (loc.kind) {
+    case MemKind::Heap: {
+      ptr = detail::heap_alloc(layout).unwrap();
+      break;
+    }
+    case MemKind::Host: {
+      auto dev = cuda::Device::try_from(loc.device).unwrap();
+      auto enter = dev.enter();
+      ptr = detail::host_alloc(layout).unwrap();
+      break;
+    }
+    case MemKind::Device: {
+      auto dev = cuda::Device::try_from(loc.device).unwrap();
+      auto enter = dev.enter();
+      ptr = detail::device_alloc(layout).unwrap();
+      break;
+    }
+  }
+  return ptr;
+}
+
+void Allocator::deallocate(void* ptr, mem::Layout layout) {
+  cuda::init().unwrap();
+
+  if (ptr == nullptr) {
+    return;
+  }
+
+  switch (loc.kind) {
+    case MemKind::Heap: {
+      detail::heap_dealloc(ptr, layout).unwrap();
+      break;
+    }
+    case MemKind::Host: {
+      auto dev = cuda::Device::try_from(loc.device).unwrap();
+      auto enter = dev.enter();
+      detail::host_dealloc(ptr, layout).unwrap();
+      break;
+    }
+    case MemKind::Device: {
+      auto dev = cuda::Device::try_from(loc.device).unwrap();
+      auto enter = dev.enter();
+      detail::device_dealloc(ptr, layout).unwrap();
+      break;
+    }
+  }
+}
+
+auto Allocator::pool() const -> mem_pool::Pool& {
+  static constexpr u32 kMaxDeviceCnt = 8U;
+  using Pool = mem_pool::XPool<Allocator>;
+
+  static Pool host_pool = Pool{{Allocator::Host()}};
+  static Pool device_pool[kMaxDeviceCnt] = {
+      Pool{{Allocator::Device(0)}},
+      Pool{{Allocator::Device(1)}},
+      Pool{{Allocator::Device(2)}},
+      Pool{{Allocator::Device(3)}},
+      Pool{{Allocator::Device(4)}},
+      Pool{{Allocator::Device(5)}},
+      Pool{{Allocator::Device(6)}},
+      Pool{{Allocator::Device(7)}},
+  };
+
+  if (loc.device >= kMaxDeviceCnt) {
+    return Pool::global();
+  }
+
+  switch (loc.kind) {
+    case MemKind::Heap:   return Pool::global();
+    case MemKind::Host:   return host_pool;
+    case MemKind::Device: return device_pool[loc.device];
+  }
+
+  return Pool::global();
 }
 
 }  // namespace sfc::cuda
