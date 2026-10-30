@@ -153,6 +153,12 @@ struct NdSlice<T, 2> {
     return _strides[0] == s._strides[0] && _strides[1] == s._strides[1];
   }
 
+  auto transpose() const -> NdSlice {
+    const u32 shape[] = {_shape[1], _shape[0]};
+    const u32 strides[] = {_strides[1], _strides[0]};
+    return {_data, shape, strides};
+  }
+
   template <u32 I = 1, u32 J = 0>
   auto permute() const -> NdSlice {
     static_assert(I < 2 && J < 2);

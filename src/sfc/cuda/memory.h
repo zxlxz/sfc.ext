@@ -24,6 +24,7 @@ struct MemLocation {
  public:
   auto on_host() const -> bool;
   auto on_device() const -> bool;
+  auto allocator() const -> math::Allocator;
 
  public:
   void fmt(fmt::Formatter& f) const;
@@ -39,30 +40,16 @@ struct MemBlock {
   auto copy_from(MemBlock src) -> Result<>;
 };
 
-struct Allocator {
-  MemLocation loc;
-
- public:
-  static auto Heap() -> Allocator;
-  static auto Host() -> Allocator;
-  static auto Device(u32 device) -> Allocator;
-
- public:
-  auto allocate(Layout layout) -> void*;
-  void deallocate(void* ptr, Layout layout);
-};
-
-template <class T, u32 N = 1>
-using NdArray = math::NdArray<T, N, Allocator>;
+using math::NdArray;
 
 template <class T, u32 N = 1>
 auto empty(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray<T, N> {
-  return NdArray<T, N>::new_(shape, {loc});
+  return NdArray<T, N>::new_(shape, loc.allocator());
 }
 
 template <class T, u32 N = 1>
 auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray<T, N> {
-  auto res = NdArray<T, N>::new_(shape, {loc});
+  auto res = NdArray<T, N>::new_(shape, loc.allocator());
   auto blk = MemBlock{res.as_mut_ptr(), res.numel() * sizeof(T), loc};
   blk.fill_bytes(0).unwrap();
   return res;

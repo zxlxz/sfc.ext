@@ -5,12 +5,27 @@
 
 namespace sfc::math {
 
-template <class T, u32 N, class A = alloc::Global>
+class IAlloc {
+ public:
+  virtual void* allocate(Layout layout) = 0;
+  virtual void* allocate_zeroed(Layout layout) = 0;
+  virtual void deallocate(void* ptr, Layout layout) = 0;
+};
+
+struct Allocator {
+  IAlloc* _alloc = nullptr;
+
+ public:
+  auto allocate(Layout layout) -> void*;
+  auto allocate_zeroed(Layout layout) -> void*;
+  void deallocate(void* ptr, Layout layout);
+};
+
+template <class T, u32 N>
 class [[nodiscard]] NdArray {
+  using A = Allocator;
   using Buff = raw_buf::RawBuf<T, A>;
   using View = NdSlice<T, N>;
-  using shape_t = u32[N];
-  using strides_t = u32[N];
 
   Buff _buff{};
   View _view{};
@@ -32,13 +47,13 @@ class [[nodiscard]] NdArray {
 
   static auto new_(const u32 (&shape)[N], A alloc = {}) -> NdArray {
     const auto numel = View::with_shape(nullptr, shape).numel();
-    auto buf = Buff::with_capacity(numel, mem::move(alloc));
+    auto buf = Buff::with_capacity(numel, alloc);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
-  static auto new_zeroerd(const u32 (&shape)[N], A alloc = {}) -> NdArray {
+  static auto new_zeroed(const u32 (&shape)[N], A alloc = {}) -> NdArray {
     const auto numel = View::with_shape(nullptr, shape).numel();
-    auto buf = Buff::with_capacity_zeroed(numel, mem::move(alloc));
+    auto buf = Buff::with_capacity_zeroed(numel, alloc);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
@@ -55,11 +70,11 @@ class [[nodiscard]] NdArray {
     return _view.numel();
   }
 
-  auto shape() const -> const shape_t& {
+  auto shape() const -> const auto& {
     return _view._shape;
   }
 
-  auto strides() const -> const strides_t& {
+  auto strides() const -> const auto& {
     return _view._strides;
   }
 
@@ -88,11 +103,19 @@ class [[nodiscard]] NdArray {
     return _view;
   }
 
+  auto operator*() const -> View {
+    return _view;
+  }
+
+  auto operator*() -> View {
+    return _view;
+  }
+
+ public:
   auto operator[](u32 idx) -> NdSlice<T, N - 1> requires(N > 1) {
     return _view[idx];
   }
 
- public:
   auto operator[](u32 idx) const -> T requires(N == 1) {
     return _view[idx];
   }
@@ -156,13 +179,13 @@ auto empty_like(const NdArray<T, N>& array) -> NdArray<T, N> {
 
 template <class T, u32 N>
 auto zero(const u32 (&shape)[N]) -> NdArray<T, N> {
-  return NdArray<T, N>::new_zeroerd(shape);
+  return NdArray<T, N>::new_zeroed(shape);
 }
 
 template <class T, u32 N>
 auto zero_like(const NdArray<T, N>& array) -> NdArray<T, N> {
   const auto& shape = array.shape();
-  return NdArray<T, N>::new_zeroerd(shape);
+  return NdArray<T, N>::new_zeroed(shape);
 }
 
 }  // namespace sfc::math

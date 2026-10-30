@@ -216,72 +216,110 @@ auto MemBlock::copy_from(MemBlock src) -> Result<> {
   return Ok{};
 }
 
-auto Allocator::Heap() -> Allocator {
-  return Allocator{.loc = MemLocation::Heap()};
-}
+class DeviceAlloc : public math::IAlloc {
+  u32 _device;
 
-auto Allocator::Host() -> Allocator {
-  return Allocator{.loc = MemLocation::Host()};
-}
+ public:
+  explicit DeviceAlloc(u32 device) : _device{device} {}
 
-auto Allocator::Device(u32 device = 0) -> Allocator {
-  return Allocator{.loc = MemLocation::Device(device)};
-}
-
-auto Allocator::allocate(mem::Layout layout) -> void* {
-  cuda::init().unwrap();
-
-  if (layout.size == 0) {
-    return nullptr;
+ public:
+  auto device() const -> cuda::Device {
+    return cuda::Device::try_from(_device).unwrap();
   }
 
-  void* ptr = nullptr;
-  switch (loc.kind) {
-    case MemKind::Heap: {
-      ptr = detail::heap_alloc(layout).unwrap();
-      break;
-    }
-    case MemKind::Host: {
-      auto dev = cuda::Device::try_from(loc.device).unwrap();
-      auto enter = dev.enter();
-      ptr = detail::host_alloc(layout).unwrap();
-      break;
-    }
-    case MemKind::Device: {
-      auto dev = cuda::Device::try_from(loc.device).unwrap();
-      auto enter = dev.enter();
-      ptr = detail::device_alloc(layout).unwrap();
-      break;
-    }
-  }
-  return ptr;
-}
+  auto allocate(mem::Layout layout) -> void* {
+    auto ctx = this->device().enter();
 
-void Allocator::deallocate(void* ptr, mem::Layout layout) {
-  cuda::init().unwrap();
-
-  if (ptr == nullptr) {
-    return;
+    const auto ptr = detail::device_alloc(layout).unwrap();
+    return ptr;
   }
 
-  switch (loc.kind) {
-    case MemKind::Heap: {
-      detail::heap_dealloc(ptr, layout).unwrap();
-      break;
+  auto allocate_zeroed(mem::Layout layout) -> void* {
+    auto ctx = this->device().enter();
+    const auto ptr = detail::device_alloc(layout).unwrap();
+    if (ptr != nullptr) {
+      ptr::write_bytes((u8*)ptr, 0, layout.size);
     }
-    case MemKind::Host: {
-      auto dev = cuda::Device::try_from(loc.device).unwrap();
-      auto enter = dev.enter();
-      detail::host_dealloc(ptr, layout).unwrap();
-      break;
+    return ptr;
+  }
+
+  void deallocate(void* ptr, mem::Layout layout) {
+    auto ctx = this->device().enter();
+
+    detail::device_dealloc(ptr, layout).unwrap();
+  }
+};
+
+class HostAlloc : public math::IAlloc {
+  u32 _device;
+
+ public:
+  explicit HostAlloc(u32 device) : _device{device} {}
+
+ public:
+  auto device() const -> cuda::Device {
+    return cuda::Device::try_from(_device).unwrap();
+  }
+
+  auto allocate(mem::Layout layout) -> void* {
+    auto ctx = this->device().enter();
+    const auto ptr = detail::host_alloc(layout).unwrap();
+    return ptr;
+  }
+
+  auto allocate_zeroed(mem::Layout layout) -> void* {
+    auto ctx = this->device().enter();
+    const auto ptr = detail::host_alloc(layout).unwrap();
+    if (ptr != nullptr) {
+      ptr::write_bytes((u8*)ptr, 0, layout.size);
     }
-    case MemKind::Device: {
-      auto dev = cuda::Device::try_from(loc.device).unwrap();
-      auto enter = dev.enter();
-      detail::device_dealloc(ptr, layout).unwrap();
-      break;
+    return ptr;
+  }
+
+  void deallocate(void* ptr, mem::Layout layout) {
+    auto ctx = this->device().enter();
+    detail::host_dealloc(ptr, layout).unwrap();
+  }
+};
+
+auto MemLocation::allocator() const -> math::Allocator {
+  if (kind == MemKind::Heap) {
+    return math::Allocator{};
+  }
+
+  if (kind == MemKind::Host) {
+    static HostAlloc a[] = {
+        HostAlloc{0},
+        HostAlloc{1},
+        HostAlloc{2},
+        HostAlloc{3},
+        HostAlloc{4},
+        HostAlloc{5},
+        HostAlloc{6},
+        HostAlloc{7},
+    };
+    if (device < 8) {
+      return {&a[device]};
     }
   }
+
+  if (kind == MemKind::Device) {
+    static DeviceAlloc a[] = {
+        DeviceAlloc{0},
+        DeviceAlloc{1},
+        DeviceAlloc{2},
+        DeviceAlloc{3},
+        DeviceAlloc{4},
+        DeviceAlloc{5},
+        DeviceAlloc{6},
+        DeviceAlloc{7},
+    };
+    if (device < 8) {
+      return {&a[device]};
+    }
+  }
+
+  return math::Allocator{};
 }
 
 }  // namespace sfc::cuda
