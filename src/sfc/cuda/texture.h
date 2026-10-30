@@ -78,7 +78,7 @@ class Texture {
   }
 
  public:
-  auto set_data(math::NdView<T, N> src) -> Result<> {
+  auto set_data(math::NdSlice<T, N> src) -> Result<> {
     return _arr.set_data(src);
   }
 };
@@ -109,7 +109,7 @@ class LTexture {
   }
 
  public:
-  auto set_data(math::NdView<T, N> src) -> Result<> {
+  auto set_data(math::NdSlice<T, N> src) -> Result<> {
     return _arr.set_data(src);
   }
 };

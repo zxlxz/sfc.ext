@@ -1,6 +1,6 @@
 #include "sfc/test.h"
 #include "sfc/io.h"
-#include "sfc/math/tensor.h"
+#include "sfc/math/ndarray.h"
 #include "sfc/math/fft.h"
 
 namespace sfc::math::test {

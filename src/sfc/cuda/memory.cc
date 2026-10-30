@@ -10,19 +10,17 @@ namespace sfc::cuda {
 
 namespace detail {
 
-using HeapAlloc = sfc::alloc::Global;
-
 auto to_device_ptr(const void* p) -> CUdeviceptr {
   return CUdeviceptr(p);
 }
 
 auto heap_alloc(Layout layout) -> Result<void*> {
-  auto ptr = HeapAlloc::allocate(layout);
+  auto ptr = ::malloc(layout.size);
   return ptr;
 }
 
-auto heap_dealloc(void* ptr, Layout layout) -> Result<> {
-  HeapAlloc::deallocate(ptr, layout);
+auto heap_dealloc(void* ptr, [[maybe_unused]] Layout layout) -> Result<> {
+  ::free(ptr);
   return Ok{};
 }
 
@@ -284,35 +282,6 @@ void Allocator::deallocate(void* ptr, mem::Layout layout) {
       break;
     }
   }
-}
-
-auto Allocator::pool() const -> mem_pool::Pool& {
-  static constexpr u32 kMaxDeviceCnt = 8U;
-  using Pool = mem_pool::XPool<Allocator>;
-
-  static Pool host_pool = Pool{{Allocator::Host()}};
-  static Pool device_pool[kMaxDeviceCnt] = {
-      Pool{{Allocator::Device(0)}},
-      Pool{{Allocator::Device(1)}},
-      Pool{{Allocator::Device(2)}},
-      Pool{{Allocator::Device(3)}},
-      Pool{{Allocator::Device(4)}},
-      Pool{{Allocator::Device(5)}},
-      Pool{{Allocator::Device(6)}},
-      Pool{{Allocator::Device(7)}},
-  };
-
-  if (loc.device >= kMaxDeviceCnt) {
-    return Pool::global();
-  }
-
-  switch (loc.kind) {
-    case MemKind::Heap:   return Pool::global();
-    case MemKind::Host:   return host_pool;
-    case MemKind::Device: return device_pool[loc.device];
-  }
-
-  return Pool::global();
 }
 
 }  // namespace sfc::cuda

@@ -1,19 +1,14 @@
 #pragma once
 
+#include "sfc/math/ndslice.h"
 #include "sfc/alloc.h"
-#include "sfc/alloc/mem_pool.h"
-#include "sfc/math/ndview.h"
 
 namespace sfc::math {
 
-template <class T, u32 N>
-class Tensor;
-
-template <class T, u32 N>
-class [[nodiscard]] Tensor {
-  using A = mem_pool::Allocator;
+template <class T, u32 N, class A = alloc::Global>
+class [[nodiscard]] NdArray {
   using Buff = raw_buf::RawBuf<T, A>;
-  using View = NdView<T, N>;
+  using View = NdSlice<T, N>;
   using shape_t = u32[N];
   using strides_t = u32[N];
 
@@ -21,30 +16,30 @@ class [[nodiscard]] Tensor {
   View _view{};
 
  public:
-  Tensor() noexcept {}
-  ~Tensor() {}
+  NdArray() noexcept {}
+  ~NdArray() {}
 
-  Tensor(Tensor&& other) noexcept = default;
-  Tensor& operator=(Tensor&& other) noexcept = default;
+  NdArray(NdArray&& other) noexcept = default;
+  NdArray& operator=(NdArray&& other) noexcept = default;
 
-  static auto from_buf(Buff buf, const u32 (&shape)[N]) -> Tensor {
+  static auto from_buf(Buff buf, const u32 (&shape)[N]) -> NdArray {
     const auto ptr = ptr::cast<T>(buf.ptr());
-    auto res = Tensor{};
+    auto res = NdArray{};
     res._buff = mem::move(buf);
     res._view = View::with_shape(ptr, shape);
     return res;
   }
 
-  static auto new_(const u32 (&shape)[N], A alloc = {}) -> Tensor {
+  static auto new_(const u32 (&shape)[N], A alloc = {}) -> NdArray {
     const auto numel = View::with_shape(nullptr, shape).numel();
     auto buf = Buff::with_capacity(numel, mem::move(alloc));
-    return Tensor::from_buf(mem::move(buf), shape);
+    return NdArray::from_buf(mem::move(buf), shape);
   }
 
-  static auto new_zeroerd(const u32 (&shape)[N], A alloc = {}) -> Tensor {
+  static auto new_zeroerd(const u32 (&shape)[N], A alloc = {}) -> NdArray {
     const auto numel = View::with_shape(nullptr, shape).numel();
     auto buf = Buff::with_capacity_zeroed(numel, mem::move(alloc));
-    return Tensor::from_buf(mem::move(buf), shape);
+    return NdArray::from_buf(mem::move(buf), shape);
   }
 
  public:
@@ -84,7 +79,7 @@ class [[nodiscard]] Tensor {
     return {_buff.ptr(), _buff.cap()};
   }
 
-  auto allocator() -> mem_pool::Allocator& {
+  auto allocator() -> A& {
     return _buff.allocator();
   }
 
@@ -93,7 +88,7 @@ class [[nodiscard]] Tensor {
     return _view;
   }
 
-  auto operator[](u32 idx) -> NdView<T, N - 1> requires(N > 1) {
+  auto operator[](u32 idx) -> NdSlice<T, N - 1> requires(N > 1) {
     return _view[idx];
   }
 
@@ -149,25 +144,25 @@ class [[nodiscard]] Tensor {
 };
 
 template <class T, u32 N>
-auto empty(const u32 (&shape)[N]) -> Tensor<T, N> {
-  return Tensor<T, N>::new_(shape);
+auto empty(const u32 (&shape)[N]) -> NdArray<T, N> {
+  return NdArray<T, N>::new_(shape);
 }
 
 template <class T, u32 N>
-auto empty_like(const Tensor<T, N>& array) -> Tensor<T, N> {
+auto empty_like(const NdArray<T, N>& array) -> NdArray<T, N> {
   const auto& shape = array.shape();
-  return Tensor<T, N>::new_(shape);
+  return NdArray<T, N>::new_(shape);
 }
 
 template <class T, u32 N>
-auto zero(const u32 (&shape)[N]) -> Tensor<T, N> {
-  return Tensor<T, N>::new_zeroerd(shape);
+auto zero(const u32 (&shape)[N]) -> NdArray<T, N> {
+  return NdArray<T, N>::new_zeroerd(shape);
 }
 
 template <class T, u32 N>
-auto zero_like(const Tensor<T, N>& array) -> Tensor<T, N> {
+auto zero_like(const NdArray<T, N>& array) -> NdArray<T, N> {
   const auto& shape = array.shape();
-  return Tensor<T, N>::new_zeroerd(shape);
+  return NdArray<T, N>::new_zeroerd(shape);
 }
 
 }  // namespace sfc::math

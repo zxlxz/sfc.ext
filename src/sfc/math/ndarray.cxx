@@ -1,8 +1,8 @@
 #include "sfc/test.h"
 #include "sfc/io.h"
-#include "sfc/math/tensor.h"
+#include "sfc/math/ndarray.h"
 
-namespace sfc::math::tensor::test {
+namespace sfc::math::ndarray::test {
 
 SFC_TEST(tensor_1d_shape) {
   auto a = math::empty<int>({4U});
@@ -52,7 +52,7 @@ SFC_TEST(tensor_index_op) {
   a[1, 0] = 3;
   a[1, 1] = 4;
 
-  // operator[](u32) returns a row NdView
+  // operator[](u32) returns a row NdSlice
   sfc::assert_eq(a[0, 0], 1);
   sfc::assert_eq(a[1, 1], 4);
 }
@@ -83,7 +83,7 @@ SFC_TEST(tensor_fmt) {
   auto a = math::empty<i32>({2U, 3U});
 
   auto p = a.as_mut_ptr();
-  for (auto i : ops::Range{a.numel()}) {
+  for (auto i : Range{a.numel()}) {
     p[i] = i32(i);
   }
 
@@ -92,4 +92,4 @@ SFC_TEST(tensor_fmt) {
   io::println("a = \n {:2d}\n", a);
 }
 
-}  // namespace sfc::math::tensor::test
+}  // namespace sfc::math::ndarray::test

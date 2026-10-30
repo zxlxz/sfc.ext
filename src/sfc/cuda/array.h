@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sfc/cuda/mod.h"
-#include "sfc/math/ndview.h"
+#include "sfc/math/ndslice.h"
 
 struct CUarray_st;
 
@@ -46,7 +46,7 @@ class Array {
   auto extent() const -> Extent;
 
   template <u32 N>
-  auto set_data(math::NdView<T, N> view) -> Result<>;
+  auto set_data(math::NdSlice<T, N> view) -> Result<>;
 };
 
 }  // namespace sfc::cuda

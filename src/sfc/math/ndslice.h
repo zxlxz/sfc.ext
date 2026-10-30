@@ -5,10 +5,10 @@
 namespace sfc::math {
 
 template <class T, u32 N = 1>
-struct NdView;
+struct NdSlice;
 
 template <class T>
-struct NdView<T, 1> {
+struct NdSlice<T, 1> {
   static constexpr u32 NDIM = 1U;
   using Item = T;
 
@@ -17,14 +17,14 @@ struct NdView<T, 1> {
   u32 _strides[1] = {};
 
  public:
-  __hd NdView() noexcept : _data{nullptr}, _shape{0}, _strides{0} {}
+  __hd NdSlice() noexcept : _data{nullptr}, _shape{0}, _strides{0} {}
 
-  __hd NdView(T* data, const u32 (&shape)[1], const u32 (&strides)[1])
+  __hd NdSlice(T* data, const u32 (&shape)[1], const u32 (&strides)[1])
       : _data{data}, _shape{shape[0]}, _strides{strides[0]} {}
 
-  static auto with_shape(T* data, const u32 (&shape)[1]) -> NdView {
+  static auto with_shape(T* data, const u32 (&shape)[1]) -> NdSlice {
     const u32 strides[1] = {1};
-    return NdView{data, shape, strides};
+    return NdSlice{data, shape, strides};
   }
 
  public:
@@ -91,7 +91,7 @@ struct NdView<T, 1> {
 };
 
 template <class T>
-struct NdView<T, 2> {
+struct NdSlice<T, 2> {
   static constexpr u32 NDIM = 2U;
   using Item = T;
 
@@ -100,14 +100,14 @@ struct NdView<T, 2> {
   u32 _strides[2] = {};
 
  public:
-  __hd NdView() noexcept : _data{nullptr}, _shape{0, 0}, _strides{0, 0} {}
+  __hd NdSlice() noexcept : _data{nullptr}, _shape{0, 0}, _strides{0, 0} {}
 
-  __hd NdView(T* data, const u32 (&shape)[2], const u32 (&strides)[2])
+  __hd NdSlice(T* data, const u32 (&shape)[2], const u32 (&strides)[2])
       : _data{data}, _shape{shape[0], shape[1]}, _strides{strides[0], strides[1]} {}
 
-  static auto with_shape(T* data, const u32 (&shape)[2]) -> NdView {
+  static auto with_shape(T* data, const u32 (&shape)[2]) -> NdSlice {
     const u32 strides[2] = {shape[1], 1};
-    return NdView{data, shape, strides};
+    return NdSlice{data, shape, strides};
   }
 
  public:
@@ -142,19 +142,19 @@ struct NdView<T, 2> {
     return _data[offset];
   }
 
-  __hd auto operator[](u32 i) const -> NdView<T, 1> {
+  __hd auto operator[](u32 i) const -> NdSlice<T, 1> {
     const auto data = _data + i * _strides[0];
-    return NdView<T, 1>{data, {_shape[1]}, {_strides[1]}};
+    return NdSlice<T, 1>{data, {_shape[1]}, {_strides[1]}};
   }
 
  public:
   auto is_contiguous() const -> bool {
-    const auto s = NdView::with_shape(_data, _shape);
+    const auto s = NdSlice::with_shape(_data, _shape);
     return _strides[0] == s._strides[0] && _strides[1] == s._strides[1];
   }
 
   template <u32 I = 1, u32 J = 0>
-  auto permute() const -> NdView {
+  auto permute() const -> NdSlice {
     static_assert(I < 2 && J < 2);
     static_assert(I != J);
 
@@ -197,7 +197,7 @@ struct NdView<T, 2> {
 };
 
 template <class T>
-struct NdView<T, 3> {
+struct NdSlice<T, 3> {
   static constexpr u32 NDIM = 3U;
   using Item = T;
 
@@ -206,14 +206,14 @@ struct NdView<T, 3> {
   u32 _strides[3] = {};
 
  public:
-  __hd NdView() noexcept : _data{nullptr}, _shape{0, 0, 0}, _strides{0, 0, 0} {}
+  __hd NdSlice() noexcept : _data{nullptr}, _shape{0, 0, 0}, _strides{0, 0, 0} {}
 
-  __hd NdView(T* data, const u32 (&shape)[3], const u32 (&strides)[3])
+  __hd NdSlice(T* data, const u32 (&shape)[3], const u32 (&strides)[3])
       : _data{data}, _shape{shape[0], shape[1], shape[2]}, _strides{strides[0], strides[1], strides[2]} {}
 
-  static auto with_shape(T* data, const u32 (&shape)[3]) -> NdView {
+  static auto with_shape(T* data, const u32 (&shape)[3]) -> NdSlice {
     const u32 strides[3] = {shape[1] * shape[2], shape[2], 1};
-    return NdView{data, shape, strides};
+    return NdSlice{data, shape, strides};
   }
 
  public:
@@ -248,25 +248,25 @@ struct NdView<T, 3> {
     return _data[offset];
   }
 
-  __hd auto operator[](u32 i) const -> NdView<T, 2> {
+  __hd auto operator[](u32 i) const -> NdSlice<T, 2> {
     const auto data = _data + i * _strides[0];
-    return NdView<T, 2>{data, {_shape[1], _shape[2]}, {_strides[1], _strides[2]}};
+    return NdSlice<T, 2>{data, {_shape[1], _shape[2]}, {_strides[1], _strides[2]}};
   }
 
  public:
   auto is_contiguous() const -> bool {
-    const auto s = NdView::with_shape(_data, _shape);
+    const auto s = NdSlice::with_shape(_data, _shape);
     return _strides[0] == s._strides[0] && _strides[1] == s._strides[1] && _strides[2] == s._strides[2];
   }
 
   template <u32 I, u32 J, u32 K>
-  auto permute() const -> NdView<T, 3> {
+  auto permute() const -> NdSlice<T, 3> {
     static_assert(I < 3 && J < 3 && K < 3);
     static_assert(I != J && I != K && J != K);
 
     const u32 shape[] = {_shape[I], _shape[J], _shape[K]};
     const u32 strides[] = {_strides[I], _strides[J], _strides[K]};
-    return NdView<T, 3>{_data, shape, strides};
+    return NdSlice<T, 3>{_data, shape, strides};
   }
 
   void for_each(auto&& f) const {
@@ -308,7 +308,7 @@ struct NdView<T, 3> {
 };
 
 template <class T>
-struct NdView<T, 4> {
+struct NdSlice<T, 4> {
   static constexpr u32 NDIM = 4U;
   using Item = T;
 
@@ -317,16 +317,16 @@ struct NdView<T, 4> {
   u32 _strides[4] = {};
 
  public:
-  __hd NdView() noexcept : _data{nullptr}, _shape{0, 0, 0, 0}, _strides{0, 0, 0, 0} {}
+  __hd NdSlice() noexcept : _data{nullptr}, _shape{0, 0, 0, 0}, _strides{0, 0, 0, 0} {}
 
-  __hd NdView(T* data, const u32 (&shape)[4], const u32 (&strides)[4])
+  __hd NdSlice(T* data, const u32 (&shape)[4], const u32 (&strides)[4])
       : _data{data}
       , _shape{shape[0], shape[1], shape[2], shape[3]}
       , _strides{strides[0], strides[1], strides[2], strides[3]} {}
 
-  static auto with_shape(T* data, const u32 (&shape)[4]) -> NdView {
+  static auto with_shape(T* data, const u32 (&shape)[4]) -> NdSlice {
     const u32 strides[4] = {shape[1] * shape[2] * shape[3], shape[2] * shape[3], shape[3], 1};
-    return NdView{data, shape, strides};
+    return NdSlice{data, shape, strides};
   }
 
  public:
@@ -361,26 +361,26 @@ struct NdView<T, 4> {
     return _data[offset];
   }
 
-  __hd auto operator[](u32 i) const -> NdView<T, 3> {
+  __hd auto operator[](u32 i) const -> NdSlice<T, 3> {
     const auto data = _data + i * _strides[0];
-    return NdView<T, 3>{data, {_shape[1], _shape[2], _shape[3]}, {_strides[1], _strides[2], _strides[3]}};
+    return NdSlice<T, 3>{data, {_shape[1], _shape[2], _shape[3]}, {_strides[1], _strides[2], _strides[3]}};
   }
 
  public:
   auto is_contiguous() const -> bool {
-    const auto s = NdView::with_shape(_data, _shape);
+    const auto s = NdSlice::with_shape(_data, _shape);
     return _strides[0] == s._strides[0] && _strides[1] == s._strides[1] && _strides[2] == s._strides[2] &&
            _strides[3] == s._strides[3];
   }
 
   template <u32 I, u32 J, u32 K, u32 L>
-  auto permute() -> NdView<T, 4> {
+  auto permute() -> NdSlice<T, 4> {
     static_assert(I < 4 && J < 4 && K < 4 && L < 4);
     static_assert(I != J && I != K && I != L && J != K && J != L && K != L);
 
     const u32 new_shape[4] = {_shape[I], _shape[J], _shape[K], _shape[L]};
     const u32 new_strides[4] = {_strides[I], _strides[J], _strides[K], _strides[L]};
-    return NdView<T, 4>{_data, new_shape, new_strides};
+    return NdSlice<T, 4>{_data, new_shape, new_strides};
   }
 
   void for_each(auto&& func) const {
@@ -413,8 +413,8 @@ struct NdView<T, 4> {
 };
 
 template <class T, u32 A, u32 B>
-auto reshape(NdView<T, A> src, const u32 (&new_shape)[B]) -> NdView<T, B> {
-  auto dst = NdView<T, B>::with_shape(src._data, new_shape);
+auto reshape(NdSlice<T, A> src, const u32 (&new_shape)[B]) -> NdSlice<T, B> {
+  auto dst = NdSlice<T, B>::with_shape(src._data, new_shape);
   if (!src.is_contiguous() || src.numel() != dst.numel()) {
     return {};
   }

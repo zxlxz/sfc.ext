@@ -99,7 +99,7 @@ auto array_set(arr_t arr, const T* src, CUstream stream) -> Result<> {
 }
 
 template <class T, u32 N>
-auto is_f_contiguous(const math::NdView<T, N>& view) -> bool {
+auto is_f_contiguous(const math::NdSlice<T, N>& view) -> bool {
   u32 strides[N] = {1};
   for (auto i = 1U; i < N; ++i) {
     strides[i] = strides[i - 1] * view.shape(i - 1);
@@ -165,7 +165,7 @@ auto Array<T>::extent() const -> Extent {
 
 template <class T>
 template <u32 N>
-auto Array<T>::set_data(math::NdView<T, N> view) -> Result<> {
+auto Array<T>::set_data(math::NdSlice<T, N> view) -> Result<> {
   // 1. view should be 'F' order
   if (!detail::is_f_contiguous(view)) {
     return Error(CUDA_ERROR_INVALID_VALUE);
@@ -185,9 +185,9 @@ auto Array<T>::set_data(math::NdView<T, N> view) -> Result<> {
 
 #define IMPL_ARRAY(T)  \
 template class Array<T>;\
-template auto Array<T>::set_data(math::NdView<T, 1> view) -> Result<>; \
-template auto Array<T>::set_data(math::NdView<T, 2> view) -> Result<>; \
-template auto Array<T>::set_data(math::NdView<T, 3> view) -> Result<>;
+template auto Array<T>::set_data(math::NdSlice<T, 1> view) -> Result<>; \
+template auto Array<T>::set_data(math::NdSlice<T, 2> view) -> Result<>; \
+template auto Array<T>::set_data(math::NdSlice<T, 3> view) -> Result<>;
 
 IMPL_ARRAY(u8);
 IMPL_ARRAY(u16);

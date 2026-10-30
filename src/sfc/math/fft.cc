@@ -2,6 +2,8 @@
 #include "sfc/math/fft.h"
 #include "sfc/ffi/library.h"
 
+struct fftwf_plan_s{};
+
 namespace sfc::math {
 
 namespace detail {
@@ -122,7 +124,7 @@ void fft_exec(fftwf_plan plan, I in[], O out[]) {
 }
 
 template <class I, class O>
-void fft_exec_batch(fftwf_plan plan, math::NdView<I, 2> in, math::NdView<O, 2> out, u32 batch) {
+void fft_exec_batch(fftwf_plan plan, math::NdSlice<I, 2> in, math::NdSlice<O, 2> out, u32 batch) {
   for (auto i = 0U; i < batch; ++i) {
     auto idata = in[i]._data;
     auto odata = out[i]._data;
@@ -174,7 +176,7 @@ auto CFFT::len() const -> usize {
   return _len;
 }
 
-void CFFT::fft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
+void CFFT::fft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
   sfc::assert_(in.is_contiguous(), "CFFT::fft: in is not contiguous");
   sfc::assert_(out.is_contiguous(), "CFFT::fft: out is not contiguous");
   sfc::assert_(in._shape[0] == _len, "CFFT::fft: in.shape({}) not match len(={})", in._shape, _len);
@@ -188,7 +190,7 @@ void CFFT::fft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
   detail::fft_exec(plan, in._data, out._data);
 }
 
-void CFFT::ifft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
+void CFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<c32, 1> out) {
   sfc::assert_(in.is_contiguous(), "CFFT::ifft: in is not contiguous");
   sfc::assert_(out.is_contiguous(), "CFFT::ifft: out is not contiguous");
   sfc::assert_(in._shape[0] == _len, "CFFT::ifft: in.shape({}) not match len(={})", in._shape, _len);
@@ -201,7 +203,7 @@ void CFFT::ifft(math::NdView<c32, 1> in, math::NdView<c32, 1> out) {
   detail::fft_exec(plan, in._data, out._data);
 }
 
-void CFFT::fft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) {
+void CFFT::fft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) {
   const auto [ibatch, ilen] = in._shape;
   const auto [obatch, olen] = out._shape;
 
@@ -219,7 +221,7 @@ void CFFT::fft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) {
   detail::fft_exec_batch(plan, in, out, u32(ibatch));
 }
 
-void CFFT::ifft(math::NdView<c32, 2> in, math::NdView<c32, 2> out) {
+void CFFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<c32, 2> out) {
   const auto [ibatch, ilen] = in._shape;
   const auto [obatch, olen] = out._shape;
 
@@ -266,7 +268,7 @@ auto RFFT::new_(u32 len) -> RFFT {
   return res;
 }
 
-void RFFT::fft(math::NdView<f32, 1> in, math::NdView<c32, 1> out) {
+void RFFT::fft(math::NdSlice<f32, 1> in, math::NdSlice<c32, 1> out) {
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
   sfc::assert_(in.is_contiguous(), "RFFT::fft: in is not contiguous");
@@ -277,7 +279,7 @@ void RFFT::fft(math::NdView<f32, 1> in, math::NdView<c32, 1> out) {
   detail::fft_exec(_r2c, in._data, out._data);
 }
 
-void RFFT::ifft(math::NdView<c32, 1> in, math::NdView<f32, 1> out) {
+void RFFT::ifft(math::NdSlice<c32, 1> in, math::NdSlice<f32, 1> out) {
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
   sfc::assert_(in.is_contiguous(), "RFFT::ifft: in is not contiguous");
@@ -288,7 +290,7 @@ void RFFT::ifft(math::NdView<c32, 1> in, math::NdView<f32, 1> out) {
   detail::fft_exec(_c2r, in._data, out._data);
 }
 
-void RFFT::fft(math::NdView<f32, 2> in, math::NdView<c32, 2> out) {
+void RFFT::fft(math::NdSlice<f32, 2> in, math::NdSlice<c32, 2> out) {
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
   const auto [ibatch, ilen] = in._shape;
@@ -303,7 +305,7 @@ void RFFT::fft(math::NdView<f32, 2> in, math::NdView<c32, 2> out) {
   detail::fft_exec_batch(_r2c, in, out, ibatch);
 }
 
-void RFFT::ifft(math::NdView<c32, 2> in, math::NdView<f32, 2> out) {
+void RFFT::ifft(math::NdSlice<c32, 2> in, math::NdSlice<f32, 2> out) {
   const auto full_len = _len;
   const auto half_len = _len / 2 + 1;
   const auto [ibatch, ilen] = in._shape;

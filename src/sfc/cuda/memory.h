@@ -1,12 +1,9 @@
 #pragma once
 
 #include "sfc/cuda/mod.h"
-#include "sfc/math/tensor.h"
+#include "sfc/math/ndarray.h"
 
 namespace sfc::cuda {
-
-using mem::Layout;
-using math::Tensor;
 
 enum class MemKind {
   Heap = 0,
@@ -53,31 +50,28 @@ struct Allocator {
  public:
   auto allocate(Layout layout) -> void*;
   void deallocate(void* ptr, Layout layout);
-
-  auto pool() const -> mem_pool::Pool&;
 };
 
 template <class T, u32 N = 1>
-auto empty(const u32 (&shape)[N], MemLocation loc = {}) -> Tensor<T, N> {
-  auto& pool = Allocator{loc}.pool();
+using NdArray = math::NdArray<T, N, Allocator>;
 
-  return Tensor<T, N>::new_(shape, pool);
+template <class T, u32 N = 1>
+auto empty(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray<T, N> {
+  return NdArray<T, N>::new_(shape, {loc});
 }
 
 template <class T, u32 N = 1>
-auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> Tensor<T, N> {
-  auto& pool = Allocator{loc}.pool();
-
-  auto res = Tensor<T, N>::new_(shape, pool);
+auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray<T, N> {
+  auto res = NdArray<T, N>::new_(shape, {loc});
   auto blk = MemBlock{res.as_mut_ptr(), res.numel() * sizeof(T), loc};
   blk.fill_bytes(0).unwrap();
   return res;
 }
 
 template <class T, u32 N>
-auto empty_like(const Tensor<T, N>& array) -> Tensor<T, N> {
+auto empty_like(const NdArray<T, N>& array) -> NdArray<T, N> {
   const auto& shape = array.shape();
-  return Tensor<T, N>::new_(shape, array.allocator());
+  return NdArray<T, N>::new_(shape, array.allocator());
 }
 
 }  // namespace sfc::cuda
