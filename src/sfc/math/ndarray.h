@@ -5,28 +5,54 @@
 
 namespace sfc::math {
 
-class IAlloc {
+class Allocator {
+ public:
+  static auto global() -> Allocator&;
+
  public:
   virtual void* allocate(Layout layout) = 0;
   virtual void* allocate_zeroed(Layout layout) = 0;
   virtual void deallocate(void* ptr, Layout layout) = 0;
 };
 
-struct Allocator {
-  IAlloc* _alloc = nullptr;
+template <class T>
+class RawBuf {
+  ptr::Unique<T> _ptr{};
+  usize _cap{0};
+  Allocator* _a{nullptr};
 
  public:
-  auto allocate(Layout layout) -> void*;
-  auto allocate_zeroed(Layout layout) -> void*;
-  void deallocate(void* ptr, Layout layout);
+  static auto with_capacity(usize capacity, Allocator& alloc) -> RawBuf {
+    auto res = RawBuf{};
+    res._ptr = (T*)alloc.allocate(Layout::array<T>(capacity));
+    res._cap = capacity;
+    res._a = &alloc;
+    return res;
+  }
+
+  static auto with_capacity_zeroed(usize capacity, Allocator& alloc) -> RawBuf {
+    auto res = RawBuf{};
+    res._ptr = (T*)alloc.allocate_zeroed(Layout::array<T>(capacity));
+    res._cap = capacity;
+    res._a = &alloc;
+    return res;
+  }
+
+ public:
+  auto ptr() const noexcept -> T* {
+    return _ptr._ptr;
+  }
+
+  auto cap() const noexcept -> usize {
+    return _cap;
+  }
 };
 
 template <class T, u32 N>
 class [[nodiscard]] NdArray {
   using A = Allocator;
-  using Buff = raw_buf::RawBuf<T, A>;
+  using Buff = RawBuf<T>;
   using View = NdSlice<T, N>;
-
   Buff _buff{};
   View _view{};
 
@@ -45,13 +71,13 @@ class [[nodiscard]] NdArray {
     return res;
   }
 
-  static auto new_(const u32 (&shape)[N], A alloc = {}) -> NdArray {
+  static auto new_(const u32 (&shape)[N], A& alloc = A::global()) -> NdArray {
     const auto numel = View::with_shape(nullptr, shape).numel();
     auto buf = Buff::with_capacity(numel, alloc);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
-  static auto new_zeroed(const u32 (&shape)[N], A alloc = {}) -> NdArray {
+  static auto new_zeroed(const u32 (&shape)[N], A& alloc = A::global()) -> NdArray {
     const auto numel = View::with_shape(nullptr, shape).numel();
     auto buf = Buff::with_capacity_zeroed(numel, alloc);
     return NdArray::from_buf(mem::move(buf), shape);

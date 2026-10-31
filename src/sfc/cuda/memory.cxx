@@ -6,7 +6,7 @@ namespace sfc::cuda::memory::test {
 using mem::Layout;
 
 SFC_TEST(heap) {
-  auto a = MemLocation::Heap().allocator();
+  auto& a = MemLocation::Heap().allocator();
 
   const auto n = 16U;
   auto p = a.allocate(Layout::array<u32>(n));
@@ -16,7 +16,7 @@ SFC_TEST(heap) {
 }
 
 SFC_TEST(host) {
-  auto a = MemLocation::Host().allocator();
+  auto& a = MemLocation::Host().allocator();
 
   const auto n = 16U;
   auto p = a.allocate(Layout::array<u32>(n));
@@ -26,7 +26,7 @@ SFC_TEST(host) {
 }
 
 SFC_TEST(device) {
-  auto a = MemLocation::Device(0).allocator();
+  auto& a = MemLocation::Device(0).allocator();
 
   const auto n = 16U;
   auto p = a.allocate(Layout::array<u32>(n));

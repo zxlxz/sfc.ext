@@ -216,11 +216,28 @@ auto MemBlock::copy_from(MemBlock src) -> Result<> {
   return Ok{};
 }
 
-class DeviceAlloc : public math::IAlloc {
+class DeviceAllocator : public math::Allocator {
   u32 _device;
 
  public:
-  explicit DeviceAlloc(u32 device) : _device{device} {}
+  explicit DeviceAllocator(u32 device) : _device{device} {}
+
+  static auto instance(u32 device) -> Allocator& {
+    static DeviceAllocator a[] = {
+        DeviceAllocator{0},
+        DeviceAllocator{1},
+        DeviceAllocator{2},
+        DeviceAllocator{3},
+        DeviceAllocator{4},
+        DeviceAllocator{5},
+        DeviceAllocator{6},
+        DeviceAllocator{7},
+    };
+    if (device < 8) {
+      return a[device];
+    }
+    return math::Allocator::global();
+  }
 
  public:
   auto device() const -> cuda::Device {
@@ -250,11 +267,28 @@ class DeviceAlloc : public math::IAlloc {
   }
 };
 
-class HostAlloc : public math::IAlloc {
+class HostAllocator : public math::Allocator {
   u32 _device;
 
  public:
-  explicit HostAlloc(u32 device) : _device{device} {}
+  explicit HostAllocator(u32 device) : _device{device} {}
+
+  static auto instance(u32 device) -> Allocator& {
+    static HostAllocator a[] = {
+        HostAllocator{0},
+        HostAllocator{1},
+        HostAllocator{2},
+        HostAllocator{3},
+        HostAllocator{4},
+        HostAllocator{5},
+        HostAllocator{6},
+        HostAllocator{7},
+    };
+    if (device < 8) {
+      return a[device];
+    }
+    return math::Allocator::global();
+  }
 
  public:
   auto device() const -> cuda::Device {
@@ -282,44 +316,13 @@ class HostAlloc : public math::IAlloc {
   }
 };
 
-auto MemLocation::allocator() const -> math::Allocator {
-  if (kind == MemKind::Heap) {
-    return math::Allocator{};
+auto MemLocation::allocator() const -> math::Allocator& {
+  switch (kind) {
+    default:
+    case MemKind::Heap:   return math::Allocator::global();
+    case MemKind::Host:   return HostAllocator::instance(device);
+    case MemKind::Device: return DeviceAllocator::instance(device);
   }
-
-  if (kind == MemKind::Host) {
-    static HostAlloc a[] = {
-        HostAlloc{0},
-        HostAlloc{1},
-        HostAlloc{2},
-        HostAlloc{3},
-        HostAlloc{4},
-        HostAlloc{5},
-        HostAlloc{6},
-        HostAlloc{7},
-    };
-    if (device < 8) {
-      return {&a[device]};
-    }
-  }
-
-  if (kind == MemKind::Device) {
-    static DeviceAlloc a[] = {
-        DeviceAlloc{0},
-        DeviceAlloc{1},
-        DeviceAlloc{2},
-        DeviceAlloc{3},
-        DeviceAlloc{4},
-        DeviceAlloc{5},
-        DeviceAlloc{6},
-        DeviceAlloc{7},
-    };
-    if (device < 8) {
-      return {&a[device]};
-    }
-  }
-
-  return math::Allocator{};
 }
 
 }  // namespace sfc::cuda

@@ -24,7 +24,7 @@ struct MemLocation {
  public:
   auto on_host() const -> bool;
   auto on_device() const -> bool;
-  auto allocator() const -> math::Allocator;
+  auto allocator() const -> math::Allocator&;
 
  public:
   void fmt(fmt::Formatter& f) const;

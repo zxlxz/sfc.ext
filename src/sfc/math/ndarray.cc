@@ -2,15 +2,10 @@
 
 namespace sfc::math {
 
-class DefaultAlloc : public IAlloc {
+class GlobalAllocator : public Allocator {
   alloc::Global _inn;
 
  public:
-  static auto instance() -> DefaultAlloc& {
-    static DefaultAlloc res{};
-    return res;
-  }
-
  public:
   void* allocate(Layout layout) override {
     return _inn.allocate(layout);
@@ -25,19 +20,9 @@ class DefaultAlloc : public IAlloc {
   }
 };
 
-auto Allocator::allocate(Layout layout) -> void* {
-  if (!_alloc) return nullptr;
-  return _alloc->allocate(layout);
-}
-
-auto Allocator::allocate_zeroed(Layout layout) -> void* {
-  if (!_alloc) return nullptr;
-  return _alloc->allocate_zeroed(layout);
-}
-
-void Allocator::deallocate(void* ptr, Layout layout) {
-  if (!_alloc) return;
-  _alloc->deallocate(ptr, layout);
+auto Allocator::global() -> Allocator& {
+  static auto alloc = GlobalAllocator{};
+  return alloc;
 }
 
 }  // namespace sfc::math
