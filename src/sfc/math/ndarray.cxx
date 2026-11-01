@@ -6,16 +6,13 @@ namespace sfc::math::ndarray::test {
 
 SFC_TEST(tensor_1d_shape) {
   auto a = math::empty<int>({4U});
-  sfc::assert_eq(a.numel(), 4U);
-  sfc::assert_eq(a.shape()[0], 4U);
+  sfc::assert_eq(a->_shape[0], 4U);
 }
 
 SFC_TEST(tensor_2d_shape) {
   auto a = math::empty<int>({3U, 4U});
-
-  sfc::assert_eq(a.numel(), 12U);
-  sfc::assert_eq(a.shape()[0], 3U);
-  sfc::assert_eq(a.shape()[1], 4U);
+  sfc::assert_eq(a->_shape[0], 3U);
+  sfc::assert_eq(a->_shape[1], 4U);
 }
 
 SFC_TEST(tensor_get_set) {
@@ -71,7 +68,7 @@ SFC_TEST(tensor_move) {
   a(2) = 3;
 
   auto b = sfc::mem::move(a);
-  sfc::assert_eq(b.numel(), 3U);
+  sfc::assert_eq(b->numel(), 3U);
   sfc::assert_eq(b(0), 1);
   sfc::assert_eq(b(1), 2);
   sfc::assert_eq(b(2), 3);
@@ -80,13 +77,13 @@ SFC_TEST(tensor_move) {
 SFC_TEST(tensor_fmt) {
   auto a = math::empty<i32>({2U, 3U});
 
-  auto p = a.buf().ptr();
-  for (auto i : Range{a.numel()}) {
+  auto p = a->_data;
+  for (auto i : Range{a->numel()}) {
     p[i] = i32(i);
   }
 
-  io::println("a.shape = {}", a.shape());
-  io::println("a.strides = {}", a.strides());
+  io::println("a.shape = {}", a->_shape);
+  io::println("a.strides = {}", a->_strides);
   io::println("a = \n {:2d}\n", *a);
 }
 

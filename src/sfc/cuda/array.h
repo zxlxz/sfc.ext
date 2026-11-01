@@ -16,10 +16,9 @@ struct Extent {
   template <u32 N>
   static auto from_shape(const u32 (&shape)[N]) -> Extent {
     static_assert(N > 0 && N <= 3, "cuda::Extent: only support 1D, 2D, and 3D");
-    const auto nx = N > 0 ? shape[0] : 0;
-    const auto ny = N > 1 ? shape[1] : 0;
-    const auto nz = N > 2 ? shape[2] : 0;
-    return Extent{nx, ny, nz};
+    if constexpr (N == 1) return Extent{shape[0], 0, 0};
+    if constexpr (N == 2) return Extent{shape[0], shape[1], 0};
+    if constexpr (N == 3) return Extent{shape[0], shape[1], shape[2]};
   }
 
  public:

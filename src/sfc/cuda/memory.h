@@ -31,8 +31,7 @@ struct MemLocation {
 };
 
 struct MemBlock {
-  void* ptr;
-  usize size;
+  Slice<u8> buf;
   MemLocation loc;
 
  public:
@@ -50,7 +49,7 @@ auto empty(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray<T, N> {
 template <class T, u32 N = 1>
 auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray<T, N> {
   auto res = NdArray<T, N>::new_(shape, loc.allocator());
-  auto blk = MemBlock{res.as_mut_ptr(), res.numel() * sizeof(T), loc};
+  auto blk = MemBlock{res.as_mut_bytes(), loc};
   blk.fill_bytes(0).unwrap();
   return res;
 }

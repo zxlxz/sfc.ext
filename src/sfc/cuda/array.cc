@@ -102,7 +102,7 @@ template <class T, u32 N>
 auto is_f_contiguous(const math::NdSlice<T, N>& view) -> bool {
   u32 strides[N] = {1};
   for (auto i = 1U; i < N; ++i) {
-    strides[i] = strides[i - 1] * view.shape(i - 1);
+    strides[i] = strides[i - 1] * view._shape[i - 1];
   }
 
   for (auto i = 0U; i < N; ++i) {

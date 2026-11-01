@@ -53,6 +53,18 @@ class RawBuf {
   auto as_mut_slice() -> Slice<T> {
     return {_ptr._ptr, _cap};
   }
+
+  auto as_bytes() const -> Slice<const u8> {
+    const auto p = _ptr._ptr;
+    const auto n = _cap;
+    return {ptr::cast<const u8>(p), n * sizeof(T)};
+  }
+
+  auto as_mut_bytes() -> Slice<u8> {
+    const auto p = _ptr._ptr;
+    const auto n = _cap;
+    return {ptr::cast<u8>(p), n * sizeof(T)};
+  }
 };
 
 }  // namespace sfc::math

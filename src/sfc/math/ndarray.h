@@ -11,190 +11,202 @@ class [[nodiscard]] NdArray;
 template <class T>
 class NdArray<T, 1> {
   using A = Allocator;
-  using Buff = RawBuf<T>;
-  using View = NdSlice<T, 1>;
-  Buff _buff{};
-  View _view{};
+  using Buf = RawBuf<T>;
+  using Inn = NdSlice<T, 1>;
+  Buf _buf{};
+  Inn _inn{};
 
  public:
-  static auto from_buf(Buff buf, const u32 (&shape)[1]) -> NdArray {
+  static auto from_buf(Buf buf, const u32 (&shape)[1]) -> NdArray {
     auto res = NdArray{};
-    res._buff = mem::move(buf);
-    res._view = View::with_shape(res._buff.ptr(), shape);
+    res._buf = mem::move(buf);
+    res._inn = Inn::with_shape(res._buf.ptr(), shape);
     return res;
   }
 
   static auto new_(const u32 (&shape)[1], A& alloc = A::global()) -> NdArray {
-    auto buf = Buff::with_capacity(shape[0], alloc);
+    auto buf = Buf::with_capacity(shape[0], alloc);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
   static auto new_zeroed(const u32 (&shape)[1], A& alloc = A::global()) -> NdArray {
-    auto buf = Buff::with_capacity_zeroed(shape[0], alloc);
+    auto buf = Buf::with_capacity_zeroed(shape[0], alloc);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
  public:
-  auto numel() const -> u32 {
-    return _view.numel();
-  }
-
-  auto shape() const -> const auto& {
-    return _view._shape;
-  }
-
-  auto strides() const -> const auto& {
-    return _view._strides;
-  }
-
-  auto buf() -> Buff& {
-    return _buff;
-  }
-
-  auto view() -> View {
-    return _view;
+  static constexpr auto ndim() -> u32 {
+    return 1;
   }
 
   auto allocator() -> A& {
-    return _buff.allocator();
+    return _buf.allocator();
+  }
+
+  auto as_slice() const -> Slice<const T> {
+    return _buf.as_slice();
+  }
+
+  auto as_mut_slice() -> Slice<T> {
+    return _buf.as_mut_slice();
+  }
+
+  auto as_bytes() const -> Slice<const u8> {
+    return _buf.as_bytes();
+  }
+
+  auto as_mut_bytes() -> Slice<u8> {
+    return _buf.as_mut_bytes();
+  }
+
+  auto shape(u32 ndim) const -> u32 {
+    return ndim < 1 ? _inn._shape[ndim] : 0;
   }
 
  public:
-  auto operator*() const -> View {
-    return _view;
+  auto operator*() const -> const Inn& {
+    return _inn;
   }
 
-  auto operator*() -> View {
-    return _view;
+  auto operator*() -> Inn& {
+    return _inn;
   }
 
-  auto operator->() const -> const View* {
-    return &_view;
+  auto operator->() const -> const Inn* {
+    return &_inn;
   }
 
-  auto operator->() -> View* {
-    return &_view;
+  auto operator->() -> Inn* {
+    return &_inn;
   }
 
  public:
-  auto operator[](u32 idx) const {
-    return _view[idx];
+  auto operator[](u32 idx) const -> const T& {
+    return _inn[idx];
+  }
+
+  auto operator[](u32 idx) -> T& {
+    return _inn[idx];
   }
 
   auto operator()(u32 i) const -> const T& {
-    return _view(i);
+    return _inn(i);
   }
 
   auto operator()(u32 i) -> T& {
-    return _view(i);
+    return _inn(i);
   }
 };
 
 template <class T, u32 N>
 class NdArray {
   using A = Allocator;
-  using Buff = RawBuf<T>;
-  using View = NdSlice<T, N>;
-  Buff _buff{};
-  View _view{};
+  using Buf = RawBuf<T>;
+  using Inn = NdSlice<T, N>;
+  Buf _buf{};
+  Inn _inn{};
 
  public:
-  static auto from_buf(Buff buf, const u32 (&shape)[N]) -> NdArray {
+  static auto from_buf(Buf buf, const u32 (&shape)[N]) -> NdArray {
     auto res = NdArray{};
-    res._buff = mem::move(buf);
-    res._view = View::with_shape(res._buff.ptr(), shape);
+    res._buf = mem::move(buf);
+    res._inn = Inn::with_shape(res._buf.ptr(), shape);
     return res;
   }
 
   static auto new_(const u32 (&shape)[N], A& alloc = A::global()) -> NdArray {
-    const auto numel = View::with_shape(nullptr, shape).numel();
-    auto buf = Buff::with_capacity(numel, alloc);
+    const auto numel = Inn::with_shape(nullptr, shape).numel();
+    auto buf = Buf::with_capacity(numel, alloc);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
   static auto new_zeroed(const u32 (&shape)[N], A& alloc = A::global()) -> NdArray {
-    const auto numel = View::with_shape(nullptr, shape).numel();
-    auto buf = Buff::with_capacity_zeroed(numel, alloc);
+    const auto numel = Inn::with_shape(nullptr, shape).numel();
+    auto buf = Buf::with_capacity_zeroed(numel, alloc);
     return NdArray::from_buf(mem::move(buf), shape);
   }
 
  public:
-  auto numel() const -> u32 {
-    return _view.numel();
-  }
-
-  auto shape() const -> const auto& {
-    return _view._shape;
-  }
-
-  auto strides() const -> const auto& {
-    return _view._strides;
-  }
-
-  auto buf() -> Buff& {
-    return _buff;
-  }
-
-  auto view() -> View {
-    return _view;
+  static constexpr auto ndim() -> u32 {
+    return N;
   }
 
   auto allocator() -> A& {
-    return _buff.allocator();
+    return _buf.allocator();
+  }
+
+  auto as_slice() const -> Slice<const T> {
+    return _buf.as_slice();
+  }
+
+  auto as_mut_slice() -> Slice<T> {
+    return _buf.as_mut_slice();
+  }
+
+  auto as_bytes() const -> Slice<const u8> {
+    return _buf.as_bytes();
+  }
+
+  auto as_mut_bytes() -> Slice<u8> {
+    return _buf.as_mut_bytes();
+  }
+
+  auto shape(u32 ndim) const -> u32 {
+    return ndim < N ? _inn._shape[ndim] : 0;
   }
 
  public:
-  auto operator*() const -> const View& {
-    return _view;
+  auto operator*() const -> const Inn& {
+    return _inn;
   }
 
-  auto operator*() -> View& {
-    return _view;
+  auto operator*() -> Inn& {
+    return _inn;
   }
 
-  auto operator->() const -> const View* {
-    return &_view;
+  auto operator->() const -> const Inn* {
+    return &_inn;
   }
 
-  auto operator->() -> View* {
-    return &_view;
+  auto operator->() -> Inn* {
+    return &_inn;
   }
 
  public:
-  auto operator[](u32 idx) const {
-    return _view[idx];
+  auto operator[](u32 idx) const -> NdSlice<T, N - 1> {
+    return _inn[idx];
   }
 
   auto operator()(u32 i) const -> const T& requires(N == 1) {
-    return _view(i);
+    return _inn(i);
   }
 
   auto operator()(u32 i) -> T& requires(N == 1) {
-    return _view(i);
+    return _inn(i);
   }
 
   auto operator()(u32 i, u32 j) const -> const T& requires(N == 2) {
-    return _view(i, j);
+    return _inn(i, j);
   }
 
   auto operator()(u32 i, u32 j) -> T& requires(N == 2) {
-    return _view(i, j);
+    return _inn(i, j);
   }
 
   auto operator()(u32 i, u32 j, u32 k) const -> const T& requires(N == 3) {
-    return _view(i, j, k);
+    return _inn(i, j, k);
   }
 
   auto operator()(u32 i, u32 j, u32 k) -> T& requires(N == 3) {
-    return _view(i, j, k);
+    return _inn(i, j, k);
   }
 
   auto operator()(u32 i, u32 j, u32 k, u32 l) const -> const T& requires(N == 4) {
-    return _view(i, j, k, l);
+    return _inn(i, j, k, l);
   }
 
   auto operator()(u32 i, u32 j, u32 k, u32 l) -> T& requires(N == 4) {
-    return _view(i, j, k, l);
+    return _inn(i, j, k, l);
   }
 };
 
@@ -205,7 +217,7 @@ auto empty(const u32 (&shape)[N]) -> NdArray<T, N> {
 
 template <class T, u32 N>
 auto empty_like(const NdArray<T, N>& array) -> NdArray<T, N> {
-  const auto& shape = array.shape();
+  const auto& shape = array->_shape;
   return NdArray<T, N>::new_(shape);
 }
 
@@ -216,7 +228,7 @@ auto zero(const u32 (&shape)[N]) -> NdArray<T, N> {
 
 template <class T, u32 N>
 auto zero_like(const NdArray<T, N>& array) -> NdArray<T, N> {
-  const auto& shape = array.shape();
+  const auto& shape = array->_shape;
   return NdArray<T, N>::new_zeroed(shape);
 }
 

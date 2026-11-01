@@ -32,7 +32,7 @@ struct NdSlice<T, 1> {
     return _shape[0];
   }
 
-  __hd auto data() const -> T* {
+  __hd auto ptr() const -> T* {
     return _data;
   }
 
@@ -40,8 +40,8 @@ struct NdSlice<T, 1> {
     return _shape[0];
   }
 
-  __hd auto shape(u32 i) const -> u32 {
-    return i < NDIM ? _shape[i] : 1;
+  __hd auto shape(u32 idim) const -> u32 {
+    return idim < NDIM ? _shape[idim] : 0;
   }
 
  public:
@@ -128,7 +128,7 @@ struct NdSlice<T, 2> {
     return _shape[0];
   }
 
-  __hd auto data() const -> T* {
+  __hd auto ptr() const -> T* {
     return _data;
   }
 
@@ -136,8 +136,8 @@ struct NdSlice<T, 2> {
     return _shape[0] * _shape[1];
   }
 
-  __hd auto shape(u32 i) const -> u32 {
-    return i < NDIM ? _shape[i] : 1;
+  __hd auto shape(u32 dim) const -> u32 {
+    return dim < NDIM ? _shape[dim] : 0;
   }
 
  public:
@@ -256,7 +256,7 @@ struct NdSlice<T, 3> {
     return _shape[0];
   }
 
-  __hd auto data() const -> T* {
+  __hd auto ptr() const -> T* {
     return _data;
   }
 
@@ -264,8 +264,8 @@ struct NdSlice<T, 3> {
     return _shape[0] * _shape[1] * _shape[2];
   }
 
-  __hd auto shape(u32 i) const -> u32 {
-    return i < NDIM ? _shape[i] : 1;
+  __hd auto shape(u32 dim) const -> u32 {
+    return dim < NDIM ? _shape[dim] : 0;
   }
 
  public:
@@ -375,7 +375,7 @@ struct NdSlice<T, 4> {
     return _shape[0];
   }
 
-  __hd auto data() const -> T* {
+  __hd auto ptr() const -> T* {
     return _data;
   }
 
@@ -383,8 +383,8 @@ struct NdSlice<T, 4> {
     return _shape[0] * _shape[1] * _shape[2] * _shape[3];
   }
 
-  __hd auto shape(u32 i) const -> u32 {
-    return i < NDIM ? _shape[i] : 1;
+  __hd auto shape(u32 idim) const -> u32 {
+    return idim < NDIM ? _shape[idim] : 0;
   }
 
  public:
