@@ -6,7 +6,92 @@
 namespace sfc::math {
 
 template <class T, u32 N>
-class [[nodiscard]] NdArray {
+class [[nodiscard]] NdArray;
+
+template <class T>
+class NdArray<T, 1> {
+  using A = Allocator;
+  using Buff = RawBuf<T>;
+  using View = NdSlice<T, 1>;
+  Buff _buff{};
+  View _view{};
+
+ public:
+  static auto from_buf(Buff buf, const u32 (&shape)[1]) -> NdArray {
+    auto res = NdArray{};
+    res._buff = mem::move(buf);
+    res._view = View::with_shape(res._buff.ptr(), shape);
+    return res;
+  }
+
+  static auto new_(const u32 (&shape)[1], A& alloc = A::global()) -> NdArray {
+    auto buf = Buff::with_capacity(shape[0], alloc);
+    return NdArray::from_buf(mem::move(buf), shape);
+  }
+
+  static auto new_zeroed(const u32 (&shape)[1], A& alloc = A::global()) -> NdArray {
+    auto buf = Buff::with_capacity_zeroed(shape[0], alloc);
+    return NdArray::from_buf(mem::move(buf), shape);
+  }
+
+ public:
+  auto numel() const -> u32 {
+    return _view.numel();
+  }
+
+  auto shape() const -> const auto& {
+    return _view._shape;
+  }
+
+  auto strides() const -> const auto& {
+    return _view._strides;
+  }
+
+  auto buf() -> Buff& {
+    return _buff;
+  }
+
+  auto view() -> View {
+    return _view;
+  }
+
+  auto allocator() -> A& {
+    return _buff.allocator();
+  }
+
+ public:
+  auto operator*() const -> View {
+    return _view;
+  }
+
+  auto operator*() -> View {
+    return _view;
+  }
+
+  auto operator->() const -> const View* {
+    return &_view;
+  }
+
+  auto operator->() -> View* {
+    return &_view;
+  }
+
+ public:
+  auto operator[](u32 idx) const {
+    return _view[idx];
+  }
+
+  auto operator()(u32 i) const -> const T& {
+    return _view(i);
+  }
+
+  auto operator()(u32 i) -> T& {
+    return _view(i);
+  }
+};
+
+template <class T, u32 N>
+class NdArray {
   using A = Allocator;
   using Buff = RawBuf<T>;
   using View = NdSlice<T, N>;
@@ -14,17 +99,10 @@ class [[nodiscard]] NdArray {
   View _view{};
 
  public:
-  NdArray() noexcept {}
-  ~NdArray() {}
-
-  NdArray(NdArray&& other) noexcept = default;
-  NdArray& operator=(NdArray&& other) noexcept = default;
-
   static auto from_buf(Buff buf, const u32 (&shape)[N]) -> NdArray {
-    const auto ptr = ptr::cast<T>(buf.ptr());
     auto res = NdArray{};
     res._buff = mem::move(buf);
-    res._view = View::with_shape(ptr, shape);
+    res._view = View::with_shape(res._buff.ptr(), shape);
     return res;
   }
 
@@ -41,14 +119,6 @@ class [[nodiscard]] NdArray {
   }
 
  public:
-  auto as_ptr() const -> const T* {
-    return _view._data;
-  }
-
-  auto as_mut_ptr() -> T* {
-    return _view._data;
-  }
-
   auto numel() const -> u32 {
     return _view.numel();
   }
@@ -61,20 +131,12 @@ class [[nodiscard]] NdArray {
     return _view._strides;
   }
 
-  auto as_buf() -> Buff& {
+  auto buf() -> Buff& {
     return _buff;
   }
 
-  auto as_view() const -> View {
+  auto view() -> View {
     return _view;
-  }
-
-  auto as_slice() const -> Slice<const T> {
-    return {_buff.ptr(), _buff.cap()};
-  }
-
-  auto as_mut_slice() -> Slice<T> {
-    return {_buff.ptr(), _buff.cap()};
   }
 
   auto allocator() -> A& {
@@ -82,70 +144,57 @@ class [[nodiscard]] NdArray {
   }
 
  public:
-  operator View() const {
+  auto operator*() const -> const View& {
     return _view;
   }
 
-  auto operator*() const -> View {
+  auto operator*() -> View& {
     return _view;
   }
 
-  auto operator*() -> View {
-    return _view;
+  auto operator->() const -> const View* {
+    return &_view;
+  }
+
+  auto operator->() -> View* {
+    return &_view;
   }
 
  public:
-  auto operator[](u32 idx) -> NdSlice<T, N - 1> requires(N > 1) {
+  auto operator[](u32 idx) const {
     return _view[idx];
   }
 
-  auto operator[](u32 idx) const -> T requires(N == 1) {
-    return _view[idx];
+  auto operator()(u32 i) const -> const T& requires(N == 1) {
+    return _view(i);
   }
 
-  auto operator[](u32 idx) -> T& requires(N == 1) {
-    return _view[idx];
+  auto operator()(u32 i) -> T& requires(N == 1) {
+    return _view(i);
   }
 
-  auto operator[](u32 i, u32 j) const -> T requires(N == 2) {
-    return _view[i, j];
+  auto operator()(u32 i, u32 j) const -> const T& requires(N == 2) {
+    return _view(i, j);
   }
 
-  auto operator[](u32 i, u32 j) -> T& requires(N == 2) {
-    return _view[i, j];
+  auto operator()(u32 i, u32 j) -> T& requires(N == 2) {
+    return _view(i, j);
   }
 
-  auto operator[](u32 i, u32 j, u32 k) const -> T requires(N == 3) {
-    return _view[i, j, k];
+  auto operator()(u32 i, u32 j, u32 k) const -> const T& requires(N == 3) {
+    return _view(i, j, k);
   }
 
-  auto operator[](u32 i, u32 j, u32 k) -> T& requires(N == 3) {
-    return _view[i, j, k];
+  auto operator()(u32 i, u32 j, u32 k) -> T& requires(N == 3) {
+    return _view(i, j, k);
   }
 
-  auto operator[](u32 i, u32 j, u32 k, u32 l) const -> T requires(N == 4) {
-    return _view[i, j, k, l];
+  auto operator()(u32 i, u32 j, u32 k, u32 l) const -> const T& requires(N == 4) {
+    return _view(i, j, k, l);
   }
 
-  auto operator[](u32 i, u32 j, u32 k, u32 l) -> T& requires(N == 4) {
-    return _view[i, j, k, l];
-  }
-
- public:
-  void fmt(auto& f) const {
-    _view.fmt(f);
-  }
-
-  void for_each(auto&& f) const {
-    _view.for_each(f);
-  }
-
-  void for_each_mut(auto&& f) {
-    _view.for_each_mut(f);
-  }
-
-  void fill_with(auto&& f) {
-    _view.fill_with(f);
+  auto operator()(u32 i, u32 j, u32 k, u32 l) -> T& requires(N == 4) {
+    return _view(i, j, k, l);
   }
 };
 

@@ -63,13 +63,13 @@ SFC_TEST(ndview_visit) {
   sfc::assert_eq(v1[5], 5);
 
   auto v2 = NdSlice<int, 2>::with_shape(buf, {3, 4});
-  sfc::assert_eq(v2[1, 2], 6);
+  sfc::assert_eq(v2(1, 2), 6);
 
   auto v3 = NdSlice<int, 3>::with_shape(buf, {3, 2, 2});
-  sfc::assert_eq(v3[2, 1, 1], 11);
+  sfc::assert_eq(v3(2, 1, 1), 11);
 
   auto v4 = NdSlice<int, 4>::with_shape(buf, {3, 2, 2, 1});
-  sfc::assert_eq(v4[2, 1, 1, 0], 11);
+  sfc::assert_eq(v4(2, 1, 1, 0), 11);
 }
 
 SFC_TEST(ndview_reshape) {
@@ -151,8 +151,8 @@ SFC_TEST(ndview_is_contiguous) {
   {
     auto v2_dense = NdSlice<int, 2>{buf, {3, 4}, {4, 1}};
     auto v2_sparse = NdSlice<int, 2>{buf, {3, 2}, {4, 2}};
-    sfc::assert_eq(v2_dense[1, 2], 6);
-    sfc::assert_eq(v2_sparse[1, 1], 6);
+    sfc::assert_eq(v2_dense(1, 2), 6);
+    sfc::assert_eq(v2_sparse(1, 1), 6);
     sfc::assert_eq(v2_dense.is_contiguous(), true);
     sfc::assert_eq(v2_sparse.is_contiguous(), false);
   }
@@ -160,8 +160,8 @@ SFC_TEST(ndview_is_contiguous) {
   {
     auto v3_dense = NdSlice<int, 3>{buf, {2, 3, 2}, {6, 2, 1}};
     auto v3_sparse = NdSlice<int, 3>{buf, {2, 2, 2}, {6, 2, 2}};
-    sfc::assert_eq(v3_dense[1, 2, 1], 11);
-    sfc::assert_eq(v3_sparse[1, 1, 1], 10);
+    sfc::assert_eq(v3_dense(1, 2, 1), 11);
+    sfc::assert_eq(v3_sparse(1, 1, 1), 10);
     sfc::assert_eq(v3_dense.is_contiguous(), true);
     sfc::assert_eq(v3_sparse.is_contiguous(), false);
   }
@@ -169,8 +169,8 @@ SFC_TEST(ndview_is_contiguous) {
   {
     auto v4_dense = NdSlice<int, 4>{buf, {3, 2, 2, 1}, {4, 2, 1, 1}};
     auto v4_sparse = NdSlice<int, 4>{buf, {3, 2, 2, 1}, {4, 2, 2, 1}};
-    sfc::assert_eq(v4_dense[1, 1, 1, 0], 7);
-    sfc::assert_eq(v4_sparse[1, 1, 1, 0], 8);
+    sfc::assert_eq(v4_dense(1, 1, 1, 0), 7);
+    sfc::assert_eq(v4_sparse(1, 1, 1, 0), 8);
     sfc::assert_eq(v4_dense.is_contiguous(), true);
     sfc::assert_eq(v4_sparse.is_contiguous(), false);
   }

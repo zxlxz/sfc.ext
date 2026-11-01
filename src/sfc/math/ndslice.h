@@ -59,6 +59,16 @@ struct NdSlice<T, 1> {
     return _data[offset];
   }
 
+  __hd auto operator()(u32 i) const -> const T& {
+    const auto offset = i * _strides[0];
+    return _data[offset];
+  }
+
+  __hd auto operator()(u32 i) -> T& {
+    const auto offset = i * _strides[0];
+    return _data[offset];
+  }
+
  public:
   auto is_contiguous() const -> bool {
     return _strides[0] == 1;
@@ -73,20 +83,23 @@ struct NdSlice<T, 1> {
 
   void for_each_mut(auto&& f) {
     for (auto i = 0U; i < _shape[0]; ++i) {
-      auto& e = _data[i * _strides[0]];
+      auto& e = (*this)[i];
       f(i, e);
     }
   }
 
-  void fill_with(auto&& f) {
-    this->for_each_mut([&f](u32 i, T& e) { e = f(i); });
-  }
-
+ public:
   void fmt(auto& f) const {
     auto imp = f.debug_list();
-    for (auto i = 0U; i < _shape[0]; ++i) {
-      imp.entry((*this)[i]);
-    }
+    this->for_each([&]([[maybe_unused]] u32 i, const T& e) { imp.entry(e); });
+    return;
+  }
+
+  void fill_with(auto&& f) {
+    this->for_each_mut([&](u32 i, T& e) {
+      const auto val = f(i);
+      e = val;
+    });
   }
 };
 
@@ -128,23 +141,35 @@ struct NdSlice<T, 2> {
   }
 
  public:
+  __hd auto operator[](u32 i) const -> NdSlice<T, 1> {
+    const auto data = _data + i * _strides[0];
+    const u32 shape[] = {_shape[1]};
+    const u32 strides[] = {_strides[1]};
+    return NdSlice<T, 1>{data, shape, strides};
+  }
+
   __hd auto contains(u32 i, u32 j) const -> bool {
     return i < _shape[0] && j < _shape[1];
   }
 
-  __hd auto operator[](u32 i, u32 j) const -> const T& {
+  __hd auto operator()(u32 i, u32 j) const -> const T& {
     const auto offset = i * _strides[0] + j * _strides[1];
     return _data[offset];
   }
 
-  __hd auto operator[](u32 i, u32 j) -> T& {
+  __hd auto operator()(u32 i, u32 j) -> T& {
     const auto offset = i * _strides[0] + j * _strides[1];
     return _data[offset];
   }
 
-  __hd auto operator[](u32 i) const -> NdSlice<T, 1> {
-    const auto data = _data + i * _strides[0];
-    return NdSlice<T, 1>{data, {_shape[1]}, {_strides[1]}};
+  __hd auto get(u32 i, u32 j) const -> T {
+    const auto offset = i * _strides[0] + j * _strides[1];
+    return _data[offset];
+  }
+
+  __hd void set(u32 i, u32 j, T val) {
+    const auto offset = i * _strides[0] + j * _strides[1];
+    _data[offset] = val;
   }
 
  public:
@@ -189,16 +214,20 @@ struct NdSlice<T, 2> {
     }
   }
 
-  void fill_with(auto&& f) {
-    this->for_each_mut([&f](u32 i, u32 j, T& e) { e = f(i, j); });
-  }
-
+ public:
   auto fmt(auto& f) const -> void {
     f.set_max_depth(f.depth() + 1);
     auto imp = f.debug_list();
     for (u32 i = 0U; i < _shape[0]; ++i) {
       imp.entry((*this)[i]);
     }
+  }
+
+  void fill_with(auto&& f) {
+    this->for_each_mut([&](u32 i, u32 j, T& e) {
+      const auto val = f(i, j);
+      e = val;
+    });
   }
 };
 
@@ -240,23 +269,25 @@ struct NdSlice<T, 3> {
   }
 
  public:
+  __hd auto operator[](u32 i) const -> NdSlice<T, 2> {
+    const auto data = _data + i * _strides[0];
+    const u32 shape[] = {_shape[1], _shape[2]};
+    const u32 strides[] = {_strides[1], _strides[2]};
+    return NdSlice<T, 2>{data, shape, strides};
+  }
+
   __hd auto contains(u32 i, u32 j, u32 k) const -> bool {
     return i < _shape[0] && j < _shape[1] && k < _shape[2];
   }
 
-  __hd auto operator[](u32 i, u32 j, u32 k) const -> const T& {
+  __hd auto operator()(u32 i, u32 j, u32 k) const -> const T& {
     const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2];
     return _data[offset];
   }
 
-  __hd auto operator[](u32 i, u32 j, u32 k) -> T& {
+  __hd auto operator()(u32 i, u32 j, u32 k) -> T& {
     const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2];
     return _data[offset];
-  }
-
-  __hd auto operator[](u32 i) const -> NdSlice<T, 2> {
-    const auto data = _data + i * _strides[0];
-    return NdSlice<T, 2>{data, {_shape[1], _shape[2]}, {_strides[1], _strides[2]}};
   }
 
  public:
@@ -301,15 +332,19 @@ struct NdSlice<T, 3> {
     }
   }
 
-  void fill_with(auto&& f) {
-    this->for_each_mut([&](u32 i, u32 j, u32 k, T& e) { e = f(i, j, k); });
-  }
-
+ public:
   void fmt(auto& f) const {
     auto imp = f.debug_list();
     for (u32 i = 0U; i < _shape[0]; ++i) {
       imp.entry((*this)[i]);
     }
+  }
+
+  void fill_with(auto&& f) {
+    this->for_each_mut([&](u32 i, u32 j, u32 k, T& e) {
+      const auto val = f(i, j, k);
+      e = val;
+    });
   }
 };
 
@@ -353,23 +388,25 @@ struct NdSlice<T, 4> {
   }
 
  public:
+  __hd auto operator[](u32 i) const -> NdSlice<T, 3> {
+    const auto data = _data + i * _strides[0];
+    const u32 shape[] = {_shape[1], _shape[2], _shape[3]};
+    const u32 strides[] = {_strides[1], _strides[2], _strides[3]};
+    return NdSlice<T, 3>{data, shape, strides};
+  }
+
   __hd auto contains(u32 i, u32 j, u32 k, u32 l) const -> bool {
     return i < _shape[0] && j < _shape[1] && k < _shape[2] && l < _shape[3];
   }
 
-  __hd auto operator[](u32 i, u32 j, u32 k, u32 l) const -> const T& {
+  __hd auto operator()(u32 i, u32 j, u32 k, u32 l) const -> const T& {
     const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2] + l * _strides[3];
     return _data[offset];
   }
 
-  __hd auto operator[](u32 i, u32 j, u32 k, u32 l) -> T& {
+  __hd auto operator()(u32 i, u32 j, u32 k, u32 l) -> T& {
     const auto offset = i * _strides[0] + j * _strides[1] + k * _strides[2] + l * _strides[3];
     return _data[offset];
-  }
-
-  __hd auto operator[](u32 i) const -> NdSlice<T, 3> {
-    const auto data = _data + i * _strides[0];
-    return NdSlice<T, 3>{data, {_shape[1], _shape[2], _shape[3]}, {_strides[1], _strides[2], _strides[3]}};
   }
 
  public:
@@ -384,9 +421,9 @@ struct NdSlice<T, 4> {
     static_assert(I < 4 && J < 4 && K < 4 && L < 4);
     static_assert(I != J && I != K && I != L && J != K && J != L && K != L);
 
-    const u32 new_shape[4] = {_shape[I], _shape[J], _shape[K], _shape[L]};
-    const u32 new_strides[4] = {_strides[I], _strides[J], _strides[K], _strides[L]};
-    return NdSlice<T, 4>{_data, new_shape, new_strides};
+    const u32 shape[4] = {_shape[I], _shape[J], _shape[K], _shape[L]};
+    const u32 strides[4] = {_strides[I], _strides[J], _strides[K], _strides[L]};
+    return NdSlice<T, 4>{_data, shape, strides};
   }
 
   void for_each(auto&& func) const {
@@ -403,18 +440,19 @@ struct NdSlice<T, 4> {
     }
   }
 
-  void fill_with(auto&& func) {
-    for (auto i = 0U; i < _shape[0]; ++i) {
-      auto vol = (*this)[i];
-      vol.fill_with([&](u32 j, u32 k, u32 l) { return func(i, j, k, l); });
-    }
-  }
-
+ public:
   void fmt(auto& f) const {
     auto imp = f.debug_list();
     for (u32 i = 0U; i < _shape[0]; ++i) {
       imp.entry((*this)[i]);
     }
+  }
+
+  void fill_with(auto&& f) {
+    this->for_each_mut([&](u32 i, u32 j, u32 k, u32 l, T& e) {
+      const auto val = f(i, j, k, l);
+      e = val;
+    });
   }
 };
 

@@ -45,6 +45,14 @@ class RawBuf {
   auto cap() const noexcept -> usize {
     return _cap;
   }
+
+  auto as_slice() const -> Slice<const T> {
+    return {_ptr._ptr, _cap};
+  }
+
+  auto as_mut_slice() -> Slice<T> {
+    return {_ptr._ptr, _cap};
+  }
 };
 
 }  // namespace sfc::math
