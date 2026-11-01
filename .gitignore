@@ -1,10 +1,7 @@
 # IDE
 .vs
 .vscode
-CLAUDE.md
-
-# external
-external/
+.cache
 
 # build & test
 build/
