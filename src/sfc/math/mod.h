@@ -106,7 +106,7 @@ inline auto atan2f(f32 y, f32 x) -> f32 {
 }
 
 template <class T>
-auto clamp(T x, T min_val, T max_val) -> T {
+inline auto clamp(T x, T min_val, T max_val) -> T {
   if (x < min_val) return min_val;
   if (x > max_val) return max_val;
   return x;

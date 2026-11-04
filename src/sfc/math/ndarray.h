@@ -89,12 +89,12 @@ class NdArray<T, 1> {
     return _inn[idx];
   }
 
-  auto operator()(u32 i) const -> const T& {
-    return _inn(i);
+  auto get(const u32 (&idx)[1]) const -> T {
+    return _inn.get(idx);
   }
 
-  auto operator()(u32 i) -> T& {
-    return _inn(i);
+  void set(const u32 (&idx)[1], T val) {
+    _inn.set(idx, val);
   }
 };
 
@@ -177,36 +177,12 @@ class NdArray {
     return _inn[idx];
   }
 
-  auto operator()(u32 i) const -> const T& requires(N == 1) {
-    return _inn(i);
+  auto get(const u32 (&idx)[N]) const -> T {
+    return _inn.get(idx);
   }
 
-  auto operator()(u32 i) -> T& requires(N == 1) {
-    return _inn(i);
-  }
-
-  auto operator()(u32 i, u32 j) const -> const T& requires(N == 2) {
-    return _inn(i, j);
-  }
-
-  auto operator()(u32 i, u32 j) -> T& requires(N == 2) {
-    return _inn(i, j);
-  }
-
-  auto operator()(u32 i, u32 j, u32 k) const -> const T& requires(N == 3) {
-    return _inn(i, j, k);
-  }
-
-  auto operator()(u32 i, u32 j, u32 k) -> T& requires(N == 3) {
-    return _inn(i, j, k);
-  }
-
-  auto operator()(u32 i, u32 j, u32 k, u32 l) const -> const T& requires(N == 4) {
-    return _inn(i, j, k, l);
-  }
-
-  auto operator()(u32 i, u32 j, u32 k, u32 l) -> T& requires(N == 4) {
-    return _inn(i, j, k, l);
+  void set(const u32 (&idx)[N], T val) {
+    _inn.set(idx, val);
   }
 };
 
