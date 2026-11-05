@@ -1,6 +1,18 @@
 
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_LIST_DIR}")
 
+
+# dir
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# lto
+if (CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+endif()
+
+# win32
 if(WIN32)
   set(_LOCAL_PREFIX "A:/.local")
   set(CMAKE_INCLUDE_PATH "${_LOCAL_PREFIX}/include")
@@ -8,6 +20,7 @@ if(WIN32)
   set(CMAKE_PROGRAM_PATH "${_LOCAL_PREFIX}/bin")
 endif()
 
+# apple
 if (APPLE)
   include(${CMAKE_CURRENT_LIST_DIR}/cuda.cmake)
 endif()
