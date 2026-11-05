@@ -72,29 +72,21 @@ struct NdSlice<T, 1> {
   void for_each(auto&& f) const {
     for (u32 i = 0U; i < _shape[0]; ++i) {
       const auto& val = (*this)[i];
-      if constexpr (requires { f(val, i); }) {
-        f(val, i);
-      } else {
-        f(val);
-      }
+      f(val, i);
     }
   }
 
   void for_each_mut(auto&& f) {
     for (u32 i = 0U; i < _shape[0]; ++i) {
       auto& val = (*this)[i];
-      if constexpr (requires { f(val, i); }) {
-        f(val, i);
-      } else {
-        f(val);
-      }
+      f(val, i);
     }
   }
 
  public:
   void fmt(auto& f) const {
     auto imp = f.debug_list();
-    this->for_each([&](auto val) { imp.entry(val); });
+    this->for_each([&](auto val, [[maybe_unused]] auto... idxs) { imp.entry(val); });
   }
 
   void fill_with(auto&& f) {
@@ -189,14 +181,14 @@ struct NdSlice {
   void for_each(auto&& f) const {
     for (u32 i = 0U; i < _shape[0]; ++i) {
       const auto v = (*this)[i];
-      v.for_each([&](auto& val, auto... j) { f(val, i, j...); });
+      v.for_each([&](const T& val, auto... j) { f(val, i, j...); });
     }
   }
 
   void for_each_mut(auto&& f) {
     for (u32 i = 0U; i < _shape[0]; ++i) {
       auto v = (*this)[i];
-      v.for_each_mut([&](auto& val, auto... j) { f(val, i, j...); });
+      v.for_each_mut([&](T& val, auto... j) { f(val, i, j...); });
     }
   }
 
@@ -209,19 +201,10 @@ struct NdSlice {
   }
 
   void fill_with(auto&& f) {
-    this->for_each_mut([&](auto& dst, auto... idx) {
+    this->for_each_mut([&](T& dst, auto... idx) {
       const auto val = f(idx...);
       dst = val;
     });
-  }
-
- private:
-  __hd auto offset(const u32 (&idx)[NDIM]) const -> u32 {
-    auto res = 0U;
-    for (u32 i = 0U; i < N; ++i) {
-      res += idx[i] * _strides[i];
-    }
-    return res;
   }
 };
 

@@ -2,7 +2,7 @@
 #include "sfc/io.h"
 #include "sfc/math/vec.h"
 
-namespace sfc::math::vecs::test {
+namespace sfc::math::vec_::test {
 
 SFC_TEST(vec_simple) {
   const auto v1 = vec1f{1.0f};
@@ -101,4 +101,4 @@ SFC_TEST(vec_dot) {
   sfc::assert_eq(dot(vec{1, 2, 3}, vec{4, 5, 6}), 32);
 }
 
-}  // namespace sfc::math::vecs::test
+}  // namespace sfc::math::vec_::test

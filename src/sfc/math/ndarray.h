@@ -96,6 +96,18 @@ class NdArray<T, 1> {
   void set(const u32 (&idx)[1], T val) {
     _inn.set(idx, val);
   }
+
+  void for_each(auto&& f) const {
+    _inn.for_each(f);
+  }
+
+  void for_each_mut(auto&& f) {
+    _inn.for_each_mut(f);
+  }
+
+  void fill_with(auto&& f) {
+    _inn.fill_with(f);
+  }
 };
 
 template <class T, u32 N>
@@ -183,6 +195,18 @@ class NdArray {
 
   void set(const u32 (&idx)[N], T val) {
     _inn.set(idx, val);
+  }
+
+  void for_each(auto&& f) const {
+    _inn.for_each(f);
+  }
+
+  void for_each_mut(auto&& f) {
+    _inn.for_each_mut(f);
+  }
+
+  void fill_with(auto&& f) {
+    _inn.fill_with(f);
   }
 };
 
