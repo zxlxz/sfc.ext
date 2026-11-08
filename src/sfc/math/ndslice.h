@@ -85,8 +85,12 @@ struct NdSlice<T, 1> {
 
  public:
   void fmt(auto& f) const {
-    auto imp = f.debug_list();
-    this->for_each([&](auto val, [[maybe_unused]] auto... idxs) { imp.entry(val); });
+    f.write_str("[");
+    for (u32 i = 0U; i < _shape[0]; ++i) {
+      if (i > 0) f.write_str(", ");
+      f.write_val((*this)[i]);
+    }
+    f.write_str("]");
   }
 
   void fill_with(auto&& f) {
@@ -196,8 +200,10 @@ struct NdSlice {
   void fmt(auto& f) const {
     auto imp = f.debug_list();
     for (u32 i = 0U; i < _shape[0]; ++i) {
-      imp.entry((*this)[i]);
+      const auto v = (*this)[i];
+      imp.entry(v);
     }
+    imp.finish();
   }
 
   void fill_with(auto&& f) {
