@@ -201,7 +201,8 @@ void Device::Info::fmt(fmt::Formatter& f) const {
       .field("sm_count", sm_count)
       .field("async_engine_count", async_engine_count)
       .field("l2_cache_size", l2_cache_size)
-      .field("global_memory", global_memory);
+      .field("global_memory", global_memory)
+      .finish();
 }
 
 }  // namespace sfc::cuda

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sfc/core/io.h"
+#include "sfc/io/bytes.h"
 #include "sfc/math/ndslice.h"
 #include "sfc/math/rawbuf.h"
 
@@ -49,14 +51,6 @@ class NdArray<T, 1> {
 
   auto as_mut_slice() -> Slice<T> {
     return _buf.as_mut_slice();
-  }
-
-  auto as_bytes() const -> Slice<const u8> {
-    return _buf.as_bytes();
-  }
-
-  auto as_mut_bytes() -> Slice<u8> {
-    return _buf.as_mut_bytes();
   }
 
   auto shape(u32 ndim) const -> u32 {
@@ -155,14 +149,6 @@ class NdArray {
     return _buf.as_mut_slice();
   }
 
-  auto as_bytes() const -> Slice<const u8> {
-    return _buf.as_bytes();
-  }
-
-  auto as_mut_bytes() -> Slice<u8> {
-    return _buf.as_mut_bytes();
-  }
-
   auto shape(u32 ndim) const -> u32 {
     return ndim < N ? _inn._shape[ndim] : 0;
   }
@@ -207,6 +193,17 @@ class NdArray {
 
   void fill_with(auto&& f) {
     _inn.fill_with(f);
+  }
+
+ public:
+  auto read_from(auto& r) -> io::Result<> {
+    auto bytes = io::cast_bytes_mut(_buf.as_mut_slice());
+    return r.read_exact(bytes);
+  }
+
+  auto write_to(auto& w) -> io::Result<> {
+    auto bytes = io::cast_bytes(_buf.as_slice());
+    return w.write_all(bytes);
   }
 };
 

@@ -1,0 +1,29 @@
+Index:
+  Background: Build
+  StandardLibrary: true
+
+Diagnostics:
+  UnusedIncludes: None
+  ClangTidy:
+    Add:
+      - bugprone-*
+      - performance-*
+    Remove:
+      - performance-enum-size
+      - bugprone-easily-swappable-parameters
+      - bugprone-macro-parentheses
+      - bugprone-reserved-identifier
+    FastCheckFilter: Strict
+
+Completion:
+  AllScopes: true
+  ArgumentLists: Delimiters
+  HeaderInsertion: Never
+
+InlayHints:
+  Enabled: true
+  BlockEnd: false
+  Designators: false
+  DeducedTypes: false
+  ParameterNames: false
+  DefaultArguments: true

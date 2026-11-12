@@ -10,7 +10,6 @@ enum class MemKind {
   Host = 1,
   Device = 2,
 };
-auto to_str(MemKind kind) -> str::Str;
 
 struct MemLocation {
   MemKind kind{MemKind::Heap};
@@ -30,34 +29,28 @@ struct MemLocation {
   void fmt(fmt::Formatter& f) const;
 };
 
-struct MemBlock {
-  Slice<u8> buf;
-  MemLocation loc;
+auto copy_uva(const void* src, void* dst, usize size) -> Result<>;
+auto copy_h2h(const void* src, void* dst, usize size) -> Result<>;
+auto copy_h2d(const void* src, void* dst, usize size) -> Result<>;
+auto copy_d2h(const void* src, void* dst, usize size) -> Result<>;
+auto copy_d2d(const void* src, void* dst, usize size) -> Result<>;
 
- public:
-  auto fill_bytes(u8 val) -> Result<>;
-  auto copy_from(MemBlock src) -> Result<>;
-};
-
-using math::NdArray;
+auto bzero(void* dst, usize size) -> Result<>;
 
 template <class T, u32 N = 1>
-auto empty(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray<T, N> {
-  return NdArray<T, N>::new_(shape, loc.allocator());
+auto empty(const u32 (&shape)[N], MemLocation loc = {}) -> math::NdArray<T, N> {
+  return math::NdArray<T, N>::new_(shape, loc.allocator());
 }
 
 template <class T, u32 N = 1>
-auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> NdArray<T, N> {
-  auto res = NdArray<T, N>::new_(shape, loc.allocator());
-  auto blk = MemBlock{res.as_mut_bytes(), loc};
-  blk.fill_bytes(0).unwrap();
-  return res;
+auto zero(const u32 (&shape)[N], MemLocation loc = {}) -> math::NdArray<T, N> {
+  return math::NdArray<T, N>::new_zeroed(shape, loc.allocator());
 }
 
 template <class T, u32 N>
-auto empty_like(const NdArray<T, N>& array) -> NdArray<T, N> {
+auto empty_like(const math::NdArray<T, N>& array) -> math::NdArray<T, N> {
   const auto& shape = array.shape();
-  return NdArray<T, N>::new_(shape, array.allocator());
+  return math::NdArray<T, N>::new_(shape, array.allocator());
 }
 
 }  // namespace sfc::cuda

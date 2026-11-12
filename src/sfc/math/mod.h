@@ -105,6 +105,14 @@ inline auto atan2f(f32 y, f32 x) -> f32 {
   return __builtin_atan2f(y, x);
 }
 
+inline auto deg2rad(f32 a) -> f32 {
+  return a * (PI / 180.0f);
+}
+
+inline auto rad2deg(f32 a) -> f32 {
+  return a * (180.0f / PI);
+}
+
 template <class T>
 inline auto clamp(T x, T min_val, T max_val) -> T {
   if (x < min_val) return min_val;

@@ -19,7 +19,7 @@ struct vec<T, 1> {
 
  public:
   void fmt(auto& f) const {
-    f.debug_tuple("").field(x);
+    f.debug_tuple("").field(x).finish();
   }
 };
 
@@ -35,7 +35,7 @@ struct alignas(2*sizeof(T)) vec<T, 2> {
 
  public:
   void fmt(auto& f) const {
-    f.debug_tuple("").field(x).field(y);
+    f.debug_tuple("").field(x).field(y).finish();
   }
 };
 
@@ -51,7 +51,7 @@ struct vec<T, 3> {
 
  public:
   void fmt(auto& f) const {
-    f.debug_tuple("").field(x).field(y).field(z);
+    f.debug_tuple("").field(x).field(y).field(z).finish();
   }
 };
 
@@ -67,7 +67,7 @@ struct alignas(4*sizeof(T)) vec<T, 4> {
 
  public:
   void fmt(auto& f) const {
-    f.debug_tuple("").field(x).field(y).field(z).field(w);
+    f.debug_tuple("").field(x).field(y).field(z).field(w).finish();
   }
 };
 
